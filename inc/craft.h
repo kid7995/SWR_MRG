@@ -1,0 +1,37 @@
+﻿#ifndef CRAFT_H
+#define CRAFT_H
+
+#include <QString>
+
+// 打磨方式（力矩模式、位置模式）
+enum PolishMode { MomentMode, PositionMode };
+// 打磨方式（圆弧、直线、区域圆弧）
+enum PolishWay { ArcWay, LineWay, RegionArcWay1, RegionArcWay2, ZLineWay, SpiralLineWay };
+// 偏移方向（工具坐标系X、Y、Z方向）
+enum OffsetDirection { OffsetX, OffsetY, OffsetZ };
+
+// 工艺参数
+class Craft {
+  private:
+    QString craftID;                 // 工艺名
+    PolishMode mode;                 // 打磨模式
+    PolishWay way;                   // 打磨方式
+    int teachPointReferPos;          // 示教点参考位置
+    int cutinSpeed;                  // 切入速度
+    int moveSpeed;                   // 行进速度
+    int rotateSpeed;                 // 转速
+    int contactForce;                // 接触力
+    int settingForce;                // 设定力
+    int transitionTime;              // 过渡时间
+    OffsetDirection offsetDirection; // 偏移方向
+    int offsetDistance;              // 偏移距离
+    int offsetCount;                 // 圆弧偏移次数
+    int addOffsetCount;              // 新增偏移次数
+
+    friend class MainWindow;
+    friend class Robot;
+    friend class HansRobot;
+    friend class DucoRobot;
+};
+
+#endif // CRAFT_H

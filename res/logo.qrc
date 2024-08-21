@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/">
+        <file>pic/logo.png</file>
+        <file>pic/arc.png</file>
+        <file>pic/line.png</file>
+        <file>pic/z_line.png</file>
+        <file>pic/region_arc.png</file>
+        <file>pic/spiral_line.png</file>
+    </qresource>
+</RCC>
