@@ -1,6 +1,7 @@
 ﻿#ifndef POINT_H
 #define POINT_H
 
+#include <QGenericMatrix>
 #include <QVector3D>
 #include <QVector>
 #include <QtMath>
@@ -12,6 +13,7 @@ enum LengthUnit { MM, M };
 // 角度单位（角度，弧度）
 enum AngleUnit { Deg, Rad };
 
+#pragma execution_character_set("utf-8")
 class Point {
   public:
     Point();
@@ -19,7 +21,9 @@ class Point {
 
     QVector3D calculateToolDirection(OffsetDirection direction,
                                      QVector3D rotation) const;
-    Point PosRelByTool(const OffsetDirection &direction, const double &offset) const;
+    Point PosRelByTool(const OffsetDirection &direction,
+                       const double &offset) const;
+    QString toString() const;
 
     void operator+=(const Point &point);
 
@@ -29,11 +33,25 @@ class Point {
     static QVector3D calculateCircumcenter(const QVector3D &A,
                                            const QVector3D &B,
                                            const QVector3D &C);
+    // 欧拉角转旋转矩阵
+    static QMatrix3x3 toRotationMatrix(const QVector3D &rotation);
+    // 计算指定旋转轴和夹角的旋转矩阵
+    static QMatrix3x3 toRotationMatrix(const QVector3D &axis, float angle);
+    // 旋转矩阵转欧拉角
+    static QVector3D toEulerAngles(const QMatrix3x3 &matrix);
+    // 计算新的姿态
+    static QVector3D getNewRotation(const QVector3D &rotation,
+                                    const QVector3D &moveDirection,
+                                    float angle);
+    // 计算新姿态需要的偏移量
+    static QVector3D getTranslation(const QVector3D &rotation,
+                               const QVector3D &moveDirection, float radius,
+                               float angle);
     static void test();
 
   private:
-    QVector3D pos; // Position
-    QVector3D rot; // Rotation
+    QVector3D pos; // Position, Unit: mm
+    QVector3D rot; // Rotation, Unit: degree
 
     friend class Robot;
     friend class HansRobot;

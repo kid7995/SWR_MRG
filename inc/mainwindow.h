@@ -13,7 +13,7 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-#pragma execution_character_set("utf-8")
+// #pragma execution_character_set("utf-8")
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -59,6 +59,9 @@ class MainWindow : public QMainWindow {
     void on_btnClearMid_clicked();
     void on_btnDelLastMid_clicked();
     void on_btnOpenWeb_clicked();
+    void on_btnMoveToPoint_clicked();
+    void on_btnStop2_clicked();
+
     void on_leCutinSpeed_editingFinished();
     void on_leMoveSpeed_editingFinished();
     void on_leRotateSpeed_editingFinished();
@@ -66,13 +69,14 @@ class MainWindow : public QMainWindow {
     void on_leTransitionTime_editingFinished();
     void on_leSettingForce_editingFinished();
     void on_leTeachPos_editingFinished();
-    void on_leOffsetDistance_editingFinished();
+    void on_leDiscRadius_editingFinished();
+    void on_leGrindAngle_editingFinished();
     void on_leOffsetCount_editingFinished();
     void on_leAddOffsetCount_editingFinished();
+
     void on_cmbCraftID_currentIndexChanged(int index);
     void on_cmbPolishMode_currentIndexChanged(int index);
     void on_cmbPolishWay_currentIndexChanged(int index);
-    void on_cmbOffsetDirection_currentIndexChanged(int index);
     void on_cmbCraftID_editTextChanged(const QString &arg1);
 
   private:

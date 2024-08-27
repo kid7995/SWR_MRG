@@ -1,5 +1,4 @@
-﻿#include <QGenericMatrix>
-#include <QMatrix4x4>
+﻿#include <QMatrix4x4>
 #include <QQuaternion>
 
 #include "point.h"
@@ -42,7 +41,7 @@ QVector3D Point::calculateToolDirection(OffsetDirection direction,
     R_z(0, 0) = qCos(rotation.z());
     R_z(0, 1) = -qSin(rotation.z());
     R_z(1, 0) = qSin(rotation.z());
-    R_z(0, 1) = qCos(rotation.z());
+    R_z(1, 1) = qCos(rotation.z());
 
     // 计算总的旋转矩阵
     QMatrix3x3 R = R_z * R_y * R_x;
@@ -96,6 +95,17 @@ Point Point::PosRelByTool(const OffsetDirection &direction,
     return newPoint;
 }
 
+QString Point::toString() const {
+    QString str = QString("%1、%2、%3、%4、%5、%6")
+                      .arg(pos.x())
+                      .arg(pos.y())
+                      .arg(pos.z())
+                      .arg(rot.x())
+                      .arg(rot.y())
+                      .arg(rot.z());
+    return str;
+}
+
 void Point::operator+=(const Point &point) {
     pos += point.pos;
     // rot += point.rot;
@@ -129,22 +139,111 @@ QVector3D Point::calculateCircumcenter(const QVector3D &A, const QVector3D &B,
     return circumcenter;
 }
 
+QMatrix3x3 Point::toRotationMatrix(const QVector3D &rotation) {
+    // 转换角度为弧度
+    QVector3D rot_rad{qDegreesToRadians(rotation.x()),
+                      qDegreesToRadians(rotation.y()),
+                      qDegreesToRadians(rotation.z())};
+
+    // 定义旋转矩阵
+    QMatrix3x3 R_x;
+    R_x.setToIdentity();
+    R_x(1, 1) = qCos(rot_rad.x());
+    R_x(1, 2) = -qSin(rot_rad.x());
+    R_x(2, 1) = qSin(rot_rad.x());
+    R_x(2, 2) = qCos(rot_rad.x());
+
+    QMatrix3x3 R_y;
+    R_y.setToIdentity();
+    R_y(0, 0) = qCos(rot_rad.y());
+    R_y(0, 2) = qSin(rot_rad.y());
+    R_y(2, 0) = -qSin(rot_rad.y());
+    R_y(2, 2) = qCos(rot_rad.y());
+
+    QMatrix3x3 R_z;
+    R_z.setToIdentity();
+    R_z(0, 0) = qCos(rot_rad.z());
+    R_z(0, 1) = -qSin(rot_rad.z());
+    R_z(1, 0) = qSin(rot_rad.z());
+    R_z(1, 1) = qCos(rot_rad.z());
+
+    // 返回总的旋转矩阵
+    return R_z * R_y * R_x;
+}
+
+QMatrix3x3 Point::toRotationMatrix(const QVector3D &axis, float angle) {
+    return QQuaternion::fromAxisAndAngle(axis, angle).toRotationMatrix();
+}
+
+QVector3D Point::toEulerAngles(const QMatrix3x3 &matrix) {
+    double sy = qSqrt(qPow(matrix(0, 0), 2) + qPow(matrix(1, 0), 2));
+    double rx, ry, rz;
+    if (sy < 1e-6) {
+        rx = qAtan2(-matrix(1, 2), matrix(1, 1));
+        ry = qAtan2(-matrix(2, 0), sy);
+        rz = 0.0;
+    } else {
+        rx = qAtan2(matrix(2, 1), matrix(2, 2));
+        ry = qAtan2(-matrix(2, 0), sy);
+        rz = qAtan2(matrix(1, 0), matrix(0, 0));
+    }
+    return QVector3D(qRadiansToDegrees(rx), qRadiansToDegrees(ry),
+                     qRadiansToDegrees(rz));
+}
+
+QVector3D Point::getNewRotation(const QVector3D &rotation,
+                                const QVector3D &moveDirection, float angle) {
+    QMatrix3x3 R = toRotationMatrix(rotation);
+    QVector3D axis = QVector3D::crossProduct(
+        QVector3D(R(0, 2), R(1, 2), R(2, 2)), moveDirection);
+    QMatrix3x3 newR = toRotationMatrix(axis, angle) * R;
+    return toEulerAngles(newR);
+}
+
+QVector3D Point::getTranslation(const QVector3D &rotation,
+                                const QVector3D &moveDirection, float radius,
+                                float angle) {
+    QVector3D translation = moveDirection.normalized() * radius;
+    QMatrix3x3 R = toRotationMatrix(rotation);
+    QVector3D axis = QVector3D::crossProduct(
+        QVector3D(R(0, 2), R(1, 2), R(2, 2)), moveDirection);
+    QMatrix3x3 newR = toRotationMatrix(axis, angle);
+    return QVector3D(
+        newR(0, 0) * translation.x() + newR(0, 1) * translation.y() +
+            newR(0, 2) * translation.z(),
+        newR(1, 0) * translation.x() + newR(1, 1) * translation.y() +
+            newR(1, 2) * translation.z(),
+        newR(2, 0) * translation.x() + newR(2, 1) * translation.y() +
+            newR(2, 2) * translation.z());
+}
+
+// void Point::test() {
+//     // 定义三个点
+//     QVector3D A(1, 2, 3);
+//     QVector3D B(4, 6, 8);
+//     QVector3D C(7, 8, 9);
+
+//     // 计算外心
+//     QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
+
+//     // 输出外心坐标
+//     qDebug() << "The circumcenter of the triangle is at:" << circumcenter;
+
+//     // 输出半径
+//     qDebug() << "radius: " << A.distanceToPoint(circumcenter);
+//     qDebug() << "radius: " << B.distanceToPoint(circumcenter);
+//     qDebug() << "radius: " << C.distanceToPoint(circumcenter);
+// }
 void Point::test() {
-    // 定义三个点
-    QVector3D A(1, 2, 3);
-    QVector3D B(4, 6, 8);
-    QVector3D C(7, 8, 9);
-
-    // 计算外心
-    QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
-
-    // 输出外心坐标
-    qDebug() << "The circumcenter of the triangle is at:" << circumcenter;
-
-    // 输出半径
-    qDebug() << "radius: " << A.distanceToPoint(circumcenter);
-    qDebug() << "radius: " << B.distanceToPoint(circumcenter);
-    qDebug() << "radius: " << C.distanceToPoint(circumcenter);
+    QVector3D position{4, 5, 6};
+    QVector3D rotation{-179.051, -0.956, -48.983};
+    // QVector3D moveDirection{3, 1, 2};
+    QVector3D moveDirection{-3, -1, -2};
+    float angle = 45;
+    QVector3D newRot = getNewRotation(rotation, moveDirection, angle);
+    qDebug() << newRot;
+    QVector3D offset = getTranslation(rotation, moveDirection, 50, angle);
+    qDebug() << offset;
 }
 
 PointSet::PointSet()

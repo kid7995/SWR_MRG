@@ -1,6 +1,8 @@
 ﻿#include <QDebug>
+#include <QDesktopServices>
 #include <QMessageBox>
 #include <QThread>
+#include <QUrl>
 
 #include "robot.h"
 
@@ -82,10 +84,11 @@ bool Robot::IsAGPEnabled() {
     return false;
 }
 
-bool Robot::GetSafePoint() {
+bool Robot::GetSafePoint(QString &strPoint) {
     if (!pointSet.isSafePointRecorded) {
         if (GetPoint(pointSet.safePoint)) {
             pointSet.isSafePointRecorded = true;
+            strPoint = QString("安全点：") + pointSet.safePoint.toString();
         }
     } else {
         pointSet.isSafePointRecorded = false;
@@ -93,12 +96,13 @@ bool Robot::GetSafePoint() {
     return pointSet.isSafePointRecorded;
 }
 
-bool Robot::GetBeginPoint() {
+bool Robot::GetBeginPoint(QString &strPoint) {
     if (!pointSet.isBeginPointRecorded) {
         if (GetPoint(pointSet.beginPoint)) {
             pointSet.auxBeginPoint = pointSet.beginPoint.PosRelByTool(
                 defaultDirection, defaultOffset);
             pointSet.isBeginPointRecorded = true;
+            strPoint = QString("起始点：") + pointSet.beginPoint.toString();
         }
     } else {
         pointSet.isBeginPointRecorded = false;
@@ -106,12 +110,13 @@ bool Robot::GetBeginPoint() {
     return pointSet.isBeginPointRecorded;
 }
 
-bool Robot::GetEndPoint() {
+bool Robot::GetEndPoint(QString &strPoint) {
     if (!pointSet.isEndPointRecorded) {
         if (GetPoint(pointSet.endPoint)) {
             pointSet.auxEndPoint =
                 pointSet.endPoint.PosRelByTool(defaultDirection, defaultOffset);
             pointSet.isEndPointRecorded = true;
+            strPoint = QString("结束点：") + pointSet.endPoint.toString();
         }
     } else {
         pointSet.isEndPointRecorded = false;
@@ -119,10 +124,11 @@ bool Robot::GetEndPoint() {
     return pointSet.isEndPointRecorded;
 }
 
-bool Robot::GetAuxPoint() {
+bool Robot::GetAuxPoint(QString &strPoint) {
     if (!pointSet.isAuxPointRecorded) {
         if (GetPoint(pointSet.auxPoint)) {
             pointSet.isAuxPointRecorded = true;
+            strPoint = QString("辅助点：") + pointSet.auxPoint.toString();
         }
     } else {
         pointSet.isAuxPointRecorded = false;
@@ -130,10 +136,12 @@ bool Robot::GetAuxPoint() {
     return pointSet.isAuxPointRecorded;
 }
 
-bool Robot::GetBeginOffsetPoint() {
+bool Robot::GetBeginOffsetPoint(QString &strPoint) {
     if (!pointSet.isBeginOffsetPointRecorded) {
         if (GetPoint(pointSet.beginOffsetPoint)) {
             pointSet.isBeginOffsetPointRecorded = true;
+            strPoint =
+                QString("起始偏移点：") + pointSet.beginOffsetPoint.toString();
         }
     } else {
         pointSet.isBeginOffsetPointRecorded = false;
@@ -141,10 +149,12 @@ bool Robot::GetBeginOffsetPoint() {
     return pointSet.isBeginOffsetPointRecorded;
 }
 
-bool Robot::GetEndOffsetPoint() {
+bool Robot::GetEndOffsetPoint(QString &strPoint) {
     if (!pointSet.isEndOffsetPointRecorded) {
         if (GetPoint(pointSet.endOffsetPoint)) {
             pointSet.isEndOffsetPointRecorded = true;
+            strPoint =
+                QString("结束偏移点：") + pointSet.endOffsetPoint.toString();
         }
     } else {
         pointSet.isEndOffsetPointRecorded = false;
@@ -152,13 +162,15 @@ bool Robot::GetEndOffsetPoint() {
     return pointSet.isEndOffsetPointRecorded;
 }
 
-int Robot::GetMidPoint(qint64 pressDuration) {
+int Robot::GetMidPoint(qint64 pressDuration, QString &strPoint) {
     if (pressDuration > 500) {
         DelLastMidPoint();
     } else {
         Point point;
         if (GetPoint(point)) {
             pointSet.midPoints.append(point);
+            strPoint = QString("中间点%1：").arg(pointSet.midPoints.size()) +
+                       point.toString();
         }
     }
     return pointSet.midPoints.size();
@@ -263,6 +275,27 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     return true;
 }
 
+void Robot::MoveToPoint(const QStringList &coordinates) {
+    if (coordinates.size() != 6) {
+        return;
+    }
+    // 定义空间目标位置
+    Point point;
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = 1;
+    point.pos.setX(coordinates.at(0).toDouble());
+    point.pos.setY(coordinates.at(1).toDouble());
+    point.pos.setZ(coordinates.at(2).toDouble());
+    point.rot.setX(coordinates.at(3).toDouble());
+    point.rot.setY(coordinates.at(4).toDouble());
+    point.rot.setZ(coordinates.at(5).toDouble());
+    MoveL(point, dVelocity, dAcc, dRadius);
+}
+
 void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     // 定义空间目标位置
     Point point;
@@ -272,19 +305,21 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     double dAcc = 2000;
     // 定义过渡半径
     double dRadius = 1;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
     // 移到安全点
     point = pointSet.safePoint;
     MoveL(point, dVelocity, dAcc, dRadius);
     // AGP运行
     AGPRun(craft, isAGPRun);
     // 移到起始辅助点
-    point = pointSet.auxBeginPoint.PosRelByTool(direction, offset);
+    // point = pointSet.auxBeginPoint;
+    point.pos = pointSet.beginPoint.pos + translation;
+    point.rot = newRot;
+    point = point.PosRelByTool(defaultDirection, defaultOffset);
     MoveL(point, dVelocity, dAcc, dRadius);
     // 移到起始点
-    point = pointSet.beginPoint.PosRelByTool(direction, offset);
+    // point = pointSet.beginPoint;
+    point.pos = pointSet.beginPoint.pos + translation;
+    point.rot = newRot;
     dVelocity = craft.cutinSpeed;
     MoveL(point, dVelocity, dAcc, dRadius);
 }
@@ -311,19 +346,20 @@ void Robot::MoveLine(const Craft &craft) {
     double dAcc = 100;
     // 定义过渡半径
     double dRadius = 1;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
     // 定义空间目标位置
     Point point;
     for (int i = 0; i < pointSet.midPoints.size(); ++i) {
         // 定义空间目标位置
-        point = pointSet.midPoints[i].PosRelByTool(direction, offset);
+        // point = pointSet.midPoints.at(i);
+        point.pos = pointSet.midPoints.at(i).pos + translation;
+        point.rot = newRot;
         // 执行路点运动
         MoveL(point, dVelocity, dAcc, dRadius);
     }
     // 移到结束点
-    point = pointSet.endPoint.PosRelByTool(direction, offset);
+    // point = pointSet.endPoint;
+    point.pos = pointSet.endPoint.pos + translation;
+    point.rot = newRot;
     MoveL(point, dVelocity, dAcc, dRadius);
 }
 
@@ -334,23 +370,27 @@ void Robot::MoveArc(const Craft &craft) {
     double dAcc = 100;
     // 定义过渡半径
     double dRadius = 1;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
     // 圆弧运动
     int i = 0;
     Point posMidRel, posEndRel;
     for (; i < pointSet.midPoints.size() - 1; i += 2) {
         // 定义空间目标位置
-        posMidRel = pointSet.midPoints.at(i).PosRelByTool(direction, offset);
-        posEndRel =
-            pointSet.midPoints.at(i + 1).PosRelByTool(direction, offset);
+        // posMidRel = pointSet.midPoints.at(i);
+        posMidRel.pos = pointSet.midPoints.at(i).pos + translation;
+        posMidRel.rot = newRot;
+        // posEndRel = pointSet.midPoints.at(i + 1);
+        posEndRel.pos = pointSet.midPoints.at(i + 1).pos + translation;
+        posEndRel.rot = newRot;
         // 执行路点运动
         MoveC(posMidRel, posEndRel, dVelocity, dAcc, dRadius);
     }
     // 定义空间目标位置
-    posMidRel = pointSet.midPoints.at(i).PosRelByTool(direction, offset);
-    posEndRel = pointSet.endPoint.PosRelByTool(direction, offset);
+    // posMidRel = pointSet.midPoints.at(i);
+    posMidRel.pos = pointSet.midPoints.at(i).pos + translation;
+    posMidRel.rot = newRot;
+    // posEndRel = pointSet.endPoint;
+    posEndRel.pos = pointSet.endPoint.pos + translation;
+    posEndRel.rot = newRot;
     // 执行路点运动
     MoveC(posMidRel, posEndRel, dVelocity, dAcc, dRadius);
 }
@@ -362,9 +402,6 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     double dAcc = 100;
     // 定义过渡半径
     double dRadius = 1;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
     // 计算单次偏移量
     int count = craft.offsetCount;
     // Position beginOffset = (beginOffsetPoint - beginPoint) / count;
@@ -399,7 +436,7 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     //          << midOffset.rz;
     // 定义空间目标位置
     // 正向起始、结束
-    Point posBeginRel = pointSet.beginPoint.PosRelByTool(direction, offset);
+    Point posBeginRel = pointSet.beginPoint;
     // qDebug() << "beginPoint" << beginPoint.x << " " << beginPoint.y << " "
     //          << beginPoint.z << " " << beginPoint.rx << " " << beginPoint.ry
     //          << " " << beginPoint.rz;
@@ -407,7 +444,7 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     //          << posBeginRel.z << " " << posBeginRel.rx << " " <<
     //          posBeginRel.ry
     //          << " " << posBeginRel.rz;
-    Point posEndRel = pointSet.endPoint.PosRelByTool(direction, offset);
+    Point posEndRel = pointSet.endPoint;
     // qDebug() << "endPoint" << endPoint.x << " " << endPoint.y << " "
     //          << endPoint.z << " " << endPoint.rx << " " << endPoint.ry << " "
     //          << endPoint.rz;
@@ -418,8 +455,7 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     // 反向起始、结束
     Point posBeginRelInv;
     posBeginRelInv.pos =
-        pointSet.endOffsetPoint.PosRelByTool(direction, offset).pos -
-        midOffset.pos * (count + 1);
+        pointSet.endOffsetPoint.pos - midOffset.pos * (count + 1);
     // qDebug() << "endOffsetPoint" << endOffsetPoint.x << " " <<
     // endOffsetPoint.y
     //          << " " << endOffsetPoint.z << " " << endOffsetPoint.rx << " "
@@ -430,8 +466,7 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     //          << posBeginRelInv.ry << " " << posBeginRelInv.rz;
     Point posEndRelInv;
     posEndRelInv.pos =
-        pointSet.beginOffsetPoint.PosRelByTool(direction, offset).pos -
-        midOffset.pos * (count + 1);
+        pointSet.beginOffsetPoint.pos - midOffset.pos * (count + 1);
     // qDebug() << "beginOffsetPoint" << beginOffsetPoint.x << " "
     //          << beginOffsetPoint.y << " " << beginOffsetPoint.z << " "
     //          << beginOffsetPoint.rx << " " << beginOffsetPoint.ry << " "
@@ -442,21 +477,28 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     //          << posEndRelInv.ry << " " << posEndRelInv.rz;
     QVector<Point> posMidRelList;
     for (int i = 0; i < pointSet.midPoints.size(); i++) {
-        Point posMidRel =
-            pointSet.midPoints.at(i).PosRelByTool(direction, offset);
+        Point posMidRel = pointSet.midPoints.at(i);
         posMidRelList.append(posMidRel);
     }
     int idx = 0;
     Point posAux, posEnd;
     for (; idx < posMidRelList.size() - 1; idx += 2) {
         // 正向圆弧运动
-        posEnd = posMidRelList.at(idx + 1);
-        posAux = posMidRelList.at(idx);
+        // posEnd = posMidRelList.at(idx + 1);
+        posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+        posEnd.rot = newRot;
+        // posAux = posMidRelList.at(idx);
+        posAux.pos = posMidRelList.at(idx).pos + translation;
+        posAux.rot = newRot;
         MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     }
     // 正向圆弧运动
-    posEnd = posEndRel;
-    posAux = posMidRelList.at(idx);
+    // posEnd = posEndRel;
+    posEnd.pos = posEndRel.pos + translation;
+    posEnd.rot = newRot;
+    // posAux = posMidRelList.at(idx);
+    posAux.pos = posMidRelList.at(idx).pos + translation;
+    posAux.rot = newRot;
     MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     Point pos;
     // 新增圆弧次数
@@ -464,7 +506,9 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     for (int i = 0; i < count + addCount; ++i) {
         if (i % 2 == 0) { // 反向
             // 抬高
-            pos = posEndRel;
+            // pos = posEndRel;
+            pos.pos = posEndRel.pos + translation;
+            pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
@@ -479,7 +523,9 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
                 // posMidRelList[j] += midOffsetList[j];
                 posMidRelList[j] += midOffset;
             }
-            pos = posBeginRelInv;
+            // pos = posBeginRelInv;
+            pos.pos = posBeginRelInv.pos + translationInv;
+            pos.rot = newRotInv;
             // pos.rx = endOffsetPoint.rx;
             // pos.ry = endOffsetPoint.ry;
             // pos.rz = endOffsetPoint.rz;
@@ -489,7 +535,9 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
             //          << " " << pos.ry << " " << pos.rz;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            pos = posBeginRelInv;
+            // pos = posBeginRelInv;
+            pos.pos = posBeginRelInv.pos + translationInv;
+            pos.rot = newRotInv;
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
             //          << " " << pos.ry << " " << pos.rz;
@@ -500,22 +548,37 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
             // 反向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
-                posEnd.rot = posEnd.rot - posBeginRel.rot +
-                             pointSet.beginOffsetPoint.rot;
-                posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-                posAux.rot = posAux.rot - posBeginRel.rot +
-                             pointSet.beginOffsetPoint.rot;
+                // posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
+                // posEnd.rot = posEnd.rot - posBeginRel.rot +
+                //              pointSet.beginOffsetPoint.rot;
+                posEnd.pos =
+                    posMidRelList.at(posMidRelList.size() - idx - 2).pos +
+                    translationInv;
+                posEnd.rot = newRotInv;
+                // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+                // posAux.rot = posAux.rot - posBeginRel.rot +
+                //              pointSet.beginOffsetPoint.rot;
+                posAux.pos =
+                    posMidRelList.at(posMidRelList.size() - idx - 1).pos +
+                    translationInv;
+                posAux.rot = newRotInv;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            posEnd = posEndRelInv;
-            posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-            posAux.rot =
-                posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
+            // posEnd = posEndRelInv;
+            posEnd.pos = posEndRelInv.pos + translationInv;
+            posEnd.rot = newRotInv;
+            // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+            // posAux.rot =
+            //     posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
+            posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos +
+                         translationInv;
+            posAux.rot = newRotInv;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         } else { // 正向
             // 抬高
-            pos = posEndRelInv;
+            // pos = posEndRelInv;
+            pos.pos = posEndRelInv.pos + translationInv;
+            pos.rot = newRotInv;
             // pos.rx = beginOffsetPoint.rx;
             // pos.ry = beginOffsetPoint.ry;
             // pos.rz = beginOffsetPoint.rz;
@@ -530,25 +593,38 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
                 // posMidRelList[j] += midOffsetList[j];
                 posMidRelList[j] += midOffset;
             }
-            pos = posBeginRel;
+            // pos = posBeginRel;
+            pos.pos = posBeginRel.pos + translation;
+            pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            pos = posBeginRel;
+            // pos = posBeginRel;
+            pos.pos = posBeginRel.pos + translation;
+            pos.rot = newRot;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 正向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                posEnd = posMidRelList.at(idx + 1);
-                posAux = posMidRelList.at(idx);
+                // posEnd = posMidRelList.at(idx + 1);
+                posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+                posEnd.rot = newRot;
+                // posAux = posMidRelList.at(idx);
+                posAux.pos = posMidRelList.at(idx).pos + translation;
+                posAux.rot = newRot;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            posEnd = posEndRel;
-            posAux = posMidRelList.at(idx);
+            // posEnd = posEndRel;
+            posEnd.pos = posEndRel.pos + translation;
+            posEnd.rot = newRot;
+            // posAux = posMidRelList.at(idx);
+            posAux.pos = posMidRelList.at(idx).pos + translation;
+            posAux.rot = newRot;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         }
     }
-    return (count + addCount) % 2 == 0 ? posEndRel : posEndRelInv;
+    // return (count + addCount) % 2 == 0 ? posEndRel : posEndRelInv;
+    return posEnd;
 }
 
 Point Robot::MoveRegionArc2(const Craft &craft) {
@@ -558,9 +634,6 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     double dAcc = 100;
     // 定义过渡半径
     double dRadius = 1;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
     // 计算单次偏移量
     int count = craft.offsetCount;
     // Position beginOffset = (beginOffsetPoint - beginPoint) / count;
@@ -604,7 +677,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     //          << midOffset.rz;
     // 定义空间目标位置
     // 正向起始、结束
-    Point posBeginRel = pointSet.beginPoint.PosRelByTool(direction, offset);
+    Point posBeginRel = pointSet.beginPoint;
     // qDebug() << "beginPoint" << beginPoint.x << " " << beginPoint.y << " "
     //          << beginPoint.z << " " << beginPoint.rx << " " << beginPoint.ry
     //          << " " << beginPoint.rz;
@@ -612,7 +685,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     //          << posBeginRel.z << " " << posBeginRel.rx << " " <<
     //          posBeginRel.ry
     //          << " " << posBeginRel.rz;
-    Point posEndRel = pointSet.endPoint.PosRelByTool(direction, offset);
+    Point posEndRel = pointSet.endPoint;
     // qDebug() << "endPoint" << endPoint.x << " " << endPoint.y << " "
     //          << endPoint.z << " " << endPoint.rx << " " << endPoint.ry << " "
     //          << endPoint.rz;
@@ -623,8 +696,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     // 反向起始、结束
     Point posBeginRelInv;
     posBeginRelInv.pos =
-        pointSet.endOffsetPoint.PosRelByTool(direction, offset).pos -
-        endOffset.pos * (count + 1);
+        pointSet.endOffsetPoint.pos - endOffset.pos * (count + 1);
     // qDebug() << "endOffsetPoint" << endOffsetPoint.x << " " <<
     // endOffsetPoint.y
     //          << " " << endOffsetPoint.z << " " << endOffsetPoint.rx << " "
@@ -635,8 +707,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     //          << posBeginRelInv.ry << " " << posBeginRelInv.rz;
     Point posEndRelInv;
     posEndRelInv.pos =
-        pointSet.beginOffsetPoint.PosRelByTool(direction, offset).pos -
-        beginOffset.pos * (count + 1);
+        pointSet.beginOffsetPoint.pos - beginOffset.pos * (count + 1);
     // qDebug() << "beginOffsetPoint" << beginOffsetPoint.x << " "
     //          << beginOffsetPoint.y << " " << beginOffsetPoint.z << " "
     //          << beginOffsetPoint.rx << " " << beginOffsetPoint.ry << " "
@@ -647,27 +718,36 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     //          << posEndRelInv.ry << " " << posEndRelInv.rz;
     QVector<Point> posMidRelList;
     for (int i = 0; i < pointSet.midPoints.size(); i++) {
-        Point posMidRel =
-            pointSet.midPoints.at(i).PosRelByTool(direction, offset);
+        Point posMidRel = pointSet.midPoints.at(i);
         posMidRelList.append(posMidRel);
     }
     int idx = 0;
     Point posAux, posEnd;
     for (; idx < posMidRelList.size() - 1; idx += 2) {
         // 正向圆弧运动
-        posEnd = posMidRelList.at(idx + 1);
-        posAux = posMidRelList.at(idx);
+        // posEnd = posMidRelList.at(idx + 1);
+        posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+        posEnd.rot = newRot;
+        // posAux = posMidRelList.at(idx);
+        posAux.pos = posMidRelList.at(idx).pos + translation;
+        posAux.rot = newRot;
         MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     }
     // 正向圆弧运动
-    posEnd = posEndRel;
-    posAux = posMidRelList.at(idx);
+    // posEnd = posEndRel;
+    posEnd.pos = posEndRel.pos + translation;
+    posEnd.rot = newRot;
+    // posAux = posMidRelList.at(idx);
+    posAux.pos = posMidRelList.at(idx).pos + translation;
+    posAux.rot = newRot;
     MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     Point pos;
     for (int i = 0; i < count; ++i) {
         if (i % 2 == 0) { // 反向
             // 抬高
-            pos = posEndRel;
+            // pos = posEndRel;
+            pos.pos = posEndRel.pos + translation;
+            pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
@@ -682,7 +762,9 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
                 posMidRelList[j] += midOffsetList[j];
                 // posMidRelList[j] += midOffset;
             }
-            pos = posBeginRelInv;
+            // pos = posBeginRelInv;
+            pos.pos = posBeginRelInv.pos + translationInv;
+            pos.rot = newRotInv;
             // pos.rx = endOffsetPoint.rx;
             // pos.ry = endOffsetPoint.ry;
             // pos.rz = endOffsetPoint.rz;
@@ -692,7 +774,9 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
             //          << " " << pos.ry << " " << pos.rz;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            pos = posBeginRelInv;
+            // pos = posBeginRelInv;
+            pos.pos = posBeginRelInv.pos + translationInv;
+            pos.rot = newRotInv;
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
             //          << " " << pos.ry << " " << pos.rz;
@@ -703,22 +787,32 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
             // 反向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
-                posEnd.rot = posEnd.rot - posBeginRel.rot +
-                             pointSet.beginOffsetPoint.rot;
-                posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-                posAux.rot = posAux.rot - posBeginRel.rot +
-                             pointSet.beginOffsetPoint.rot;
+                // posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
+                // posEnd.rot = posEnd.rot - posBeginRel.rot +
+                //              pointSet.beginOffsetPoint.rot;
+                posEnd.pos = posMidRelList.at(posMidRelList.size() - idx - 2).pos + translationInv;
+                posEnd.rot = newRotInv;
+                // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+                // posAux.rot = posAux.rot - posBeginRel.rot +
+                //              pointSet.beginOffsetPoint.rot;
+                posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos + translationInv;
+                posAux.rot = newRotInv;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            posEnd = posEndRelInv;
-            posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-            posAux.rot =
-                posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
+            // posEnd = posEndRelInv;
+            posEnd.pos = posEndRelInv.pos + translationInv;
+            posEnd.rot = newRotInv;
+            // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+            // posAux.rot =
+            //     posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
+            posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos + translationInv;
+            posAux.rot = newRotInv;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         } else { // 正向
             // 抬高
-            pos = posEndRelInv;
+            // pos = posEndRelInv;
+            pos.pos = posEndRelInv.pos + translationInv;
+            pos.rot = newRotInv;
             // pos.rx = beginOffsetPoint.rx;
             // pos.ry = beginOffsetPoint.ry;
             // pos.rz = beginOffsetPoint.rz;
@@ -733,25 +827,38 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
                 posMidRelList[j] += midOffsetList[j];
                 // posMidRelList[j] += midOffset;
             }
-            pos = posBeginRel;
+            // pos = posBeginRel;
+            pos.pos = posBeginRel.pos + translation;
+            pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            pos = posBeginRel;
+            // pos = posBeginRel;
+            pos.pos = posBeginRel.pos + translation;
+            pos.rot = newRot;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 正向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                posEnd = posMidRelList.at(idx + 1);
-                posAux = posMidRelList.at(idx);
+                // posEnd = posMidRelList.at(idx + 1);
+                posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+                posEnd.rot = newRot;
+                // posAux = posMidRelList.at(idx);
+                posAux.pos = posMidRelList.at(idx).pos + translation;
+                posAux.rot = newRot;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            posEnd = posEndRel;
-            posAux = posMidRelList.at(idx);
+            // posEnd = posEndRel;
+            posEnd.pos = posEndRel.pos + translation;
+            posEnd.rot = newRot;
+            // posAux = posMidRelList.at(idx);
+            posAux.pos = posMidRelList.at(idx).pos + translation;
+            posAux.rot = newRot;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         }
     }
-    return count % 2 == 0 ? posEndRel : posEndRelInv;
+    // return count % 2 == 0 ? posEndRel : posEndRelInv;
+    return posEnd;
 }
 
 void Robot::MoveZLine(const Craft &craft) {
@@ -761,25 +868,24 @@ void Robot::MoveZLine(const Craft &craft) {
     double dAcc = 100;
     // 定义过渡半径
     double dRadius = 1;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
+
     int size = craft.offsetCount + 1;
     float factor = 1.0 / size;
 
     Point point = pointSet.beginPoint;
-    Point pointRel;
-    Point pointOffset;
+    Point pointOffset, pos;
     pointOffset.pos = pointSet.auxPoint.pos - pointSet.beginPoint.pos;
     pointOffset.rot = pointSet.auxPoint.rot - pointSet.beginPoint.rot;
     for (int i = 1; i <= size; ++i) {
         point += pointOffset;
-        pointRel = point.PosRelByTool(direction, offset);
-        MoveL(pointRel, dVelocity, dAcc, dRadius);
+        pos.pos = point.pos + translation;
+        pos.rot = newRot;
+        MoveL(pos, dVelocity, dAcc, dRadius);
         point =
             Point::scale(pointSet.beginPoint, pointSet.endPoint, factor * i);
-        pointRel = point.PosRelByTool(direction, offset);
-        MoveL(pointRel, dVelocity, dAcc, dRadius);
+        pos.pos = point.pos + translation;
+        pos.rot = newRot;
+        MoveL(pos, dVelocity, dAcc, dRadius);
     }
 }
 
@@ -790,9 +896,7 @@ void Robot::MoveSpiralLine(const Craft &craft) {
     double dAcc = 100;
     // 定义过渡半径
     double dRadius = 1;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
+
     int size = craft.offsetCount + 1;
     float factor = 1.0 / (2 * size + 2);
 
@@ -808,10 +912,13 @@ void Robot::MoveSpiralLine(const Craft &craft) {
         temp.normalized() * pointSet.beginPoint.pos.distanceToPoint(O) - temp;
     QVector3D downOffset = temp * (-0.5);
     pointAux.pos += upOffset;
-    Point pointEndRel = pointEnd.PosRelByTool(direction, offset);
-    Point pointAuxRel = pointAux.PosRelByTool(direction, offset);
+    Point posAux, posEnd;
+    posAux.pos = pointAux.pos + translation;
+    posAux.rot = newRot;
+    posEnd.pos = pointEnd.pos + translation;
+    posEnd.rot = newRot;
     // 执行路点运动
-    MoveC(pointAuxRel, pointEndRel, dVelocity, dAcc, dRadius);
+    MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     for (int i = 1; i < size; ++i) {
         // 小圆弧
         pointEnd = Point::scale(pointSet.beginPoint, pointSet.endPoint,
@@ -819,28 +926,47 @@ void Robot::MoveSpiralLine(const Craft &craft) {
         pointAux = Point::scale(pointSet.beginPoint, pointSet.endPoint,
                                 factor * (2 * i + 1));
         pointAux.pos += downOffset;
-        pointEndRel = pointEnd.PosRelByTool(direction, offset);
-        pointAuxRel = pointAux.PosRelByTool(direction, offset);
-        MoveC(pointAuxRel, pointEndRel, dVelocity, dAcc, dRadius);
+        posAux.pos = pointAux.pos + translation;
+        posAux.rot = newRot;
+        posEnd.pos = pointEnd.pos + translation;
+        posEnd.rot = newRot;
+        MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         // 大圆弧
         pointEnd = Point::scale(pointSet.beginPoint, pointSet.endPoint,
                                 factor * (2 * i + 4));
         pointAux = Point::scale(pointSet.beginPoint, pointSet.endPoint,
                                 factor * (2 * i + 2));
         pointAux.pos += upOffset;
-        pointEndRel = pointEnd.PosRelByTool(direction, offset);
-        pointAuxRel = pointAux.PosRelByTool(direction, offset);
-        MoveC(pointAuxRel, pointEndRel, dVelocity, dAcc, dRadius);
+        posAux.pos = pointAux.pos + translation;
+        posAux.rot = newRot;
+        posEnd.pos = pointEnd.pos + translation;
+        posEnd.rot = newRot;
+        MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     }
 }
 
 void Robot::Run(const Craft &craft, bool isAGPRun) {
     // QThread::msleep(100);
+    double radius = craft.discRadius;
+    double angle = craft.grindAngle;
+    QVector3D rotation = pointSet.beginPoint.rot;
+    QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
+    // 获取新的姿态
+    newRot = Point::getNewRotation(rotation, moveDirection, angle);
+    // 获取新姿态需要的平移量
+    translation = Point::getTranslation(rotation, moveDirection, radius, angle);
+    // 获取反向姿态和平移量
+    rotation = pointSet.endPoint.rot;
+    moveDirection = pointSet.beginPoint.pos - pointSet.endPoint.pos;
+    newRotInv = Point::getNewRotation(rotation, moveDirection, angle);
+    translationInv =
+        Point::getTranslation(rotation, moveDirection, radius, angle);
+    // 开始运动
     MoveBefore(craft, isAGPRun);
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    Point point = pointSet.auxEndPoint.PosRelByTool(direction, offset);
+    // Point point = pointSet.auxEndPoint;
+    Point point;
+    point.pos = pointSet.endPoint.pos + translation;
+    point.rot = newRot;
     // 选择打磨方式
     switch (craft.way) {
     case PolishWay::ArcWay:
@@ -851,11 +977,9 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
         break;
     case PolishWay::RegionArcWay1:
         point = MoveRegionArc1(craft);
-        point = point.PosRelByTool(defaultDirection, defaultOffset);
         break;
     case PolishWay::RegionArcWay2:
         point = MoveRegionArc2(craft);
-        point = point.PosRelByTool(defaultDirection, defaultOffset);
         break;
     case PolishWay::ZLineWay:
         MoveZLine(craft);
@@ -866,6 +990,7 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     default:
         break;
     }
+    point = point.PosRelByTool(defaultDirection, defaultOffset);
     MoveAfter(craft, point);
 }
 
@@ -885,6 +1010,8 @@ bool HansRobot::RobotConnect(QString robotIP) {
     if (nRet == 0) {
         // 机器人上电
         HRIF_Electrify(0);
+        // 机器人使能
+        HRIF_GrpEnable(0, 0);
         // 设置速度比
         HRIF_SetOverride(0, 0, 1.0);
         return true;
@@ -2047,6 +2174,10 @@ bool HansRobot::Stop() {
     return true;
 }
 
+void HansRobot::OpenWeb(QString ip) {
+    QDesktopServices::openUrl(QUrl("http://" + ip + "/dist"));
+}
+
 void HansRobot::MoveL(const Point &point, double velocity, double acc,
                       double radius) {
     // 定义运动类型
@@ -2084,6 +2215,7 @@ void HansRobot::MoveL(const Point &point, double velocity, double acc,
                   dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
                   nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
 }
+
 void HansRobot::MoveC(const Point &auxPoint, const Point &endPoint,
                       double velocity, double acc, double radius) {
     // 定义运动类型
@@ -2520,6 +2652,11 @@ bool DucoRobot::Stop() {
 
     return true;
 }
+
+void DucoRobot::OpenWeb(QString ip) {
+    QDesktopServices::openUrl(QUrl("http://" + ip + ":7000"));
+}
+
 */
 
 JakaRobot::JakaRobot() {}
@@ -2527,11 +2664,13 @@ JakaRobot::JakaRobot() {}
 JakaRobot::~JakaRobot() {
     jakaRobot.drag_mode_enable(FALSE);
     jakaRobot.disable_robot();
+    // jakaRobot.login_out();
 }
 
 bool JakaRobot::RobotConnect(QString robotIP) {
     // std::string ip = robotIP.toStdString();
-    std::string ip = "192.168.1.20";
+    // std::string ip = "192.168.1.20";
+    std::string ip = "10.5.5.100";
     const char *hostname = ip.c_str();
     // 连接机器人
     errno_t ret = jakaRobot.login_in(hostname);
@@ -2540,6 +2679,8 @@ bool JakaRobot::RobotConnect(QString robotIP) {
     }
     // 机器人上电
     jakaRobot.power_on();
+    // 机器人使能
+    jakaRobot.enable_robot();
     // 设置速度比
     jakaRobot.set_rapidrate(1.0);
     return true;
@@ -2554,9 +2695,9 @@ bool JakaRobot::GetPoint(Point &point) {
     point.pos.setX(tcp_pos.tran.x);
     point.pos.setY(tcp_pos.tran.y);
     point.pos.setZ(tcp_pos.tran.z);
-    point.rot.setX(qRadiansToDegrees(tcp_pos.rpy.rx));
-    point.rot.setY(qRadiansToDegrees(tcp_pos.rpy.ry));
-    point.rot.setZ(qRadiansToDegrees(tcp_pos.rpy.rz));
+    point.rot.setX(qRound(qRadiansToDegrees(tcp_pos.rpy.rx) * 1000.0) / 1000.0);
+    point.rot.setY(qRound(qRadiansToDegrees(tcp_pos.rpy.ry) * 1000.0) / 1000.0);
+    point.rot.setZ(qRound(qRadiansToDegrees(tcp_pos.rpy.rz) * 1000.0) / 1000.0);
     return true;
 }
 
@@ -2650,6 +2791,8 @@ bool JakaRobot::IsRobotMoved() {
     return in_pos;
 }
 
+void JakaRobot::OpenWeb(QString ip) {}
+
 void JakaRobot::MoveL(const Point &point, double dVelocity, double dAcc,
                       double dRadius) {
     CartesianPose pos;
@@ -2659,7 +2802,8 @@ void JakaRobot::MoveL(const Point &point, double dVelocity, double dAcc,
     pos.rpy.rx = qDegreesToRadians(point.rot.x());
     pos.rpy.ry = qDegreesToRadians(point.rot.y());
     pos.rpy.rz = qDegreesToRadians(point.rot.z());
-    jakaRobot.linear_move(&pos, MoveMode::ABS, TRUE, dVelocity);
+
+    jakaRobot.linear_move(&pos, MoveMode::ABS, FALSE, dVelocity);
 }
 
 void JakaRobot::MoveC(const Point &auxPoint, const Point &endPoint,
@@ -2679,7 +2823,6 @@ void JakaRobot::MoveC(const Point &auxPoint, const Point &endPoint,
     endPos.rpy.ry = qDegreesToRadians(endPoint.rot.y());
     endPos.rpy.rz = qDegreesToRadians(endPoint.rot.z());
 
-    jakaRobot.circular_move(&endPos, &midPos, MoveMode::ABS, TRUE,
-                            qDegreesToRadians(dVelocity),
-                            qDegreesToRadians(dAcc), 0.1, NULL, 0);
+    jakaRobot.circular_move(&endPos, &midPos, MoveMode::ABS, FALSE, dVelocity,
+                            dAcc, 0.1, NULL, 0);
 }

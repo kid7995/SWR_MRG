@@ -1,10 +1,9 @@
-﻿#include <QDesktopServices>
+﻿#include <QDebug>
 #include <QFile>
 #include <QMessageBox>
 #include <QSettings>
 #include <QTextStream>
 #include <QThread>
-#include <QUrl>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -35,9 +34,8 @@ MainWindow::MainWindow(QWidget *parent)
                 "0\n1\\PolishWay=0\n1\\TeachingPointReferencePosition="
                 "10\n1\\CutinSpeed=100\n1\\MovingSpeed=50\n1\\RotationSpeed="
                 "4500\n1\\ContactForce=10\n1\\SettingForce="
-                "80\n1\\TransitionTime=1500\n1\\OffsetDirection="
-                "2\n1\\OffsetDistance=0\n1\\OffsetCount=0\n1\\AddOffsetCount="
-                "0\n");
+                "80\n1\\TransitionTime=1500\n1\\DiscRadius=50\n1\\GrindAngle="
+                "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n");
             // 关闭文件
             file.close();
         } else {
@@ -67,9 +65,8 @@ MainWindow::MainWindow(QWidget *parent)
         craft.contactForce = settings.value("ContactForce").toInt();
         craft.settingForce = settings.value("SettingForce").toInt();
         craft.transitionTime = settings.value("TransitionTime").toInt();
-        craft.offsetDirection =
-            (OffsetDirection)settings.value("OffsetDirection").toInt();
-        craft.offsetDistance = settings.value("OffsetDistance").toInt();
+        craft.discRadius = settings.value("DiscRadius").toInt();
+        craft.grindAngle = settings.value("GrindAngle").toInt();
         craft.offsetCount = settings.value("OffsetCount").toInt();
         craft.addOffsetCount = settings.value("AddOffsetCount").toInt();
         crafts.append(craft);
@@ -89,6 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
     ConnectAGP();
     // test
     // EnableButtons();
+    // Point::test();
 }
 
 MainWindow::~MainWindow() { delete ui; }
@@ -111,8 +109,8 @@ void MainWindow::SavePara(int index) {
     settings.setValue("ContactForce", crafts.at(index).contactForce);
     settings.setValue("SettingForce", crafts.at(index).settingForce);
     settings.setValue("TransitionTime", crafts.at(index).transitionTime);
-    settings.setValue("OffsetDirection", crafts.at(index).offsetDirection);
-    settings.setValue("OffsetDistance", crafts.at(index).offsetDistance);
+    settings.setValue("DiscRadius", crafts.at(index).discRadius);
+    settings.setValue("GrindAngle", crafts.at(index).grindAngle);
     settings.setValue("OffsetCount", crafts.at(index).offsetCount);
     settings.setValue("AddOffsetCount", crafts.at(index).addOffsetCount);
     // 记录工艺参数数量
@@ -138,10 +136,10 @@ void MainWindow::ReadCurrPara() {
         QString::number(crafts.at(currCraftIdx).settingForce));
     ui->leTransitionTime->setText(
         QString::number(crafts.at(currCraftIdx).transitionTime));
-    ui->cmbOffsetDirection->setCurrentIndex(
-        crafts.at(currCraftIdx).offsetDirection);
-    ui->leOffsetDistance->setText(
-        QString::number(crafts.at(currCraftIdx).offsetDistance));
+    ui->leDiscRadius->setText(
+        QString::number(crafts.at(currCraftIdx).discRadius));
+    ui->leGrindAngle->setText(
+        QString::number(crafts.at(currCraftIdx).grindAngle));
     ui->leOffsetCount->setText(
         QString::number(crafts.at(currCraftIdx).offsetCount));
     ui->leAddOffsetCount->setText(
@@ -193,6 +191,10 @@ void MainWindow::EnableButtons() {
     ui->btnTryRun->setStyleSheet(defaultStyleSheet);
     ui->btnRun->setEnabled(true);
     ui->btnRun->setStyleSheet(defaultStyleSheet);
+    ui->btnMoveToPoint->setEnabled(true);
+    ui->btnMoveToPoint->setStyleSheet(defaultStyleSheet);
+    ui->btnStop2->setEnabled(true);
+    ui->btnStop2->setStyleSheet(defaultStyleSheet);
 }
 
 void MainWindow::SetValidator() {
@@ -204,7 +206,8 @@ void MainWindow::SetValidator() {
     ui->leTransitionTime->setValidator(new QIntValidator(ui->leTransitionTime));
     ui->leSettingForce->setValidator(new QIntValidator(ui->leSettingForce));
     ui->leTeachPos->setValidator(new QIntValidator(ui->leTeachPos));
-    ui->leOffsetDistance->setValidator(new QIntValidator(ui->leOffsetDistance));
+    ui->leDiscRadius->setValidator(new QIntValidator(ui->leDiscRadius));
+    ui->leGrindAngle->setValidator(new QIntValidator(ui->leGrindAngle));
     ui->leOffsetCount->setValidator(new QIntValidator(ui->leOffsetCount));
     ui->leAddOffsetCount->setValidator(new QIntValidator(ui->leAddOffsetCount));
 }
@@ -322,7 +325,9 @@ void MainWindow::on_btnDrag_clicked() {
 }
 
 void MainWindow::on_btnSafe_clicked() {
-    if (robot.GetSafePoint()) {
+    QString strPoint = "";
+    if (robot.GetSafePoint(strPoint)) {
+        ui->lstHistoryPoint->insertItem(0, strPoint);
         ui->btnSafe->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnSafe->setStyleSheet(defaultStyleSheet);
@@ -346,7 +351,9 @@ void MainWindow::on_btnNext_clicked() {
 }
 
 void MainWindow::on_btnBegin_clicked() {
-    if (robot.GetBeginPoint()) {
+    QString strPoint = "";
+    if (robot.GetBeginPoint(strPoint)) {
+        ui->lstHistoryPoint->insertItem(0, strPoint);
         ui->btnBegin->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnBegin->setStyleSheet(defaultStyleSheet);
@@ -354,7 +361,9 @@ void MainWindow::on_btnBegin_clicked() {
 }
 
 void MainWindow::on_btnEnd_clicked() {
-    if (robot.GetEndPoint()) {
+    QString strPoint = "";
+    if (robot.GetEndPoint(strPoint)) {
+        ui->lstHistoryPoint->insertItem(0, strPoint);
         ui->btnEnd->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnEnd->setStyleSheet(defaultStyleSheet);
@@ -491,14 +500,6 @@ void MainWindow::on_btnDelCurrPara_clicked() {
     ui->cmbCraftID->removeItem(currCraftIdx);
 }
 
-void MainWindow::on_cmbOffsetDirection_currentIndexChanged(int index) {
-    crafts[currCraftIdx].offsetDirection = (OffsetDirection)index;
-}
-
-void MainWindow::on_leOffsetDistance_editingFinished() {
-    crafts[currCraftIdx].offsetDistance = ui->leOffsetDistance->text().toInt();
-}
-
 void MainWindow::on_btnStop_clicked() {
     if (robot.Stop()) {
         ui->btnDrag->setStyleSheet(defaultStyleSheet);
@@ -506,7 +507,9 @@ void MainWindow::on_btnStop_clicked() {
 }
 
 void MainWindow::on_btnAux_clicked() {
-    if (robot.GetAuxPoint()) {
+    QString strPoint = "";
+    if (robot.GetAuxPoint(strPoint)) {
+        ui->lstHistoryPoint->insertItem(0, strPoint);
         ui->btnAux->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnAux->setStyleSheet(defaultStyleSheet);
@@ -514,7 +517,11 @@ void MainWindow::on_btnAux_clicked() {
 }
 
 void MainWindow::on_btnMid_clicked() {
-    int size = robot.GetMidPoint(midPressDuration.elapsed());
+    QString strPoint = "";
+    int size = robot.GetMidPoint(midPressDuration.elapsed(), strPoint);
+    if (!strPoint.isEmpty()) {
+        ui->lstHistoryPoint->insertItem(0, strPoint);
+    }
     if (size > 0) {
         ui->btnMid->setStyleSheet(greenStyleSheet);
     } else {
@@ -533,7 +540,9 @@ void MainWindow::on_leOffsetCount_editingFinished() {
 }
 
 void MainWindow::on_btnBeginOffset_clicked() {
-    if (robot.GetBeginOffsetPoint()) {
+    QString strPoint = "";
+    if (robot.GetBeginOffsetPoint(strPoint)) {
+        ui->lstHistoryPoint->insertItem(0, strPoint);
         ui->btnBeginOffset->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnBeginOffset->setStyleSheet(defaultStyleSheet);
@@ -541,7 +550,9 @@ void MainWindow::on_btnBeginOffset_clicked() {
 }
 
 void MainWindow::on_btnEndOffset_clicked() {
-    if (robot.GetEndOffsetPoint()) {
+    QString strPoint = "";
+    if (robot.GetEndOffsetPoint(strPoint)) {
+        ui->lstHistoryPoint->insertItem(0, strPoint);
         ui->btnEndOffset->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnEndOffset->setStyleSheet(defaultStyleSheet);
@@ -562,9 +573,7 @@ void MainWindow::on_btnClear_clicked() {
 }
 
 void MainWindow::on_btnOpenWeb_clicked() {
-    QDesktopServices::openUrl(
-        // QUrl("http://" + ui->leRobotIP->text() + "/dist"));
-        QUrl("http://" + ui->leRobotIP->text() + ":7000"));
+    robot.OpenWeb(ui->leRobotIP->text());
 }
 
 void MainWindow::on_leAddOffsetCount_editingFinished() {
@@ -573,16 +582,14 @@ void MainWindow::on_leAddOffsetCount_editingFinished() {
 
 void MainWindow::on_btnMid_pressed() { midPressDuration.start(); }
 
-void MainWindow::on_btnClearMid_clicked()
-{
-    if (robot.ClearMidPoints()){
+void MainWindow::on_btnClearMid_clicked() {
+    if (robot.ClearMidPoints()) {
         ui->btnMid->setStyleSheet(defaultStyleSheet);
         ui->btnMid->setText("中间点0");
     }
 }
 
-void MainWindow::on_btnDelLastMid_clicked()
-{
+void MainWindow::on_btnDelLastMid_clicked() {
     int size = robot.DelLastMidPoint();
     if (size == 0) {
         ui->btnMid->setStyleSheet(defaultStyleSheet);
@@ -590,3 +597,25 @@ void MainWindow::on_btnDelLastMid_clicked()
     ui->btnMid->setText("中间点" + QString::number(size));
 }
 
+void MainWindow::on_btnMoveToPoint_clicked() {
+    QString strPoint = ui->leHistoryPoint->text();
+    if (strPoint.contains("：")) {
+        QStringList strValues =
+            strPoint.mid(strPoint.indexOf("：") + 1).split("、");
+        robot.MoveToPoint(strValues);
+    }
+}
+
+void MainWindow::on_leDiscRadius_editingFinished() {
+    crafts[currCraftIdx].discRadius = ui->leDiscRadius->text().toInt();
+}
+
+void MainWindow::on_leGrindAngle_editingFinished() {
+    crafts[currCraftIdx].grindAngle = ui->leGrindAngle->text().toInt();
+}
+
+void MainWindow::on_btnStop2_clicked() {
+    if (robot.Stop()) {
+        ui->btnDrag->setStyleSheet(defaultStyleSheet);
+    }
+}

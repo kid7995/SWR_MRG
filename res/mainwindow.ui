@@ -660,7 +660,7 @@ color: rgb(255, 255, 255);</string>
 color: rgb(255, 255, 255);</string>
         </property>
         <property name="text">
-         <string>清除上一中间点</string>
+         <string>撤回中间点</string>
         </property>
         <property name="checkable">
          <bool>false</bool>
@@ -959,54 +959,6 @@ color: rgb(255, 255, 255);</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="3">
-         <widget class="QLabel" name="lblOffsetDirection">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="font">
-           <font>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>偏移方向：</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="4">
-         <widget class="QComboBox" name="cmbOffsetDirection">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="font">
-           <font>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <item>
-           <property name="text">
-            <string>X</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Y</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Z</string>
-           </property>
-          </item>
-         </widget>
-        </item>
         <item row="3" column="0">
          <widget class="QLabel" name="lblMoveSpeed">
           <property name="sizePolicy">
@@ -1061,63 +1013,6 @@ color: rgb(255, 255, 255);</string>
           </property>
           <property name="text">
            <string>mm/s</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="3">
-         <widget class="QLabel" name="lblOffsetDistance">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="font">
-           <font>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>偏移距离：</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="4">
-         <widget class="QLineEdit" name="leOffsetDistance">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="font">
-           <font>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="inputMethodHints">
-           <set>Qt::ImhFormattedNumbersOnly</set>
-          </property>
-          <property name="text">
-           <string>0</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="5">
-         <widget class="QLabel" name="label_13">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="font">
-           <font>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>mm</string>
           </property>
          </widget>
         </item>
@@ -1542,9 +1437,229 @@ color: rgb(255, 255, 255);</string>
           </widget>
          </widget>
         </item>
+        <item row="2" column="5">
+         <widget class="QLabel" name="label_13">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>mm</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QLabel" name="lblDiscRadius">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>打磨片半径：</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="4">
+         <widget class="QLineEdit" name="leDiscRadius">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="inputMethodHints">
+           <set>Qt::ImhDigitsOnly</set>
+          </property>
+          <property name="text">
+           <string>4</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3">
+         <widget class="QLabel" name="lblGrindAngle">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>打磨角度：</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="4">
+         <widget class="QLineEdit" name="leGrindAngle">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="inputMethodHints">
+           <set>Qt::ImhDigitsOnly</set>
+          </property>
+          <property name="text">
+           <string>0</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="5">
+         <widget class="QLabel" name="label_15">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>°</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="page_3">
+       <property name="accessibleName">
+        <string>点位</string>
+       </property>
+       <widget class="QPushButton" name="btnMoveToPoint">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>1090</x>
+          <y>505</y>
+          <width>150</width>
+          <height>100</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>18</pointsize>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: grey;
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>移动到点</string>
+        </property>
+       </widget>
+       <widget class="QListWidget" name="lstHistoryPoint">
+        <property name="geometry">
+         <rect>
+          <x>165</x>
+          <y>125</y>
+          <width>900</width>
+          <height>480</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+         </font>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="leHistoryPoint">
+        <property name="geometry">
+         <rect>
+          <x>165</x>
+          <y>50</y>
+          <width>900</width>
+          <height>70</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+         </font>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QLabel" name="lblSelectPoint">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>50</y>
+          <width>141</width>
+          <height>70</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>18</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>选择点位：</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnStop2">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>8</x>
+          <y>505</y>
+          <width>150</width>
+          <height>100</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>18</pointsize>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: grey;
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>停止</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="page_4">
        <widget class="QPushButton" name="btnSettingReturn">
         <property name="geometry">
          <rect>
@@ -1717,7 +1832,7 @@ color: rgb(255, 255, 255);</string>
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>17</height>
+     <height>24</height>
     </rect>
    </property>
   </widget>
@@ -1753,9 +1868,7 @@ color: rgb(255, 255, 255);</string>
   <tabstop>cmbPolishMode</tabstop>
   <tabstop>leTeachPos</tabstop>
   <tabstop>leCutinSpeed</tabstop>
-  <tabstop>cmbOffsetDirection</tabstop>
   <tabstop>leMoveSpeed</tabstop>
-  <tabstop>leOffsetDistance</tabstop>
   <tabstop>leRotateSpeed</tabstop>
   <tabstop>leOffsetCount</tabstop>
   <tabstop>leContactForce</tabstop>
@@ -1773,5 +1886,22 @@ color: rgb(255, 255, 255);</string>
  <resources>
   <include location="logo.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>lstHistoryPoint</sender>
+   <signal>currentTextChanged(QString)</signal>
+   <receiver>leHistoryPoint</receiver>
+   <slot>setText(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>414</x>
+     <y>319</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>400</x>
+     <y>197</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
