@@ -226,6 +226,7 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     switch (way) {
     case PolishWay::RegionArcWay1:
     case PolishWay::RegionArcWay2:
+    case PolishWay::RegionArcWay_Vertical:
         if (!pointSet.isBeginOffsetPointRecorded) {
             check.append("起始偏移点");
         }
@@ -264,6 +265,7 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     case PolishWay::ArcWay:
     case PolishWay::RegionArcWay1:
     case PolishWay::RegionArcWay2:
+    case PolishWay::RegionArcWay_Vertical:
         if (pointSet.midPoints.size() % 2 == 0) {
             QMessageBox::critical(NULL, "提示", "圆弧中间点数量不能为偶数个！");
             return false;
@@ -310,18 +312,31 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     MoveL(point, dVelocity, dAcc, dRadius);
     // AGP运行
     AGPRun(craft, isAGPRun);
-    // 移到起始辅助点
-    // point = pointSet.auxBeginPoint;
-    point.pos = pointSet.beginPoint.pos + translation;
-    point.rot = newRot;
-    point = point.PosRelByTool(defaultDirection, defaultOffset);
-    MoveL(point, dVelocity, dAcc, dRadius);
-    // 移到起始点
-    // point = pointSet.beginPoint;
-    point.pos = pointSet.beginPoint.pos + translation;
-    point.rot = newRot;
-    dVelocity = craft.cutinSpeed;
-    MoveL(point, dVelocity, dAcc, dRadius);
+    if (craft.way != PolishWay::RegionArcWay_Vertical) {
+        // 移到起始辅助点
+        // point = pointSet.auxBeginPoint;
+        point.pos = pointSet.beginPoint.pos + translation;
+        point.rot = newRot;
+        point = point.PosRelByTool(defaultDirection, defaultOffset);
+        MoveL(point, dVelocity, dAcc, dRadius);
+        // 移到起始点
+        // point = pointSet.beginPoint;
+        point.pos = pointSet.beginPoint.pos + translation;
+        point.rot = newRot;
+        dVelocity = craft.cutinSpeed;
+        MoveL(point, dVelocity, dAcc, dRadius);
+    } else {
+        // 移到起始辅助点
+        point.pos = pointSet.beginOffsetPoint.pos + translation;
+        point.rot = newRot;
+        point = point.PosRelByTool(defaultDirection, defaultOffset);
+        MoveL(point, dVelocity, dAcc, dRadius);
+        // 移到起始点
+        point.pos = pointSet.beginOffsetPoint.pos + translation;
+        point.rot = newRot;
+        dVelocity = craft.cutinSpeed;
+        MoveL(point, dVelocity, dAcc, dRadius);
+    }
 }
 
 void Robot::MoveAfter(const Craft &craft, Point point) {
@@ -790,12 +805,16 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
                 // posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
                 // posEnd.rot = posEnd.rot - posBeginRel.rot +
                 //              pointSet.beginOffsetPoint.rot;
-                posEnd.pos = posMidRelList.at(posMidRelList.size() - idx - 2).pos + translationInv;
+                posEnd.pos =
+                    posMidRelList.at(posMidRelList.size() - idx - 2).pos +
+                    translationInv;
                 posEnd.rot = newRotInv;
                 // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
                 // posAux.rot = posAux.rot - posBeginRel.rot +
                 //              pointSet.beginOffsetPoint.rot;
-                posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos + translationInv;
+                posAux.pos =
+                    posMidRelList.at(posMidRelList.size() - idx - 1).pos +
+                    translationInv;
                 posAux.rot = newRotInv;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
@@ -805,7 +824,8 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
             // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
             // posAux.rot =
             //     posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
-            posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos + translationInv;
+            posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos +
+                         translationInv;
             posAux.rot = newRotInv;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         } else { // 正向
@@ -859,6 +879,160 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     }
     // return count % 2 == 0 ? posEndRel : posEndRelInv;
     return posEnd;
+}
+
+Point Robot::MoveRegionArcVertical(const Craft &craft) {
+    // Position beginOffset = (beginOffsetPoint - beginPoint);
+    // Position endOffset = (endOffsetPoint - endPoint);
+    Point temp1;
+    temp1.pos = pointSet.beginOffsetPoint.pos - pointSet.endPoint.pos;
+    Point temp2;
+    temp2.pos = pointSet.beginPoint.pos - pointSet.endPoint.pos;
+    Point beginOffset;
+    beginOffset.pos =
+        (temp1.pos - temp2.pos * (QVector3D::dotProduct(temp1.pos, temp2.pos) /
+                                  QVector3D::dotProduct(temp2.pos, temp2.pos)));
+
+    Point temp3;
+    temp3.pos = pointSet.endOffsetPoint.pos - pointSet.beginPoint.pos;
+    Point temp4;
+    temp4.pos = pointSet.endPoint.pos - pointSet.beginPoint.pos;
+    Point endOffset;
+    endOffset.pos =
+        (temp3.pos - temp4.pos * (QVector3D::dotProduct(temp3.pos, temp4.pos) /
+                                  QVector3D::dotProduct(temp4.pos, temp4.pos)));
+
+    double lenTotal =
+        (pointSet.endPoint.pos - pointSet.beginPoint.pos).length();
+    QVector<Point> midOffsetList;
+    for (int i = 0; i < pointSet.midPoints.size(); i++) {
+        double len =
+            (pointSet.midPoints.at(i).pos - pointSet.beginPoint.pos).length();
+        Point midOffset;
+        midOffset.pos = beginOffset.pos * (len / lenTotal) +
+                        endOffset.pos * (1 - (len / lenTotal));
+        midOffsetList.append(midOffset);
+    }
+
+    // 计算单次偏移量
+    int count = craft.offsetCount;
+    QVector<Point> posListUp, posListDown;
+    // 圆弧上界
+    posListUp.append(pointSet.beginPoint);
+    posListUp.append(pointSet.midPoints);
+    posListUp.append(pointSet.endPoint);
+    // 圆弧下界
+    posListDown.append(pointSet.beginOffsetPoint);
+    for (int i = 0; i < pointSet.midPoints.size(); ++i) {
+        Point point = pointSet.midPoints.at(i);
+        point += midOffsetList.at(i);
+        posListDown.append(point);
+    }
+    posListDown.append(pointSet.endOffsetPoint);
+
+    // 计算上圆弧组中圆弧圆心、半径和弧长
+    QVector<QVector3D> centerListUp;
+    QVector<double> radiusListUp, lengthListUp;
+    double totalArcLengthUp = 0.0;
+    for (int i = 1; i < posListUp.size() - 1; i += 2) {
+        QVector3D center = Point::calculateCircumcenter(
+            posListUp.at(i - 1).pos, posListUp.at(i).pos,
+            posListUp.at(i + 1).pos);
+        centerListUp.append(center);
+        double radius = (posListUp.at(i).pos - center).length();
+        radiusListUp.append(radius);
+        QVector3D OA = posListUp.at(i - 1).pos - center;
+        QVector3D OB = posListUp.at(i + 1).pos - center;
+        double length =
+            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) *
+            radius;
+        lengthListUp.append(length);
+        totalArcLengthUp += length;
+    }
+    double unitArcLengthUp = totalArcLengthUp / count;
+    double arcLengthUp = 0.0;
+    QVector<QVector3D> finalPosListUp;
+    for (int i = 0; i < centerListUp.size(); ++i) {
+        while (arcLengthUp <= lengthListUp.at(i)) {
+            QVector3D axis = QVector3D::crossProduct(
+                posListUp.at(2 * i).pos - centerListUp.at(i),
+                posListUp.at(2 * i + 2).pos - centerListUp.at(i));
+            QMatrix3x3 R = Point::toRotationMatrix(
+                axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
+            QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
+            QVector3D newTrans(
+                R(0, 0) * trans.x() + R(0, 1) * trans.y() + R(0, 2) * trans.z(),
+                R(1, 0) * trans.x() + R(1, 1) * trans.y() + R(1, 2) * trans.z(),
+                R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                    R(2, 2) * trans.z());
+            finalPosListUp.append(centerListUp.at(i) + newTrans);
+            arcLengthUp += unitArcLengthUp;
+        }
+        arcLengthUp -= lengthListUp.at(i);
+    }
+    // 计算下圆弧组中圆弧圆心、半径和弧长
+    QVector<QVector3D> centerListDown;
+    QVector<double> radiusListDown, lengthListDown;
+    double totalArcLengthDown = 0.0;
+    for (int i = 1; i < posListDown.size() - 1; i += 2) {
+        QVector3D center = Point::calculateCircumcenter(
+            posListDown.at(i - 1).pos, posListDown.at(i).pos,
+            posListDown.at(i + 1).pos);
+        centerListDown.append(center);
+        double radius = (posListDown.at(i).pos - center).length();
+        radiusListDown.append(radius);
+        QVector3D OA = posListDown.at(i - 1).pos - center;
+        QVector3D OB = posListDown.at(i + 1).pos - center;
+        double length =
+            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) *
+            radius;
+        lengthListDown.append(length);
+        totalArcLengthDown += length;
+    }
+    double unitArcLengthDown = totalArcLengthDown / count;
+    double arcLengthDown = 0.0;
+    QVector<QVector3D> finalPosListDown;
+    for (int i = 0; i < centerListDown.size(); ++i) {
+        while (arcLengthDown <= lengthListDown.at(i)) {
+            QVector3D axis = QVector3D::crossProduct(
+                posListDown.at(2 * i).pos - centerListDown.at(i),
+                posListDown.at(2 * i + 2).pos - centerListDown.at(i));
+            QMatrix3x3 R = Point::toRotationMatrix(
+                axis, qRadiansToDegrees(arcLengthDown / radiusListDown.at(i)));
+            QVector3D trans = posListDown.at(2 * i).pos - centerListDown.at(i);
+            QVector3D newTrans(
+                R(0, 0) * trans.x() + R(0, 1) * trans.y() + R(0, 2) * trans.z(),
+                R(1, 0) * trans.x() + R(1, 1) * trans.y() + R(1, 2) * trans.z(),
+                R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                    R(2, 2) * trans.z());
+            finalPosListDown.append(centerListDown.at(i) + newTrans);
+            arcLengthDown += unitArcLengthDown;
+        }
+        arcLengthDown -= lengthListDown.at(i);
+    }
+
+    Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
+    // 定义运动速度
+    double dVelocity = craft.moveSpeed;
+    // 定义运动加速度
+    double dAcc = 100;
+    // 定义过渡半径
+    double dRadius = 1;
+    // 定义空间目标位置
+    Point point;
+    for (int i = 0; i < finalPosListUp.size(); ++i) {
+        point.pos = finalPosListDown.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+        point.pos = finalPosListUp.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+        point.pos = finalPosListDown.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+    }
+
+    return point;
 }
 
 void Robot::MoveZLine(const Craft &craft) {
@@ -951,6 +1125,9 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     double angle = craft.grindAngle;
     QVector3D rotation = pointSet.beginPoint.rot;
     QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
+    if (craft.way == PolishWay::RegionArcWay_Vertical) {
+        moveDirection = pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
+    }
     // 获取新的姿态
     newRot = Point::getNewRotation(rotation, moveDirection, angle);
     // 获取新姿态需要的平移量
@@ -980,6 +1157,9 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
         break;
     case PolishWay::RegionArcWay2:
         point = MoveRegionArc2(craft);
+        break;
+    case PolishWay::RegionArcWay_Vertical:
+        point = MoveRegionArcVertical(craft);
         break;
     case PolishWay::ZLineWay:
         MoveZLine(craft);

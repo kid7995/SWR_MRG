@@ -792,6 +792,11 @@ color: rgb(255, 255, 255);</string>
           </item>
           <item>
            <property name="text">
+            <string>区域圆弧-纵向</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
             <string>Z型直线</string>
            </property>
           </item>
@@ -1832,7 +1837,7 @@ color: rgb(255, 255, 255);</string>
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>24</height>
+     <height>17</height>
     </rect>
    </property>
   </widget>

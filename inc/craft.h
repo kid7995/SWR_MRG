@@ -11,6 +11,7 @@ enum PolishWay {
     LineWay,
     RegionArcWay1,
     RegionArcWay2,
+    RegionArcWay_Vertical,
     ZLineWay,
     SpiralLineWay
 };

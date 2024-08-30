@@ -245,6 +245,7 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(true);
         break;
     case PolishWay::RegionArcWay2:
+    case PolishWay::RegionArcWay_Vertical:
         ui->leOffsetCount->setEnabled(true);
         ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));

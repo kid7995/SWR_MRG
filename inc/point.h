@@ -30,6 +30,7 @@ class Point {
     static Point scale(const Point &pointBegin, const Point &pointEnd, float t);
     // static Point circumcenter(const Point &pointBegin, const Point &pointAux,
     //                     const Point &pointEnd);
+    // 三点求圆弧圆心
     static QVector3D calculateCircumcenter(const QVector3D &A,
                                            const QVector3D &B,
                                            const QVector3D &C);
