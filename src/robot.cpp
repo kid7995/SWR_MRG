@@ -440,11 +440,13 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     Point temp2;
     temp2.pos = pointSet.endPoint.pos - pointSet.beginPoint.pos;
     Point midOffset;
-    midOffset.pos =
-        (temp1.pos -
-         temp2.pos * (QVector3D::dotProduct(temp1.pos, temp2.pos) /
-                      QVector3D::dotProduct(temp2.pos, temp2.pos))) /
-        count;
+    if (count != 0) {
+        midOffset.pos =
+            (temp1.pos -
+             temp2.pos * (QVector3D::dotProduct(temp1.pos, temp2.pos) /
+                          QVector3D::dotProduct(temp2.pos, temp2.pos))) /
+            count;
+    }
     // qDebug() << "midOffset" << midOffset.x << " " << midOffset.y << " "
     //          << midOffset.z << " " << midOffset.rx << " " << midOffset.ry <<
     //          " "
@@ -658,22 +660,26 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     Point temp2;
     temp2.pos = pointSet.beginPoint.pos - pointSet.endPoint.pos;
     Point beginOffset;
-    beginOffset.pos =
-        (temp1.pos -
-         temp2.pos * (QVector3D::dotProduct(temp1.pos, temp2.pos) /
-                      QVector3D::dotProduct(temp2.pos, temp2.pos))) /
-        count;
+    if (count != 0) {
+        beginOffset.pos =
+            (temp1.pos -
+             temp2.pos * (QVector3D::dotProduct(temp1.pos, temp2.pos) /
+                          QVector3D::dotProduct(temp2.pos, temp2.pos))) /
+            count;
+    }
 
     Point temp3;
     temp3.pos = pointSet.endOffsetPoint.pos - pointSet.beginPoint.pos;
     Point temp4;
     temp4.pos = pointSet.endPoint.pos - pointSet.beginPoint.pos;
     Point endOffset;
-    endOffset.pos =
-        (temp3.pos -
-         temp4.pos * (QVector3D::dotProduct(temp3.pos, temp4.pos) /
-                      QVector3D::dotProduct(temp4.pos, temp4.pos))) /
-        count;
+    if (count != 0) {
+        endOffset.pos =
+            (temp3.pos -
+             temp4.pos * (QVector3D::dotProduct(temp3.pos, temp4.pos) /
+                          QVector3D::dotProduct(temp4.pos, temp4.pos))) /
+            count;
+    }
 
     double lenTotal =
         (pointSet.endPoint.pos - pointSet.beginPoint.pos).length();
@@ -914,8 +920,6 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         midOffsetList.append(midOffset);
     }
 
-    // 计算单次偏移量
-    int count = craft.offsetCount;
     QVector<Point> posListUp, posListDown;
     // 圆弧上界
     posListUp.append(pointSet.beginPoint);
@@ -930,6 +934,8 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
     }
     posListDown.append(pointSet.endOffsetPoint);
 
+    // 偏移次数
+    int count = craft.offsetCount;
     // 计算上圆弧组中圆弧圆心、半径和弧长
     QVector<QVector3D> centerListUp;
     QVector<double> radiusListUp, lengthListUp;
@@ -949,26 +955,31 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         lengthListUp.append(length);
         totalArcLengthUp += length;
     }
-    double unitArcLengthUp = totalArcLengthUp / count;
-    double arcLengthUp = 0.0;
     QVector<QVector3D> finalPosListUp;
-    for (int i = 0; i < centerListUp.size(); ++i) {
-        while (arcLengthUp <= lengthListUp.at(i)) {
-            QVector3D axis = QVector3D::crossProduct(
-                posListUp.at(2 * i).pos - centerListUp.at(i),
-                posListUp.at(2 * i + 2).pos - centerListUp.at(i));
-            QMatrix3x3 R = Point::toRotationMatrix(
-                axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
-            QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
-            QVector3D newTrans(
-                R(0, 0) * trans.x() + R(0, 1) * trans.y() + R(0, 2) * trans.z(),
-                R(1, 0) * trans.x() + R(1, 1) * trans.y() + R(1, 2) * trans.z(),
-                R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-                    R(2, 2) * trans.z());
-            finalPosListUp.append(centerListUp.at(i) + newTrans);
-            arcLengthUp += unitArcLengthUp;
+    if (count > 0) {
+        double unitArcLengthUp = totalArcLengthUp / count;
+        double arcLengthUp = 0.0;
+        for (int i = 0; i < centerListUp.size(); ++i) {
+            while (arcLengthUp <= lengthListUp.at(i)) {
+                QVector3D axis = QVector3D::crossProduct(
+                    posListUp.at(2 * i).pos - centerListUp.at(i),
+                    posListUp.at(2 * i + 2).pos - centerListUp.at(i));
+                QMatrix3x3 R = Point::toRotationMatrix(
+                    axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
+                QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
+                QVector3D newTrans(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+                                       R(0, 2) * trans.z(),
+                                   R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+                                       R(1, 2) * trans.z(),
+                                   R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                                       R(2, 2) * trans.z());
+                finalPosListUp.append(centerListUp.at(i) + newTrans);
+                arcLengthUp += unitArcLengthUp;
+            }
+            arcLengthUp -= lengthListUp.at(i);
         }
-        arcLengthUp -= lengthListUp.at(i);
+    } else {
+        finalPosListUp.append(pointSet.beginPoint.pos);
     }
     // 计算下圆弧组中圆弧圆心、半径和弧长
     QVector<QVector3D> centerListDown;
@@ -989,26 +1000,33 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         lengthListDown.append(length);
         totalArcLengthDown += length;
     }
-    double unitArcLengthDown = totalArcLengthDown / count;
-    double arcLengthDown = 0.0;
     QVector<QVector3D> finalPosListDown;
-    for (int i = 0; i < centerListDown.size(); ++i) {
-        while (arcLengthDown <= lengthListDown.at(i)) {
-            QVector3D axis = QVector3D::crossProduct(
-                posListDown.at(2 * i).pos - centerListDown.at(i),
-                posListDown.at(2 * i + 2).pos - centerListDown.at(i));
-            QMatrix3x3 R = Point::toRotationMatrix(
-                axis, qRadiansToDegrees(arcLengthDown / radiusListDown.at(i)));
-            QVector3D trans = posListDown.at(2 * i).pos - centerListDown.at(i);
-            QVector3D newTrans(
-                R(0, 0) * trans.x() + R(0, 1) * trans.y() + R(0, 2) * trans.z(),
-                R(1, 0) * trans.x() + R(1, 1) * trans.y() + R(1, 2) * trans.z(),
-                R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-                    R(2, 2) * trans.z());
-            finalPosListDown.append(centerListDown.at(i) + newTrans);
-            arcLengthDown += unitArcLengthDown;
+    if (count > 0) {
+        double unitArcLengthDown = totalArcLengthDown / count;
+        double arcLengthDown = 0.0;
+        for (int i = 0; i < centerListDown.size(); ++i) {
+            while (arcLengthDown <= lengthListDown.at(i)) {
+                QVector3D axis = QVector3D::crossProduct(
+                    posListDown.at(2 * i).pos - centerListDown.at(i),
+                    posListDown.at(2 * i + 2).pos - centerListDown.at(i));
+                QMatrix3x3 R = Point::toRotationMatrix(
+                    axis,
+                    qRadiansToDegrees(arcLengthDown / radiusListDown.at(i)));
+                QVector3D trans =
+                    posListDown.at(2 * i).pos - centerListDown.at(i);
+                QVector3D newTrans(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+                                       R(0, 2) * trans.z(),
+                                   R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+                                       R(1, 2) * trans.z(),
+                                   R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                                       R(2, 2) * trans.z());
+                finalPosListDown.append(centerListDown.at(i) + newTrans);
+                arcLengthDown += unitArcLengthDown;
+            }
+            arcLengthDown -= lengthListDown.at(i);
         }
-        arcLengthDown -= lengthListDown.at(i);
+    } else {
+        finalPosListDown.append(pointSet.beginOffsetPoint.pos);
     }
 
     Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
