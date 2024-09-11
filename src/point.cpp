@@ -139,6 +139,14 @@ QVector3D Point::calculateCircumcenter(const QVector3D &A, const QVector3D &B,
     return circumcenter;
 }
 
+static QVector3D calculateSpherecenter(const QVector3D &A, const QVector3D &B,
+                                       const QVector3D &C, const QVector3D &D) {
+    // TODO
+    QVector3D spherecenter;
+
+    return spherecenter;
+}
+
 QMatrix3x3 Point::toRotationMatrix(const QVector3D &rotation) {
     // 转换角度为弧度
     QVector3D rot_rad{qDegreesToRadians(rotation.x()),
@@ -217,34 +225,38 @@ QVector3D Point::getTranslation(const QVector3D &rotation,
             newR(2, 2) * translation.z());
 }
 
-// void Point::test() {
-//     // 定义三个点
-//     QVector3D A(1, 2, 3);
-//     QVector3D B(4, 6, 8);
-//     QVector3D C(7, 8, 9);
-
-//     // 计算外心
-//     QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
-
-//     // 输出外心坐标
-//     qDebug() << "The circumcenter of the triangle is at:" << circumcenter;
-
-//     // 输出半径
-//     qDebug() << "radius: " << A.distanceToPoint(circumcenter);
-//     qDebug() << "radius: " << B.distanceToPoint(circumcenter);
-//     qDebug() << "radius: " << C.distanceToPoint(circumcenter);
-// }
 void Point::test() {
-    QVector3D position{4, 5, 6};
-    QVector3D rotation{-179.051, -0.956, -48.983};
-    // QVector3D moveDirection{3, 1, 2};
-    QVector3D moveDirection{-3, -1, -2};
-    float angle = 45;
-    QVector3D newRot = getNewRotation(rotation, moveDirection, angle);
-    qDebug() << newRot;
-    QVector3D offset = getTranslation(rotation, moveDirection, 50, angle);
-    qDebug() << offset;
+    // 定义三个点
+    // QVector3D A(1, 2, 3);
+    // QVector3D B(4, 6, 8);
+    // QVector3D C(7, 8, 9);
+    QVector3D A(1945.180, 103.261, 742.669);
+    QVector3D B(2054.380, -349.238, 1246.420);
+    QVector3D C(1812.530, -488.013, 731.441);
+
+    // 计算外心
+    QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
+
+    // 输出外心坐标
+    qDebug() << "The circumcenter of the triangle is at:" << circumcenter;
+
+    // 输出半径
+    qDebug() << "radius: " << A.distanceToPoint(circumcenter);
+    qDebug() << "radius: " << B.distanceToPoint(circumcenter);
+    qDebug() << "radius: " << C.distanceToPoint(circumcenter);
 }
+
+// void Point::test() {
+//     QVector3D position{4, 5, 6};
+//     QVector3D rotation{-179.051, -0.956, -48.983};
+//     // QVector3D moveDirection{3, 1, 2};
+//     QVector3D moveDirection{-3, -1, -2};
+//     float angle = 45;
+//     QVector3D newRot = getNewRotation(rotation, moveDirection, angle);
+//     qDebug() << newRot;
+//     QVector3D offset = getTranslation(rotation, moveDirection, 50, angle);
+//     qDebug() << offset;
+// }
 
 PointSet::PointSet()
     : isSafePointRecorded(false), isBeginPointRecorded(false),

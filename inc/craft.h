@@ -9,9 +9,10 @@ enum PolishMode { MomentMode, PositionMode };
 enum PolishWay {
     ArcWay,
     LineWay,
+    RegionArcWay_Horizontal,
+    RegionArcWay_Vertical,
     RegionArcWay1,
     RegionArcWay2,
-    RegionArcWay_Vertical,
     ZLineWay,
     SpiralLineWay
 };

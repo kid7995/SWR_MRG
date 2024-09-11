@@ -17,6 +17,8 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), lastPageIdx(0),
       currCraftIdx(0) {
     ui->setupUi(this);
+    ui->lblAddOffsetCount->setVisible(false);
+    ui->leAddOffsetCount->setVisible(false);
     // 读取工艺参数文件
     QString fileName = QCoreApplication::applicationDirPath();
     // QString fileName =
@@ -245,6 +247,7 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(true);
         break;
     case PolishWay::RegionArcWay2:
+    case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
         ui->leOffsetCount->setEnabled(true);
         ui->leAddOffsetCount->setEnabled(false);
@@ -377,6 +380,7 @@ void MainWindow::on_btnTryRun_clicked() {
     }
     ui->btnRun->setEnabled(false);
     ui->btnTryRun->setEnabled(false);
+    ui->btnMoveToPoint->setEnabled(false);
     ui->btnTryRun->setStyleSheet(greenStyleSheet);
     ui->btnTryRun->setText("试运行中");
     if (robot.CloseFreeDriver()) {
@@ -389,6 +393,7 @@ void MainWindow::on_btnTryRun_clicked() {
         robot.Run(crafts.at(currCraftIdx), false);
         ui->btnRun->setEnabled(true);
         ui->btnTryRun->setEnabled(true);
+        ui->btnMoveToPoint->setEnabled(true);
         ui->btnTryRun->setStyleSheet(defaultStyleSheet);
         ui->btnTryRun->setText("试运行");
     });
@@ -401,6 +406,7 @@ void MainWindow::on_btnRun_clicked() {
     }
     ui->btnRun->setEnabled(false);
     ui->btnTryRun->setEnabled(false);
+    ui->btnMoveToPoint->setEnabled(false);
     ui->btnRun->setStyleSheet(greenStyleSheet);
     ui->btnRun->setText("运行中");
     if (robot.CloseFreeDriver()) {
@@ -414,6 +420,7 @@ void MainWindow::on_btnRun_clicked() {
         robot.AGPStop();
         ui->btnRun->setEnabled(true);
         ui->btnTryRun->setEnabled(true);
+        ui->btnMoveToPoint->setEnabled(true);
         ui->btnRun->setStyleSheet(defaultStyleSheet);
         ui->btnRun->setText("运行");
     });
@@ -603,7 +610,23 @@ void MainWindow::on_btnMoveToPoint_clicked() {
     if (strPoint.contains("：")) {
         QStringList strValues =
             strPoint.mid(strPoint.indexOf("：") + 1).split("、");
-        robot.MoveToPoint(strValues);
+        ui->btnRun->setEnabled(false);
+        ui->btnTryRun->setEnabled(false);
+        ui->btnMoveToPoint->setEnabled(false);
+        ui->btnMoveToPoint->setStyleSheet(greenStyleSheet);
+        ui->btnMoveToPoint->setText("移动中");
+        if (robot.CloseFreeDriver()) {
+            ui->btnDrag->setStyleSheet(defaultStyleSheet);
+        }
+        std::thread t([this, strValues] {
+            robot.MoveToPoint(strValues);
+            ui->btnRun->setEnabled(true);
+            ui->btnTryRun->setEnabled(true);
+            ui->btnMoveToPoint->setEnabled(true);
+            ui->btnMoveToPoint->setStyleSheet(defaultStyleSheet);
+            ui->btnMoveToPoint->setText("移动到点");
+        });
+        t.detach();
     }
 }
 

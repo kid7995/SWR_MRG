@@ -226,6 +226,7 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     switch (way) {
     case PolishWay::RegionArcWay1:
     case PolishWay::RegionArcWay2:
+    case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
         if (!pointSet.isBeginOffsetPointRecorded) {
             check.append("起始偏移点");
@@ -265,6 +266,7 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     case PolishWay::ArcWay:
     case PolishWay::RegionArcWay1:
     case PolishWay::RegionArcWay2:
+    case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
         if (pointSet.midPoints.size() % 2 == 0) {
             QMessageBox::critical(NULL, "提示", "圆弧中间点数量不能为偶数个！");
@@ -296,6 +298,13 @@ void Robot::MoveToPoint(const QStringList &coordinates) {
     point.rot.setY(coordinates.at(4).toDouble());
     point.rot.setZ(coordinates.at(5).toDouble());
     MoveL(point, dVelocity, dAcc, dRadius);
+    // 等待运动完成
+    while (true) {
+        if (!IsRobotMoved()) {
+            break;
+        }
+        QThread::msleep(100);
+    }
 }
 
 void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
@@ -322,17 +331,6 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
         // 移到起始点
         // point = pointSet.beginPoint;
         point.pos = pointSet.beginPoint.pos + translation;
-        point.rot = newRot;
-        dVelocity = craft.cutinSpeed;
-        MoveL(point, dVelocity, dAcc, dRadius);
-    } else {
-        // 移到起始辅助点
-        point.pos = pointSet.beginOffsetPoint.pos + translation;
-        point.rot = newRot;
-        point = point.PosRelByTool(defaultDirection, defaultOffset);
-        MoveL(point, dVelocity, dAcc, dRadius);
-        // 移到起始点
-        point.pos = pointSet.beginOffsetPoint.pos + translation;
         point.rot = newRot;
         dVelocity = craft.cutinSpeed;
         MoveL(point, dVelocity, dAcc, dRadius);
@@ -887,6 +885,114 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     return posEnd;
 }
 
+Point Robot::MoveRegionArcHorizontal(const Craft &craft) {
+    // 定义运动速度
+    double dVelocity = craft.moveSpeed;
+    // 定义运动加速度
+    double dAcc = 100;
+    // 定义过渡半径
+    double dRadius = 1;
+    // 计算单次偏移量
+    int count = craft.offsetCount;
+
+    double midOffset = 0.0;
+    if (count > 0) {
+        midOffset =
+            (((pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos)
+                  .length() +
+              (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos).length()) /
+             2) /
+            count;
+    }
+
+    // 圆弧上界
+    QVector<Point> posListUp;
+    posListUp.append(pointSet.beginPoint);
+    posListUp.append(pointSet.midPoints);
+    posListUp.append(pointSet.endPoint);
+
+    QVector<QVector3D> offsetList;
+    for (int i = 1; i < posListUp.size() - 1; i += 2) {
+        QVector3D center = Point::calculateCircumcenter(
+            posListUp.at(i - 1).pos, posListUp.at(i).pos,
+            posListUp.at(i + 1).pos);
+        if (i == 1) {
+            offsetList.append((center - posListUp.at(i - 1).pos).normalized() *
+                              midOffset);
+        }
+        offsetList.append((center - posListUp.at(i).pos).normalized() *
+                          midOffset);
+        offsetList.append((center - posListUp.at(i + 1).pos).normalized() *
+                          midOffset);
+    }
+
+    Point pos, posAux, posEnd;
+    for (int i = 0; i < count + 1; ++i) {
+        if (i % 2 == 0) { // 正向
+            if (i > 0) {
+                // 抬高
+                pos.pos = posListUp.constFirst().pos +
+                          offsetList.constFirst() * (i - 1) + translationInv;
+                pos.rot = newRotInv;
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+                // 改变位姿
+                pos.pos = posListUp.constFirst().pos +
+                          offsetList.constFirst() * i + translation;
+                pos.rot = newRot;
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+                // 压低
+                pos.pos = posListUp.constFirst().pos +
+                          offsetList.constFirst() * i + translation;
+                pos.rot = newRot;
+                MoveL(pos, dVelocity, dAcc, dRadius);
+            }
+            // 正向圆弧运动
+            for (int j = 1; j < posListUp.size() - 1; j += 2) {
+                posAux.pos =
+                    posListUp.at(j).pos + offsetList.at(j) * i + translation;
+                posAux.rot = newRot;
+                posEnd.pos = posListUp.at(j + 1).pos +
+                             offsetList.at(j + 1) * i + translation;
+                posEnd.rot = newRot;
+                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            }
+        } else { // 反向
+            // 抬高
+            pos.pos = posListUp.constLast().pos +
+                      offsetList.constLast() * (i - 1) + translation;
+            pos.rot = newRot;
+            pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+            MoveL(pos, dVelocity, dAcc, dRadius);
+            // 改变位姿
+            pos.pos = posListUp.constLast().pos + offsetList.constLast() * i +
+                      translationInv;
+            pos.rot = newRotInv;
+            pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+            MoveL(pos, dVelocity, dAcc, dRadius);
+            // 压低
+            pos.pos = posListUp.constLast().pos + offsetList.constLast() * i +
+                      translationInv;
+            pos.rot = newRotInv;
+            MoveL(pos, dVelocity, dAcc, dRadius);
+            // 反向圆弧运动
+            for (int j = posListUp.size() - 2; j > 0; j -= 2) {
+                posAux.pos =
+                    posListUp.at(j).pos + offsetList.at(j) * i + translationInv;
+                posAux.rot = newRotInv;
+                posEnd.pos = posListUp.at(j - 1).pos +
+                             offsetList.at(j - 1) * i + translationInv;
+                posEnd.rot = newRotInv;
+                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            }
+        }
+    }
+
+    return posEnd;
+}
+
+/*
 Point Robot::MoveRegionArcVertical(const Craft &craft) {
     // Position beginOffset = (beginOffsetPoint - beginPoint);
     // Position endOffset = (endOffsetPoint - endPoint);
@@ -948,10 +1054,17 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         double radius = (posListUp.at(i).pos - center).length();
         radiusListUp.append(radius);
         QVector3D OA = posListUp.at(i - 1).pos - center;
+        QVector3D OM = posListUp.at(i).pos - center;
         QVector3D OB = posListUp.at(i + 1).pos - center;
-        double length =
-            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) *
-            radius;
+        // 适用OA、OB夹角大于180°的情况
+        double length = (qAcos(QVector3D::dotProduct(OA, OM) /
+                               (OA.length() * OM.length())) +
+                         qAcos(QVector3D::dotProduct(OM, OB) /
+                               (OM.length() * OB.length()))) *
+                        radius;
+        // qDebug() << (QVector3D::dotProduct(OA, OB) /
+        //              (OA.length() * OB.length()));
+        // qDebug() << length;
         lengthListUp.append(length);
         totalArcLengthUp += length;
     }
@@ -963,16 +1076,19 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
             while (arcLengthUp <= lengthListUp.at(i)) {
                 QVector3D axis = QVector3D::crossProduct(
                     posListUp.at(2 * i).pos - centerListUp.at(i),
-                    posListUp.at(2 * i + 2).pos - centerListUp.at(i));
+                    posListUp.at(2 * i + 1).pos - centerListUp.at(i));
                 QMatrix3x3 R = Point::toRotationMatrix(
                     axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
+                qDebug() << (arcLengthUp / radiusListUp.at(i));
+                qDebug() << qRadiansToDegrees(arcLengthUp / radiusListUp.at(i));
                 QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
-                QVector3D newTrans(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
-                                       R(0, 2) * trans.z(),
-                                   R(1, 0) * trans.x() + R(1, 1) * trans.y() +
-                                       R(1, 2) * trans.z(),
-                                   R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-                                       R(2, 2) * trans.z());
+                QVector3D newTrans =
+                    QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+                                  R(0, 2) * trans.z(),
+                              R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+                                  R(1, 2) * trans.z(),
+                              R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                                  R(2, 2) * trans.z());
                 finalPosListUp.append(centerListUp.at(i) + newTrans);
                 arcLengthUp += unitArcLengthUp;
             }
@@ -981,6 +1097,7 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
     } else {
         finalPosListUp.append(pointSet.beginPoint.pos);
     }
+    qDebug() << finalPosListUp;
     // 计算下圆弧组中圆弧圆心、半径和弧长
     QVector<QVector3D> centerListDown;
     QVector<double> radiusListDown, lengthListDown;
@@ -993,10 +1110,14 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         double radius = (posListDown.at(i).pos - center).length();
         radiusListDown.append(radius);
         QVector3D OA = posListDown.at(i - 1).pos - center;
+        QVector3D OM = posListDown.at(i).pos - center;
         QVector3D OB = posListDown.at(i + 1).pos - center;
-        double length =
-            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) *
-            radius;
+        // 适用OA、OB夹角大于180°的情况
+        double length = (qAcos(QVector3D::dotProduct(OA, OM) /
+                               (OA.length() * OM.length())) +
+                         qAcos(QVector3D::dotProduct(OM, OB) /
+                               (OM.length() * OB.length()))) *
+                        radius;
         lengthListDown.append(length);
         totalArcLengthDown += length;
     }
@@ -1008,18 +1129,19 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
             while (arcLengthDown <= lengthListDown.at(i)) {
                 QVector3D axis = QVector3D::crossProduct(
                     posListDown.at(2 * i).pos - centerListDown.at(i),
-                    posListDown.at(2 * i + 2).pos - centerListDown.at(i));
+                    posListDown.at(2 * i + 1).pos - centerListDown.at(i));
                 QMatrix3x3 R = Point::toRotationMatrix(
                     axis,
                     qRadiansToDegrees(arcLengthDown / radiusListDown.at(i)));
                 QVector3D trans =
                     posListDown.at(2 * i).pos - centerListDown.at(i);
-                QVector3D newTrans(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
-                                       R(0, 2) * trans.z(),
-                                   R(1, 0) * trans.x() + R(1, 1) * trans.y() +
-                                       R(1, 2) * trans.z(),
-                                   R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-                                       R(2, 2) * trans.z());
+                QVector3D newTrans =
+                    QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+                                  R(0, 2) * trans.z(),
+                              R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+                                  R(1, 2) * trans.z(),
+                              R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                                  R(2, 2) * trans.z());
                 finalPosListDown.append(centerListDown.at(i) + newTrans);
                 arcLengthDown += unitArcLengthDown;
             }
@@ -1028,6 +1150,7 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
     } else {
         finalPosListDown.append(pointSet.beginOffsetPoint.pos);
     }
+    qDebug() << finalPosListDown;
 
     Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
     // 定义运动速度
@@ -1042,6 +1165,161 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         point.pos = finalPosListDown.at(i) + translation;
         point.rot = newRot;
         MoveL(point, dVelocity, dAcc, dRadius);
+        point.pos = finalPosListUp.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+        point.pos = finalPosListDown.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+    }
+
+    return point;
+}
+*/
+
+Point Robot::MoveRegionArcVertical(const Craft &craft) {
+    double midOffset =
+        ((pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos).length() +
+         (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos).length()) /
+        2;
+
+    // 圆弧上界、圆弧下界
+    QVector<Point> posListUp;
+    posListUp.append(pointSet.beginPoint);
+    posListUp.append(pointSet.midPoints);
+    posListUp.append(pointSet.endPoint);
+
+    // 偏移次数
+    int count = craft.offsetCount;
+    // 计算上圆弧组中圆弧圆心、半径和弧长
+    QVector<QVector3D> centerListUp;
+    QVector<double> radiusListUp, lengthListUp;
+    double totalArcLengthUp = 0.0;
+    for (int i = 1; i < posListUp.size() - 1; i += 2) {
+        QVector3D center = Point::calculateCircumcenter(
+            posListUp.at(i - 1).pos, posListUp.at(i).pos,
+            posListUp.at(i + 1).pos);
+        centerListUp.append(center);
+        double radius = (posListUp.at(i).pos - center).length();
+        radiusListUp.append(radius);
+        QVector3D OA = posListUp.at(i - 1).pos - center;
+        QVector3D OM = posListUp.at(i).pos - center;
+        QVector3D OB = posListUp.at(i + 1).pos - center;
+        // 适用OA、OB夹角大于180°的情况
+        double length = (qAcos(QVector3D::dotProduct(OA, OM) /
+                               (OA.length() * OM.length())) +
+                         qAcos(QVector3D::dotProduct(OM, OB) /
+                               (OM.length() * OB.length()))) *
+                        radius;
+        lengthListUp.append(length);
+        totalArcLengthUp += length;
+    }
+    QVector<QVector3D> finalPosListUp, finalPosListDown;
+    if (count > 0) {
+        // double halfArcLengthUp = totalArcLengthUp / 2;
+        // for (int i = 0; i < centerListUp.size(); ++i) {
+        //     if (halfArcLengthUp <= lengthListUp.at(i)) {
+        //         QVector3D axis = QVector3D::crossProduct(
+        //             posListUp.at(2 * i).pos - centerListUp.at(i),
+        //             posListUp.at(2 * i + 1).pos - centerListUp.at(i));
+        //         QMatrix3x3 R = Point::toRotationMatrix(
+        //             axis,
+        //             qRadiansToDegrees(halfArcLengthUp / radiusListUp.at(i)));
+        //         QVector3D trans = posListUp.at(2 * i).pos -
+        //         centerListUp.at(i); QVector3D newTrans =
+        //             QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+        //                           R(0, 2) * trans.z(),
+        //                       R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+        //                           R(1, 2) * trans.z(),
+        //                       R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+        //                           R(2, 2) * trans.z());
+
+        //         double radius = craft.discRadius;
+        //         double angle = craft.grindAngle;
+        //         QVector3D rotation = pointSet.beginPoint.rot;
+        //         QVector3D moveDirection = -newTrans;
+        //         // 获取新的姿态
+        //         newRot = Point::getNewRotation(rotation, moveDirection,
+        //         angle);
+        //         // 获取新姿态需要的平移量
+        //         translation = Point::getTranslation(rotation, moveDirection,
+        //                                             radius, angle);
+
+        //         break;
+        //     } else {
+        //         halfArcLengthUp -= lengthListUp.at(i);
+        //     }
+        // }
+        double unitArcLengthUp = totalArcLengthUp / count;
+        double arcLengthUp = 0.0;
+        for (int i = 0; i < centerListUp.size(); ++i) {
+            while (arcLengthUp <= lengthListUp.at(i)) {
+                QVector3D axis = QVector3D::crossProduct(
+                    posListUp.at(2 * i).pos - centerListUp.at(i),
+                    posListUp.at(2 * i + 1).pos - centerListUp.at(i));
+                QMatrix3x3 R = Point::toRotationMatrix(
+                    axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
+                QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
+                QVector3D newTrans =
+                    QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+                                  R(0, 2) * trans.z(),
+                              R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+                                  R(1, 2) * trans.z(),
+                              R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                                  R(2, 2) * trans.z());
+                finalPosListUp.append(centerListUp.at(i) + newTrans);
+                finalPosListDown.append(centerListUp.at(i) +
+                                        newTrans.normalized() *
+                                            (radiusListUp.at(i) - midOffset));
+                arcLengthUp += unitArcLengthUp;
+            }
+            arcLengthUp -= lengthListUp.at(i);
+        }
+    } else {
+        finalPosListUp.append(pointSet.beginPoint.pos);
+        finalPosListDown.append(pointSet.beginOffsetPoint.pos);
+    }
+
+    Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = 1;
+
+    double radius = craft.discRadius;
+    double angle = craft.grindAngle;
+    QVector3D rotation = pointSet.beginPoint.rot;
+    QVector3D moveDirection;
+    // 定义空间目标位置
+    Point point;
+    // 移到起始辅助点
+    moveDirection = finalPosListDown.constFirst() - finalPosListUp.constFirst();
+    // 获取新的姿态
+    newRot = Point::getNewRotation(rotation, moveDirection, angle);
+    // 获取新姿态需要的平移量
+    translation = Point::getTranslation(rotation, moveDirection, radius, angle);
+    point.pos = finalPosListDown.constFirst() + translation;
+    point.rot = newRot;
+    point = point.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(point, dVelocity, dAcc, dRadius);
+    // 移到起始点
+    dVelocity = craft.cutinSpeed;
+    for (int i = 0; i < finalPosListUp.size(); ++i) {
+        moveDirection = finalPosListDown.at(i) - finalPosListUp.at(i);
+        // 获取新的姿态
+        newRot = Point::getNewRotation(rotation, moveDirection, angle);
+        // 获取新姿态需要的平移量
+        translation =
+            Point::getTranslation(rotation, moveDirection, radius, angle);
+
+        point.pos = finalPosListDown.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+
+        dVelocity = craft.moveSpeed;
+        dAcc = 100;
         point.pos = finalPosListUp.at(i) + translation;
         point.rot = newRot;
         MoveL(point, dVelocity, dAcc, dRadius);
@@ -1143,13 +1421,17 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     double angle = craft.grindAngle;
     QVector3D rotation = pointSet.beginPoint.rot;
     QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
-    if (craft.way == PolishWay::RegionArcWay_Vertical) {
-        moveDirection = pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
-    }
+    // if (craft.way == PolishWay::RegionArcWay_Vertical) {
+    //     moveDirection = pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
+    // }
     // 获取新的姿态
     newRot = Point::getNewRotation(rotation, moveDirection, angle);
+    qDebug() << rotation;
+    qDebug() << newRot;
     // 获取新姿态需要的平移量
     translation = Point::getTranslation(rotation, moveDirection, radius, angle);
+    qDebug() << moveDirection;
+    qDebug() << translation;
     // 获取反向姿态和平移量
     rotation = pointSet.endPoint.rot;
     moveDirection = pointSet.beginPoint.pos - pointSet.endPoint.pos;
@@ -1176,6 +1458,9 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     case PolishWay::RegionArcWay2:
         point = MoveRegionArc2(craft);
         break;
+    case PolishWay::RegionArcWay_Horizontal:
+        point = MoveRegionArcHorizontal(craft);
+        break;
     case PolishWay::RegionArcWay_Vertical:
         point = MoveRegionArcVertical(craft);
         break;
@@ -1190,6 +1475,13 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     }
     point = point.PosRelByTool(defaultDirection, defaultOffset);
     MoveAfter(craft, point);
+    // 等待运动完成
+    while (true) {
+        if (!IsRobotMoved()) {
+            break;
+        }
+        QThread::msleep(100);
+    }
 }
 
 HansRobot::HansRobot() {}
@@ -1280,6 +1572,7 @@ bool HansRobot::RobotTeach(int pos) {
             // 设置AGP默认参数
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
+            agp->SetForce(100);
             if (!IsAGPEnabled()) {
                 agp->Control(FUNC::ENABLE);
             }
@@ -2491,6 +2784,7 @@ bool DucoRobot::RobotTeach(int pos) {
             // 设置AGP默认参数
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
+            agp->SetForce(100);
             if (!IsAGPEnabled()) {
                 agp->Control(FUNC::ENABLE);
             }
@@ -2861,7 +3155,7 @@ JakaRobot::JakaRobot() {}
 
 JakaRobot::~JakaRobot() {
     jakaRobot.drag_mode_enable(FALSE);
-    jakaRobot.disable_robot();
+    // jakaRobot.disable_robot();
     // jakaRobot.login_out();
 }
 
@@ -2876,11 +3170,11 @@ bool JakaRobot::RobotConnect(QString robotIP) {
         return false;
     }
     // 机器人上电
-    jakaRobot.power_on();
+    // jakaRobot.power_on();
     // 机器人使能
-    jakaRobot.enable_robot();
+    // jakaRobot.enable_robot();
     // 设置速度比
-    jakaRobot.set_rapidrate(1.0);
+    // jakaRobot.set_rapidrate(1.0);
     return true;
 }
 
@@ -2905,6 +3199,7 @@ bool JakaRobot::RobotTeach(int pos) {
             // 设置AGP默认参数
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
+            agp->SetForce(100);
             if (!IsAGPEnabled()) {
                 agp->Control(FUNC::ENABLE);
             }
@@ -2986,7 +3281,7 @@ bool JakaRobot::IsRobotMoved() {
     BOOL in_pos;
     jakaRobot.is_in_pos(&in_pos);
 
-    return in_pos;
+    return !in_pos;
 }
 
 void JakaRobot::OpenWeb(QString ip) {}
@@ -3001,7 +3296,8 @@ void JakaRobot::MoveL(const Point &point, double dVelocity, double dAcc,
     pos.rpy.ry = qDegreesToRadians(point.rot.y());
     pos.rpy.rz = qDegreesToRadians(point.rot.z());
 
-    jakaRobot.linear_move(&pos, MoveMode::ABS, FALSE, dVelocity);
+    jakaRobot.linear_move(&pos, MoveMode::ABS, FALSE, dVelocity, dAcc, 0.1,
+                          NULL, 3.14 / 10, 12.56 / 10);
 }
 
 void JakaRobot::MoveC(const Point &auxPoint, const Point &endPoint,
@@ -3022,5 +3318,5 @@ void JakaRobot::MoveC(const Point &auxPoint, const Point &endPoint,
     endPos.rpy.rz = qDegreesToRadians(endPoint.rot.z());
 
     jakaRobot.circular_move(&endPos, &midPos, MoveMode::ABS, FALSE, dVelocity,
-                            dAcc, 0.1, NULL, 0);
+                            dAcc, 0.1, NULL);
 }

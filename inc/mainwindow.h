@@ -81,9 +81,9 @@ class MainWindow : public QMainWindow {
 
   private:
     Ui::MainWindow *ui;
-    // HansRobot robot;       // 大族机器人
+    HansRobot robot;       // 大族机器人
     // DucoRobot robot;       // 新松机器人
-    JakaRobot robot;                // 节卡机器人
+    // JakaRobot robot;                // 节卡机器人
     QVector<Craft> crafts;          // 工艺参数列表
     int lastPageIdx;                // 上一个页面编号
     int currCraftIdx;               // 当前工艺参数编号

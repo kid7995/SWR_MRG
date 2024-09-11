@@ -34,6 +34,11 @@ class Point {
     static QVector3D calculateCircumcenter(const QVector3D &A,
                                            const QVector3D &B,
                                            const QVector3D &C);
+    // 四点求球心
+    static QVector3D calculateSpherecenter(const QVector3D &A,
+                                           const QVector3D &B,
+                                           const QVector3D &C,
+                                           const QVector3D &D);
     // 欧拉角转旋转矩阵
     static QMatrix3x3 toRotationMatrix(const QVector3D &rotation);
     // 计算指定旋转轴和夹角的旋转矩阵
@@ -46,8 +51,8 @@ class Point {
                                     float angle);
     // 计算新姿态需要的偏移量
     static QVector3D getTranslation(const QVector3D &rotation,
-                               const QVector3D &moveDirection, float radius,
-                               float angle);
+                                    const QVector3D &moveDirection,
+                                    float radius, float angle);
     static void test();
 
   private:
