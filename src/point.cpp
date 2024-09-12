@@ -139,10 +139,19 @@ QVector3D Point::calculateCircumcenter(const QVector3D &A, const QVector3D &B,
     return circumcenter;
 }
 
-static QVector3D calculateSpherecenter(const QVector3D &A, const QVector3D &B,
-                                       const QVector3D &C, const QVector3D &D) {
-    // TODO
-    QVector3D spherecenter;
+QVector3D Point::calculateSpherecenter(const QVector3D &A, const QVector3D &B,
+                                       const QVector3D &C, const QVector3D &D) {//todo 共面等情况处理
+    QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
+    QVector3D N = QVector3D::crossProduct(B - A, C - A).normalized();
+
+    double toLine = D.distanceToLine(circumcenter, N);
+    double toPlane = D.distanceToPlane(circumcenter, N);
+    QVector3D toSpherecenter = ((qPow(toLine, 2) + qPow(toPlane, 2) -
+                                 (A - circumcenter).lengthSquared()) /
+                                (2.f * toPlane)) *
+                               N;
+
+    QVector3D spherecenter = circumcenter + toSpherecenter;
 
     return spherecenter;
 }
@@ -226,25 +235,67 @@ QVector3D Point::getTranslation(const QVector3D &rotation,
 }
 
 void Point::test() {
-    // 定义三个点
-    // QVector3D A(1, 2, 3);
-    // QVector3D B(4, 6, 8);
-    // QVector3D C(7, 8, 9);
-    QVector3D A(1945.180, 103.261, 742.669);
-    QVector3D B(2054.380, -349.238, 1246.420);
-    QVector3D C(1812.530, -488.013, 731.441);
+    // 定义四个点
+    // QVector3D A(1, 0, 0);
+    // QVector3D B(0, 1, 0);
+    // QVector3D C(0, -1, 0);
+    // QVector3D D(0, 0, 1);
+
+    // QVector3D A(2224.050, -124.478, 1430.000);
+    // QVector3D B(2084.930, -32.543, 1166.900);
+    // QVector3D C(1933.380, 25.694, 785.350);
+    // QVector3D D(2405.680, 657.809, 1103.340);
+    // QVector3D D(1972.400, -1091.640, 1078.600);
+
+    // QVector3D A(2420.060, 967.272, 578.049);
+    // QVector3D B(2602.570, 652.510, 1378.670);
+    // QVector3D C(2267.240, -389.142, 1564.540);
+    // QVector3D D(1811.140, -1053.850, 668.848);
+
+    // QVector3D A(1555.11, 534.88, 1890.92);
+    // QVector3D B(-672.46, -600.79, 2338.14);
+    // QVector3D C(-1029.48, 1011.24, 2048.81);
+    // QVector3D D(-1987.66, 1156.67, 995.67);
+
+    QVector3D A(886.973328, 2276.283936, 558.298828);
+    QVector3D B(1248.014038, 1278.356079, 1757.019043);
+    QVector3D C(1739.933350, 449.416870, 1746.533936);
+    // QVector3D D(2141.301025, 1046.215820, 774.156738);
+    // QVector3D D(899.932068, 754.736450, 2213.685547);
+    QVector3D D(-1123.303345, 530.642700, 2176.362549);
 
     // 计算外心
-    QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
-
+    QVector3D spherecenter = Point::calculateSpherecenter(A, B, C, D);
+    // spherecenter = QVector3D(4200, 300.673, 0);
     // 输出外心坐标
-    qDebug() << "The circumcenter of the triangle is at:" << circumcenter;
-
+    qDebug() << "The spherecenter of the triangle is at:" << spherecenter;
     // 输出半径
-    qDebug() << "radius: " << A.distanceToPoint(circumcenter);
-    qDebug() << "radius: " << B.distanceToPoint(circumcenter);
-    qDebug() << "radius: " << C.distanceToPoint(circumcenter);
+    qDebug() << "radius: " << A.distanceToPoint(spherecenter);
+    qDebug() << "radius: " << B.distanceToPoint(spherecenter);
+    qDebug() << "radius: " << C.distanceToPoint(spherecenter);
+    qDebug() << "radius: " << D.distanceToPoint(spherecenter);
 }
+
+// void Point::test() {
+//     // 定义三个点
+//     // QVector3D A(1, 2, 3);
+//     // QVector3D B(4, 6, 8);
+//     // QVector3D C(7, 8, 9);
+//     QVector3D A(1945.180, 103.261, 742.669);
+//     QVector3D B(2054.380, -349.238, 1246.420);
+//     QVector3D C(1812.530, -488.013, 731.441);
+
+//     // 计算外心
+//     QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
+
+//     // 输出外心坐标
+//     qDebug() << "The circumcenter of the triangle is at:" << circumcenter;
+
+//     // 输出半径
+//     qDebug() << "radius: " << A.distanceToPoint(circumcenter);
+//     qDebug() << "radius: " << B.distanceToPoint(circumcenter);
+//     qDebug() << "radius: " << C.distanceToPoint(circumcenter);
+// }
 
 // void Point::test() {
 //     QVector3D position{4, 5, 6};
