@@ -903,6 +903,11 @@ Point Robot::MoveRegionArcHorizontal(const Craft &craft) {
               (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos).length()) /
              2) /
             count;
+        if ((pointSet.beginPoint.pos - pointSet.endPoint.pos).length() <
+            (pointSet.beginOffsetPoint.pos - pointSet.endOffsetPoint.pos)
+                .length()) {
+            midOffset = -midOffset;
+        }
     }
 
     // 圆弧上界
@@ -1182,6 +1187,11 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         ((pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos).length() +
          (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos).length()) /
         2;
+    if ((pointSet.beginPoint.pos - pointSet.endPoint.pos).length() <
+        (pointSet.beginOffsetPoint.pos - pointSet.endOffsetPoint.pos)
+            .length()) {
+        midOffset = -midOffset;
+    }
 
     // 圆弧上界、圆弧下界
     QVector<Point> posListUp;
@@ -1422,7 +1432,8 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     QVector3D rotation = pointSet.beginPoint.rot;
     QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
     // if (craft.way == PolishWay::RegionArcWay_Vertical) {
-    //     moveDirection = pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
+    //     moveDirection = pointSet.beginOffsetPoint.pos -
+    //     pointSet.beginPoint.pos;
     // }
     // 获取新的姿态
     newRot = Point::getNewRotation(rotation, moveDirection, angle);

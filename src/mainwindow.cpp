@@ -17,8 +17,8 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), lastPageIdx(0),
       currCraftIdx(0) {
     ui->setupUi(this);
-    ui->lblAddOffsetCount->setVisible(false);
-    ui->leAddOffsetCount->setVisible(false);
+    // ui->lblAddOffsetCount->setVisible(false);
+    // ui->leAddOffsetCount->setVisible(false);
     // 读取工艺参数文件
     QString fileName = QCoreApplication::applicationDirPath();
     // QString fileName =

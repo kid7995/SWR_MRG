@@ -790,6 +790,16 @@ color: rgb(255, 255, 255);</string>
             <string>区域圆弧-纵向</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>区域圆弧1</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>区域圆弧2</string>
+           </property>
+          </item>
          </widget>
         </item>
         <item row="1" column="0">
