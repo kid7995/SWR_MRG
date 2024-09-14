@@ -790,6 +790,31 @@ color: rgb(255, 255, 255);</string>
             <string>区域圆弧-纵向</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>区域圆弧1</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>区域圆弧2</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>球面区域</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Z型直线</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>螺旋直线</string>
+           </property>
+          </item>
          </widget>
         </item>
         <item row="1" column="0">
@@ -1822,7 +1847,7 @@ color: rgb(255, 255, 255);</string>
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>17</height>
+     <height>25</height>
     </rect>
    </property>
   </widget>

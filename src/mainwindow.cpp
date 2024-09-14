@@ -223,7 +223,9 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 110);
         ui->btnMid->setVisible(true);
+        ui->btnBegin->move(150, 310);
         ui->btnBeginOffset->setVisible(false);
+        ui->btnEnd->move(930, 310);
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::LineWay:
@@ -233,7 +235,9 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 310);
         ui->btnMid->setVisible(true);
+        ui->btnBegin->move(150, 310);
         ui->btnBeginOffset->setVisible(false);
+        ui->btnEnd->move(930, 310);
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::RegionArcWay1:
@@ -243,7 +247,9 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 110);
         ui->btnMid->setVisible(true);
+        ui->btnBegin->move(150, 310);
         ui->btnBeginOffset->setVisible(true);
+        ui->btnEnd->move(930, 310);
         ui->btnEndOffset->setVisible(true);
         break;
     case PolishWay::RegionArcWay2:
@@ -255,7 +261,21 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 110);
         ui->btnMid->setVisible(true);
+        ui->btnBegin->move(150, 310);
         ui->btnBeginOffset->setVisible(true);
+        ui->btnEnd->move(930, 310);
+        ui->btnEndOffset->setVisible(true);
+        break;
+    case PolishWay::SphereRegionWay:
+        ui->leOffsetCount->setEnabled(true);
+        ui->leAddOffsetCount->setEnabled(false);
+        ui->lblBackground->setPixmap(QPixmap(":/pic/sphere_region.png"));
+        ui->btnAux->move(545, 325);
+        ui->btnAux->setVisible(true);
+        ui->btnMid->setVisible(false);
+        ui->btnBegin->move(320, 220);
+        ui->btnBeginOffset->setVisible(true);
+        ui->btnEnd->move(770, 220);
         ui->btnEndOffset->setVisible(true);
         break;
     case PolishWay::ZLineWay:
@@ -265,7 +285,9 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnAux->move(150, 130);
         ui->btnAux->setVisible(true);
         ui->btnMid->setVisible(false);
+        ui->btnBegin->move(150, 310);
         ui->btnBeginOffset->setVisible(false);
+        ui->btnEnd->move(930, 310);
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::SpiralLineWay:
@@ -275,7 +297,9 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnAux->move(350, 130);
         ui->btnAux->setVisible(true);
         ui->btnMid->setVisible(false);
+        ui->btnBegin->move(150, 310);
         ui->btnBeginOffset->setVisible(false);
+        ui->btnEnd->move(930, 310);
         ui->btnEndOffset->setVisible(false);
         break;
     default:

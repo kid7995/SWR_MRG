@@ -6,5 +6,6 @@
         <file>pic/z_line.png</file>
         <file>pic/region_arc.png</file>
         <file>pic/spiral_line.png</file>
+        <file>pic/sphere_region.png</file>
     </qresource>
 </RCC>

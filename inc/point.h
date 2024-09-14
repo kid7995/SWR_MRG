@@ -27,6 +27,9 @@ class Point {
 
     void operator+=(const Point &point);
 
+    // 矩阵向量乘
+    static QVector3D gemv(const QMatrix3x3 &matrix, const QVector3D &vector);
+    // 取直线等分点
     static Point scale(const Point &pointBegin, const Point &pointEnd, float t);
     // static Point circumcenter(const Point &pointBegin, const Point &pointAux,
     //                     const Point &pointEnd);

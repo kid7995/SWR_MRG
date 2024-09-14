@@ -239,6 +239,13 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
             check.append("中间点");
         }
         break;
+    case PolishWay::SphereRegionWay:
+        if (!pointSet.isBeginOffsetPointRecorded) {
+            check.append("起始偏移点");
+        }
+        if (!pointSet.isEndOffsetPointRecorded) {
+            check.append("结束偏移点");
+        }
     case PolishWay::ZLineWay:
     case PolishWay::SpiralLineWay:
         if (!pointSet.isAuxPointRecorded) {
@@ -321,7 +328,8 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     MoveL(point, dVelocity, dAcc, dRadius);
     // AGP运行
     AGPRun(craft, isAGPRun);
-    if (craft.way != PolishWay::RegionArcWay_Vertical) {
+    if (craft.way != PolishWay::RegionArcWay_Vertical &&
+        craft.way != PolishWay::SphereRegionWay) {
         // 移到起始辅助点
         // point = pointSet.auxBeginPoint;
         point.pos = pointSet.beginPoint.pos + translation;
@@ -1331,6 +1339,118 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
     return point;
 }
 
+Point Robot::MoveSphereRegion(const Craft &craft) {
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = 1;
+    // 偏移次数
+    int count = craft.offsetCount;
+
+    // 计算球心、球半径
+    QVector3D sphereCenter = Point::calculateSpherecenter(
+        pointSet.beginPoint.pos, pointSet.endPoint.pos, pointSet.auxPoint.pos,
+        pointSet.auxBeginPoint.pos);
+    double sphereRadius = (pointSet.beginPoint.pos - sphereCenter).length();
+
+    // 圆弧左界、圆弧右界
+    QVector<QVector3D> posListLeft, posListRight;
+    if (count > 0) {
+        QVector3D OA = pointSet.beginPoint.pos - sphereCenter;
+        QVector3D OB = pointSet.auxBeginPoint.pos - sphereCenter;
+        double unitAngle =
+            qRadiansToDegrees(qAcos(QVector3D::dotProduct(OA, OB) /
+                                    (OA.length() * OB.length()))) /
+            (2 * count);
+        QVector3D axis = QVector3D::crossProduct(OA, OB);
+        for (int i = 0; i <= 2 * count; ++i) {
+            QMatrix3x3 R = Point::toRotationMatrix(axis, i * unitAngle);
+            posListLeft.append(Point::gemv(R, OA) + sphereCenter);
+        }
+
+        OA = pointSet.endPoint.pos - sphereCenter;
+        OB = pointSet.auxEndPoint.pos - sphereCenter;
+        unitAngle = qRadiansToDegrees(qAcos(QVector3D::dotProduct(OA, OB) /
+                                            (OA.length() * OB.length()))) /
+                    (2 * count);
+        axis = QVector3D::crossProduct(OA, OB);
+        for (int i = 0; i <= 2 * count; ++i) {
+            QMatrix3x3 R = Point::toRotationMatrix(axis, i * unitAngle);
+            posListRight.append(Point::gemv(R, OA) + sphereCenter);
+        }
+    } else {
+        posListLeft.append(pointSet.beginPoint.pos);
+        posListRight.append(pointSet.endPoint.pos);
+    }
+
+    double axisAngle = 0.0;
+    Point pos;
+    // 移到起始辅助点
+    pos.pos = posListLeft.constFirst();
+    pos.rot = Point::toEulerAngles(
+        Point::toRotationMatrix(sphereCenter - pos.pos, axisAngle));
+    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(pos, dVelocity, dAcc, dRadius);
+    // 移到起始点
+    dVelocity = craft.cutinSpeed;
+    pos.pos = posListLeft.constFirst();
+    pos.rot = Point::toEulerAngles(
+        Point::toRotationMatrix(sphereCenter - pos.pos, axisAngle));
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    Point posAux, posEnd;
+    // 圆弧运动
+    dVelocity = craft.moveSpeed;
+    dAcc = 100;
+    for (int i = 0; i <= count; ++i) {
+        if (i % 2 == 0) { // 正向
+            if (i > 0) {
+                posAux.pos = posListLeft.at(2 * i - 1);
+                posAux.rot = Point::toEulerAngles(Point::toRotationMatrix(
+                    sphereCenter - posAux.pos, axisAngle));
+                posEnd.pos = posListLeft.at(2 * i);
+                posEnd.rot = Point::toEulerAngles(Point::toRotationMatrix(
+                    sphereCenter - posEnd.pos, axisAngle));
+                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            }
+            posAux.pos = ((posListLeft.at(2 * i) - sphereCenter) +
+                          (posListRight.at(2 * i) - sphereCenter))
+                                 .normalized() *
+                             sphereRadius +
+                         sphereCenter;
+            posAux.rot = Point::toEulerAngles(
+                Point::toRotationMatrix(sphereCenter - posAux.pos, axisAngle));
+            posEnd.pos = posListRight.at(2 * i);
+            posEnd.rot = Point::toEulerAngles(
+                Point::toRotationMatrix(sphereCenter - posEnd.pos, axisAngle));
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        } else { // 反向
+            posAux.pos = posListRight.at(2 * i - 1);
+            posAux.rot = Point::toEulerAngles(
+                Point::toRotationMatrix(sphereCenter - posAux.pos, axisAngle));
+            posEnd.pos = posListRight.at(2 * i);
+            posEnd.rot = Point::toEulerAngles(
+                Point::toRotationMatrix(sphereCenter - posEnd.pos, axisAngle));
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            posAux.pos = ((posListLeft.at(2 * i) - sphereCenter) +
+                          (posListRight.at(2 * i) - sphereCenter))
+                                 .normalized() *
+                             sphereRadius +
+                         sphereCenter;
+            posAux.rot = Point::toEulerAngles(
+                Point::toRotationMatrix(sphereCenter - posAux.pos, axisAngle));
+            posEnd.pos = posListLeft.at(2 * i);
+            posEnd.rot = Point::toEulerAngles(
+                Point::toRotationMatrix(sphereCenter - posEnd.pos, axisAngle));
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        }
+    }
+
+    return posEnd;
+}
+
 void Robot::MoveZLine(const Craft &craft) {
     // 定义运动速度
     double dVelocity = craft.moveSpeed;
@@ -1422,16 +1542,17 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     QVector3D rotation = pointSet.beginPoint.rot;
     QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
     // if (craft.way == PolishWay::RegionArcWay_Vertical) {
-    //     moveDirection = pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
+    //     moveDirection = pointSet.beginOffsetPoint.pos -
+    //     pointSet.beginPoint.pos;
     // }
     // 获取新的姿态
     newRot = Point::getNewRotation(rotation, moveDirection, angle);
-    qDebug() << rotation;
-    qDebug() << newRot;
+    // qDebug() << rotation;
+    // qDebug() << newRot;
     // 获取新姿态需要的平移量
     translation = Point::getTranslation(rotation, moveDirection, radius, angle);
-    qDebug() << moveDirection;
-    qDebug() << translation;
+    // qDebug() << moveDirection;
+    // qDebug() << translation;
     // 获取反向姿态和平移量
     rotation = pointSet.endPoint.rot;
     moveDirection = pointSet.beginPoint.pos - pointSet.endPoint.pos;
@@ -1463,6 +1584,9 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
         break;
     case PolishWay::RegionArcWay_Vertical:
         point = MoveRegionArcVertical(craft);
+        break;
+    case PolishWay::SphereRegionWay:
+        point = MoveSphereRegion(craft);
         break;
     case PolishWay::ZLineWay:
         MoveZLine(craft);

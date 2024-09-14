@@ -52,16 +52,17 @@ class Robot {
     Point MoveRegionArc2(const Craft &craft);
     Point MoveRegionArcHorizontal(const Craft &craft);
     Point MoveRegionArcVertical(const Craft &craft);
+    Point MoveSphereRegion(const Craft &craft);
     void MoveZLine(const Craft &craft);
     void MoveSpiralLine(const Craft &craft);
     void Run(const Craft &craft, bool isAGPRun);
 
   protected:
-    AGP *agp;              // AGP
-    PointSet pointSet;     // 点位集合
-    bool isTeach;          // 自由拖拽是否启用
-    QVector3D newRot;      // 倾斜指定角度后的姿态
-    QVector3D translation; // 变换姿态后需要的平移量
+    AGP *agp;                 // AGP
+    PointSet pointSet;        // 点位集合
+    bool isTeach;             // 自由拖拽是否启用
+    QVector3D newRot;         // 倾斜指定角度后的姿态
+    QVector3D translation;    // 变换姿态后需要的平移量
     QVector3D newRotInv;      // 倾斜指定角度后的姿态
     QVector3D translationInv; // 变换姿态后需要的平移量
 };

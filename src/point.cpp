@@ -111,6 +111,15 @@ void Point::operator+=(const Point &point) {
     // rot += point.rot;
 }
 
+QVector3D Point::gemv(const QMatrix3x3 &matrix, const QVector3D &vector) {
+    return QVector3D(matrix(0, 0) * vector.x() + matrix(0, 1) * vector.y() +
+                         matrix(0, 2) * vector.z(),
+                     matrix(1, 0) * vector.x() + matrix(1, 1) * vector.y() +
+                         matrix(1, 2) * vector.z(),
+                     matrix(2, 0) * vector.x() + matrix(2, 1) * vector.y() +
+                         matrix(2, 2) * vector.z());
+}
+
 Point Point::scale(const Point &pointBegin, const Point &pointEnd, float t) {
     Point point;
     point.pos = (pointEnd.pos - pointBegin.pos) * t + pointBegin.pos;
@@ -139,8 +148,10 @@ QVector3D Point::calculateCircumcenter(const QVector3D &A, const QVector3D &B,
     return circumcenter;
 }
 
-QVector3D Point::calculateSpherecenter(const QVector3D &A, const QVector3D &B,
-                                       const QVector3D &C, const QVector3D &D) {//todo 共面等情况处理
+QVector3D
+Point::calculateSpherecenter(const QVector3D &A, const QVector3D &B,
+                             const QVector3D &C,
+                             const QVector3D &D) { // todo 共面等情况处理
     QVector3D circumcenter = Point::calculateCircumcenter(A, B, C);
     QVector3D N = QVector3D::crossProduct(B - A, C - A).normalized();
 
@@ -257,16 +268,21 @@ void Point::test() {
     // QVector3D C(-1029.48, 1011.24, 2048.81);
     // QVector3D D(-1987.66, 1156.67, 995.67);
 
-    QVector3D A(886.973328, 2276.283936, 558.298828);
-    QVector3D B(1248.014038, 1278.356079, 1757.019043);
-    QVector3D C(1739.933350, 449.416870, 1746.533936);
-    // QVector3D D(2141.301025, 1046.215820, 774.156738);
-    // QVector3D D(899.932068, 754.736450, 2213.685547);
-    QVector3D D(-1123.303345, 530.642700, 2176.362549);
+    QVector3D A(1428.600, 1075.290, 1689.900);
+    QVector3D B(1261.610, -8.888, 1967.420);
+    QVector3D C(1143.090, 1136.160, 1084.010);
+    QVector3D D(812.207, -596.970, 1014.130);
+
+    // QVector3D A(886.973328, 2276.283936, 558.298828);
+    // QVector3D B(1248.014038, 1278.356079, 1757.019043);
+    // QVector3D C(1739.933350, 449.416870, 1746.533936);
+    // // QVector3D D(2141.301025, 1046.215820, 774.156738);
+    // // QVector3D D(899.932068, 754.736450, 2213.685547);
+    // QVector3D D(-1123.303345, 530.642700, 2176.362549);
 
     // 计算外心
     QVector3D spherecenter = Point::calculateSpherecenter(A, B, C, D);
-    // spherecenter = QVector3D(4200, 300.673, 0);
+    // spherecenter = QVector3D(3186.714, -124.496, 367.3);
     // 输出外心坐标
     qDebug() << "The spherecenter of the triangle is at:" << spherecenter;
     // 输出半径
