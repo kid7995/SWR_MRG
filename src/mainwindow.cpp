@@ -320,6 +320,22 @@ void MainWindow::ConnectAGP() {
     t.detach();
 }
 
+void MainWindow::AddHistoryPoint(const QString &strPoint) {
+    if (!strPoint.contains("：")) {
+        return;
+    }
+    QList<QListWidgetItem *> pItems = ui->lstHistoryPoint->findItems(
+        strPoint.left(strPoint.indexOf("：")), Qt::MatchStartsWith);
+    if (pItems.isEmpty()) {
+        // ui->lstHistoryPoint->insertItem(0, strPoint);
+        ui->lstHistoryPoint->addItem(strPoint);
+    } else {
+        for (const auto &pItem : pItems) {
+            pItem->setText(strPoint);
+        }
+    }
+}
+
 void MainWindow::on_btnDrag_clicked() {
     if (robot.RobotTeach(crafts.at(currCraftIdx).teachPointReferPos)) {
         ui->btnDrag->setStyleSheet(greenStyleSheet);
@@ -331,7 +347,7 @@ void MainWindow::on_btnDrag_clicked() {
 void MainWindow::on_btnSafe_clicked() {
     QString strPoint = "";
     if (robot.GetSafePoint(strPoint)) {
-        ui->lstHistoryPoint->insertItem(0, strPoint);
+        AddHistoryPoint(strPoint);
         ui->btnSafe->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnSafe->setStyleSheet(defaultStyleSheet);
@@ -357,7 +373,7 @@ void MainWindow::on_btnNext_clicked() {
 void MainWindow::on_btnBegin_clicked() {
     QString strPoint = "";
     if (robot.GetBeginPoint(strPoint)) {
-        ui->lstHistoryPoint->insertItem(0, strPoint);
+        AddHistoryPoint(strPoint);
         ui->btnBegin->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnBegin->setStyleSheet(defaultStyleSheet);
@@ -367,7 +383,7 @@ void MainWindow::on_btnBegin_clicked() {
 void MainWindow::on_btnEnd_clicked() {
     QString strPoint = "";
     if (robot.GetEndPoint(strPoint)) {
-        ui->lstHistoryPoint->insertItem(0, strPoint);
+        AddHistoryPoint(strPoint);
         ui->btnEnd->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnEnd->setStyleSheet(defaultStyleSheet);
@@ -517,7 +533,7 @@ void MainWindow::on_btnStop_clicked() {
 void MainWindow::on_btnAux_clicked() {
     QString strPoint = "";
     if (robot.GetAuxPoint(strPoint)) {
-        ui->lstHistoryPoint->insertItem(0, strPoint);
+        AddHistoryPoint(strPoint);
         ui->btnAux->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnAux->setStyleSheet(defaultStyleSheet);
@@ -528,7 +544,7 @@ void MainWindow::on_btnMid_clicked() {
     QString strPoint = "";
     int size = robot.GetMidPoint(midPressDuration.elapsed(), strPoint);
     if (!strPoint.isEmpty()) {
-        ui->lstHistoryPoint->insertItem(0, strPoint);
+        AddHistoryPoint(strPoint);
     }
     if (size > 0) {
         ui->btnMid->setStyleSheet(greenStyleSheet);
@@ -550,7 +566,7 @@ void MainWindow::on_leOffsetCount_editingFinished() {
 void MainWindow::on_btnBeginOffset_clicked() {
     QString strPoint = "";
     if (robot.GetBeginOffsetPoint(strPoint)) {
-        ui->lstHistoryPoint->insertItem(0, strPoint);
+        AddHistoryPoint(strPoint);
         ui->btnBeginOffset->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnBeginOffset->setStyleSheet(defaultStyleSheet);
@@ -560,7 +576,7 @@ void MainWindow::on_btnBeginOffset_clicked() {
 void MainWindow::on_btnEndOffset_clicked() {
     QString strPoint = "";
     if (robot.GetEndOffsetPoint(strPoint)) {
-        ui->lstHistoryPoint->insertItem(0, strPoint);
+        AddHistoryPoint(strPoint);
         ui->btnEndOffset->setStyleSheet(greenStyleSheet);
     } else {
         ui->btnEndOffset->setStyleSheet(defaultStyleSheet);
@@ -642,4 +658,15 @@ void MainWindow::on_btnStop2_clicked() {
     if (robot.Stop()) {
         ui->btnDrag->setStyleSheet(defaultStyleSheet);
     }
+}
+
+void MainWindow::on_btnClearHistory_clicked() { ui->lstHistoryPoint->clear(); }
+
+void MainWindow::on_btnCoverPoint_clicked() {
+    QString strPoint = ui->leHistoryPoint->text();
+    if (strPoint.isEmpty()) {
+        return;
+    }
+    robot.CoverPoint(strPoint);
+    AddHistoryPoint(strPoint);
 }

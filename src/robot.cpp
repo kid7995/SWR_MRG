@@ -279,6 +279,45 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     return true;
 }
 
+void Robot::CoverPoint(QString &strPoint) {
+    if (strPoint.startsWith("安全点")) {
+        if (GetPoint(pointSet.safePoint)) {
+            strPoint = QString("安全点：") + pointSet.safePoint.toString();
+        }
+    } else if (strPoint.startsWith("起始点")) {
+        if (GetPoint(pointSet.beginPoint)) {
+            strPoint = QString("起始点：") + pointSet.beginPoint.toString();
+        }
+    } else if (strPoint.startsWith("结束点")) {
+        if (GetPoint(pointSet.endPoint)) {
+            strPoint = QString("结束点：") + pointSet.endPoint.toString();
+        }
+    } else if (strPoint.startsWith("起始偏移点")) {
+        if (GetPoint(pointSet.beginOffsetPoint)) {
+            strPoint =
+                QString("起始偏移点：") + pointSet.beginOffsetPoint.toString();
+        }
+    } else if (strPoint.startsWith("结束偏移点")) {
+        if (GetPoint(pointSet.endOffsetPoint)) {
+            strPoint =
+                QString("结束偏移点：") + pointSet.endOffsetPoint.toString();
+        }
+    } else if (strPoint.startsWith("辅助点")) {
+        if (GetPoint(pointSet.auxPoint)) {
+            strPoint = QString("辅助点：") + pointSet.auxPoint.toString();
+        }
+    } else if (strPoint.startsWith("中间点")) {
+        int id = strPoint.left(strPoint.indexOf("：")).mid(3).toInt();
+        if (id > pointSet.midPoints.size()) {
+            return;
+        }
+        if (GetPoint(pointSet.midPoints[id - 1])) {
+            strPoint = QString("中间点%1：").arg(id) +
+                       pointSet.midPoints.at(id - 1).toString();
+        }
+    }
+}
+
 void Robot::MoveToPoint(const QStringList &coordinates) {
     if (coordinates.size() != 6) {
         return;
@@ -1583,7 +1622,9 @@ bool HansRobot::RobotTeach(int pos) {
             // 设置AGP默认参数
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
-            agp->SetForce(100);
+            agp->SetForce(200);
+            agp->SetTouchForce(0);
+            agp->SetRampTime(0);
             if (!IsAGPEnabled()) {
                 agp->Control(FUNC::ENABLE);
             }
@@ -2795,7 +2836,9 @@ bool DucoRobot::RobotTeach(int pos) {
             // 设置AGP默认参数
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
-            agp->SetForce(100);
+            agp->SetForce(200);
+            agp->SetTouchForce(0);
+            agp->SetRampTime(0);
             if (!IsAGPEnabled()) {
                 agp->Control(FUNC::ENABLE);
             }
@@ -3210,7 +3253,9 @@ bool JakaRobot::RobotTeach(int pos) {
             // 设置AGP默认参数
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
-            agp->SetForce(100);
+            agp->SetForce(200);
+            agp->SetTouchForce(0);
+            agp->SetRampTime(0);
             if (!IsAGPEnabled()) {
                 agp->Control(FUNC::ENABLE);
             }

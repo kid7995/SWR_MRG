@@ -42,6 +42,7 @@ class Robot {
     bool ClearMidPoints();
     int DelLastMidPoint();
     bool CheckAllPoints(const PolishWay &way);
+    void CoverPoint(QString &strPoint);
 
     void MoveToPoint(const QStringList &coordinates);
     void MoveBefore(const Craft &craft, bool isAGPRun);

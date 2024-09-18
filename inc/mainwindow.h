@@ -33,6 +33,8 @@ class MainWindow : public QMainWindow {
     void ConnectRobot();
     void ConnectAGP();
 
+    void AddHistoryPoint(const QString &strPoint);
+
   private slots:
     void on_btnDrag_clicked();
     void on_btnSafe_clicked();
@@ -60,6 +62,8 @@ class MainWindow : public QMainWindow {
     void on_btnDelLastMid_clicked();
     void on_btnOpenWeb_clicked();
     void on_btnMoveToPoint_clicked();
+    void on_btnClearHistory_clicked();
+    void on_btnCoverPoint_clicked();
     void on_btnStop2_clicked();
 
     void on_leCutinSpeed_editingFinished();
@@ -79,7 +83,7 @@ class MainWindow : public QMainWindow {
     void on_cmbPolishWay_currentIndexChanged(int index);
     void on_cmbCraftID_editTextChanged(const QString &arg1);
 
-  private:
+private:
     Ui::MainWindow *ui;
     // HansRobot robot;       // 大族机器人
     // DucoRobot robot;       // 新松机器人
