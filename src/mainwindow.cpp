@@ -195,6 +195,10 @@ void MainWindow::EnableButtons() {
     ui->btnRun->setStyleSheet(defaultStyleSheet);
     ui->btnMoveToPoint->setEnabled(true);
     ui->btnMoveToPoint->setStyleSheet(defaultStyleSheet);
+    ui->btnClearHistory->setEnabled(true);
+    ui->btnClearHistory->setStyleSheet(defaultStyleSheet);
+    ui->btnCoverPoint->setEnabled(true);
+    ui->btnCoverPoint->setStyleSheet(defaultStyleSheet);
     ui->btnStop2->setEnabled(true);
     ui->btnStop2->setStyleSheet(defaultStyleSheet);
 }
@@ -217,6 +221,8 @@ void MainWindow::SetValidator() {
 void MainWindow::SetPolishWay(const PolishWay &way) {
     switch (way) {
     case PolishWay::ArcWay:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(false);
         ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/arc.png"));
@@ -227,6 +233,8 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::LineWay:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(false);
         ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/line.png"));
@@ -237,6 +245,8 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::RegionArcWay1:
+        ui->leDiscRadius->setEnabled(false);
+        ui->leGrindAngle->setEnabled(false);
         ui->leOffsetCount->setEnabled(true);
         ui->leAddOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
@@ -247,8 +257,21 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(true);
         break;
     case PolishWay::RegionArcWay2:
+        ui->leDiscRadius->setEnabled(false);
+        ui->leGrindAngle->setEnabled(false);
+        ui->leOffsetCount->setEnabled(true);
+        ui->leAddOffsetCount->setEnabled(false);
+        ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
+        ui->btnAux->setVisible(false);
+        ui->btnMid->move(550, 110);
+        ui->btnMid->setVisible(true);
+        ui->btnBeginOffset->setVisible(true);
+        ui->btnEndOffset->setVisible(true);
+        break;
     case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
@@ -259,6 +282,8 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(true);
         break;
     case PolishWay::ZLineWay:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/z_line.png"));
@@ -269,6 +294,8 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::SpiralLineWay:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/spiral_line.png"));

@@ -538,21 +538,21 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     Point posAux, posEnd;
     for (; idx < posMidRelList.size() - 1; idx += 2) {
         // 正向圆弧运动
-        // posEnd = posMidRelList.at(idx + 1);
-        posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
-        posEnd.rot = newRot;
-        // posAux = posMidRelList.at(idx);
-        posAux.pos = posMidRelList.at(idx).pos + translation;
-        posAux.rot = newRot;
+        posEnd = posMidRelList.at(idx + 1);
+        // posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+        // posEnd.rot = newRot;
+        posAux = posMidRelList.at(idx);
+        // posAux.pos = posMidRelList.at(idx).pos + translation;
+        // posAux.rot = newRot;
         MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     }
     // 正向圆弧运动
-    // posEnd = posEndRel;
-    posEnd.pos = posEndRel.pos + translation;
-    posEnd.rot = newRot;
-    // posAux = posMidRelList.at(idx);
-    posAux.pos = posMidRelList.at(idx).pos + translation;
-    posAux.rot = newRot;
+    posEnd = posEndRel;
+    // posEnd.pos = posEndRel.pos + translation;
+    // posEnd.rot = newRot;
+    posAux = posMidRelList.at(idx);
+    // posAux.pos = posMidRelList.at(idx).pos + translation;
+    // posAux.rot = newRot;
     MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     Point pos;
     // 新增圆弧次数
@@ -560,9 +560,9 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     for (int i = 0; i < count + addCount; ++i) {
         if (i % 2 == 0) { // 反向
             // 抬高
-            // pos = posEndRel;
-            pos.pos = posEndRel.pos + translation;
-            pos.rot = newRot;
+            pos = posEndRel;
+            // pos.pos = posEndRel.pos + translation;
+            // pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
@@ -577,9 +577,9 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
                 // posMidRelList[j] += midOffsetList[j];
                 posMidRelList[j] += midOffset;
             }
-            // pos = posBeginRelInv;
-            pos.pos = posBeginRelInv.pos + translationInv;
-            pos.rot = newRotInv;
+            pos = posBeginRelInv;
+            // pos.pos = posBeginRelInv.pos + translationInv;
+            // pos.rot = newRotInv;
             // pos.rx = endOffsetPoint.rx;
             // pos.ry = endOffsetPoint.ry;
             // pos.rz = endOffsetPoint.rz;
@@ -589,9 +589,9 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
             //          << " " << pos.ry << " " << pos.rz;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            // pos = posBeginRelInv;
-            pos.pos = posBeginRelInv.pos + translationInv;
-            pos.rot = newRotInv;
+            pos = posBeginRelInv;
+            // pos.pos = posBeginRelInv.pos + translationInv;
+            // pos.rot = newRotInv;
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
             //          << " " << pos.ry << " " << pos.rz;
@@ -602,37 +602,38 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
             // 反向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                // posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
-                // posEnd.rot = posEnd.rot - posBeginRel.rot +
-                //              pointSet.beginOffsetPoint.rot;
-                posEnd.pos =
-                    posMidRelList.at(posMidRelList.size() - idx - 2).pos +
-                    translationInv;
-                posEnd.rot = newRotInv;
-                // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-                // posAux.rot = posAux.rot - posBeginRel.rot +
-                //              pointSet.beginOffsetPoint.rot;
-                posAux.pos =
-                    posMidRelList.at(posMidRelList.size() - idx - 1).pos +
-                    translationInv;
-                posAux.rot = newRotInv;
+                posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
+                posEnd.rot = posEnd.rot - posBeginRel.rot +
+                             pointSet.beginOffsetPoint.rot;
+                // posEnd.pos =
+                //     posMidRelList.at(posMidRelList.size() - idx - 2).pos +
+                //     translationInv;
+                // posEnd.rot = newRotInv;
+                posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+                posAux.rot = posAux.rot - posBeginRel.rot +
+                             pointSet.beginOffsetPoint.rot;
+                // posAux.pos =
+                //     posMidRelList.at(posMidRelList.size() - idx - 1).pos +
+                //     translationInv;
+                // posAux.rot = newRotInv;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            // posEnd = posEndRelInv;
-            posEnd.pos = posEndRelInv.pos + translationInv;
-            posEnd.rot = newRotInv;
-            // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-            // posAux.rot =
-            //     posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
-            posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos +
-                         translationInv;
-            posAux.rot = newRotInv;
+            posEnd = posEndRelInv;
+            // posEnd.pos = posEndRelInv.pos + translationInv;
+            // posEnd.rot = newRotInv;
+            posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+            posAux.rot =
+                posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
+            // posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos
+            // +
+            //              translationInv;
+            // posAux.rot = newRotInv;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         } else { // 正向
             // 抬高
-            // pos = posEndRelInv;
-            pos.pos = posEndRelInv.pos + translationInv;
-            pos.rot = newRotInv;
+            pos = posEndRelInv;
+            // pos.pos = posEndRelInv.pos + translationInv;
+            // pos.rot = newRotInv;
             // pos.rx = beginOffsetPoint.rx;
             // pos.ry = beginOffsetPoint.ry;
             // pos.rz = beginOffsetPoint.rz;
@@ -647,33 +648,33 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
                 // posMidRelList[j] += midOffsetList[j];
                 posMidRelList[j] += midOffset;
             }
-            // pos = posBeginRel;
-            pos.pos = posBeginRel.pos + translation;
-            pos.rot = newRot;
+            pos = posBeginRel;
+            // pos.pos = posBeginRel.pos + translation;
+            // pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            // pos = posBeginRel;
-            pos.pos = posBeginRel.pos + translation;
-            pos.rot = newRot;
+            pos = posBeginRel;
+            // pos.pos = posBeginRel.pos + translation;
+            // pos.rot = newRot;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 正向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                // posEnd = posMidRelList.at(idx + 1);
-                posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
-                posEnd.rot = newRot;
-                // posAux = posMidRelList.at(idx);
-                posAux.pos = posMidRelList.at(idx).pos + translation;
-                posAux.rot = newRot;
+                posEnd = posMidRelList.at(idx + 1);
+                // posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+                // posEnd.rot = newRot;
+                posAux = posMidRelList.at(idx);
+                // posAux.pos = posMidRelList.at(idx).pos + translation;
+                // posAux.rot = newRot;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            // posEnd = posEndRel;
-            posEnd.pos = posEndRel.pos + translation;
-            posEnd.rot = newRot;
-            // posAux = posMidRelList.at(idx);
-            posAux.pos = posMidRelList.at(idx).pos + translation;
-            posAux.rot = newRot;
+            posEnd = posEndRel;
+            // posEnd.pos = posEndRel.pos + translation;
+            // posEnd.rot = newRot;
+            posAux = posMidRelList.at(idx);
+            // posAux.pos = posMidRelList.at(idx).pos + translation;
+            // posAux.rot = newRot;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         }
     }
@@ -783,29 +784,29 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     Point posAux, posEnd;
     for (; idx < posMidRelList.size() - 1; idx += 2) {
         // 正向圆弧运动
-        // posEnd = posMidRelList.at(idx + 1);
-        posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
-        posEnd.rot = newRot;
-        // posAux = posMidRelList.at(idx);
-        posAux.pos = posMidRelList.at(idx).pos + translation;
-        posAux.rot = newRot;
+        posEnd = posMidRelList.at(idx + 1);
+        // posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+        // posEnd.rot = newRot;
+        posAux = posMidRelList.at(idx);
+        // posAux.pos = posMidRelList.at(idx).pos + translation;
+        // posAux.rot = newRot;
         MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     }
     // 正向圆弧运动
-    // posEnd = posEndRel;
-    posEnd.pos = posEndRel.pos + translation;
-    posEnd.rot = newRot;
-    // posAux = posMidRelList.at(idx);
-    posAux.pos = posMidRelList.at(idx).pos + translation;
-    posAux.rot = newRot;
+    posEnd = posEndRel;
+    // posEnd.pos = posEndRel.pos + translation;
+    // posEnd.rot = newRot;
+    posAux = posMidRelList.at(idx);
+    // posAux.pos = posMidRelList.at(idx).pos + translation;
+    // posAux.rot = newRot;
     MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
     Point pos;
     for (int i = 0; i < count; ++i) {
         if (i % 2 == 0) { // 反向
             // 抬高
-            // pos = posEndRel;
-            pos.pos = posEndRel.pos + translation;
-            pos.rot = newRot;
+            pos = posEndRel;
+            // pos.pos = posEndRel.pos + translation;
+            // pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
@@ -820,9 +821,9 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
                 posMidRelList[j] += midOffsetList[j];
                 // posMidRelList[j] += midOffset;
             }
-            // pos = posBeginRelInv;
-            pos.pos = posBeginRelInv.pos + translationInv;
-            pos.rot = newRotInv;
+            pos = posBeginRelInv;
+            // pos.pos = posBeginRelInv.pos + translationInv;
+            // pos.rot = newRotInv;
             // pos.rx = endOffsetPoint.rx;
             // pos.ry = endOffsetPoint.ry;
             // pos.rz = endOffsetPoint.rz;
@@ -832,9 +833,9 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
             //          << " " << pos.ry << " " << pos.rz;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            // pos = posBeginRelInv;
-            pos.pos = posBeginRelInv.pos + translationInv;
-            pos.rot = newRotInv;
+            pos = posBeginRelInv;
+            // pos.pos = posBeginRelInv.pos + translationInv;
+            // pos.rot = newRotInv;
             // qDebug() << pos.x << " " << pos.y << " " << pos.z << " " <<
             // pos.rx
             //          << " " << pos.ry << " " << pos.rz;
@@ -845,37 +846,38 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
             // 反向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                // posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
-                // posEnd.rot = posEnd.rot - posBeginRel.rot +
-                //              pointSet.beginOffsetPoint.rot;
-                posEnd.pos =
-                    posMidRelList.at(posMidRelList.size() - idx - 2).pos +
-                    translationInv;
-                posEnd.rot = newRotInv;
-                // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-                // posAux.rot = posAux.rot - posBeginRel.rot +
-                //              pointSet.beginOffsetPoint.rot;
-                posAux.pos =
-                    posMidRelList.at(posMidRelList.size() - idx - 1).pos +
-                    translationInv;
-                posAux.rot = newRotInv;
+                posEnd = posMidRelList.at(posMidRelList.size() - idx - 2);
+                posEnd.rot = posEnd.rot - posBeginRel.rot +
+                             pointSet.beginOffsetPoint.rot;
+                // posEnd.pos =
+                //     posMidRelList.at(posMidRelList.size() - idx - 2).pos +
+                //     translationInv;
+                // posEnd.rot = newRotInv;
+                posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+                posAux.rot = posAux.rot - posBeginRel.rot +
+                             pointSet.beginOffsetPoint.rot;
+                // posAux.pos =
+                //     posMidRelList.at(posMidRelList.size() - idx - 1).pos +
+                //     translationInv;
+                // posAux.rot = newRotInv;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            // posEnd = posEndRelInv;
-            posEnd.pos = posEndRelInv.pos + translationInv;
-            posEnd.rot = newRotInv;
-            // posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
-            // posAux.rot =
-            //     posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
-            posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos +
-                         translationInv;
-            posAux.rot = newRotInv;
+            posEnd = posEndRelInv;
+            // posEnd.pos = posEndRelInv.pos + translationInv;
+            // posEnd.rot = newRotInv;
+            posAux = posMidRelList.at(posMidRelList.size() - idx - 1);
+            posAux.rot =
+                posAux.rot - posBeginRel.rot + pointSet.beginOffsetPoint.rot;
+            // posAux.pos = posMidRelList.at(posMidRelList.size() - idx - 1).pos
+            // +
+            //              translationInv;
+            // posAux.rot = newRotInv;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         } else { // 正向
             // 抬高
-            // pos = posEndRelInv;
-            pos.pos = posEndRelInv.pos + translationInv;
-            pos.rot = newRotInv;
+            pos = posEndRelInv;
+            // pos.pos = posEndRelInv.pos + translationInv;
+            // pos.rot = newRotInv;
             // pos.rx = beginOffsetPoint.rx;
             // pos.ry = beginOffsetPoint.ry;
             // pos.rz = beginOffsetPoint.rz;
@@ -890,33 +892,33 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
                 posMidRelList[j] += midOffsetList[j];
                 // posMidRelList[j] += midOffset;
             }
-            // pos = posBeginRel;
-            pos.pos = posBeginRel.pos + translation;
-            pos.rot = newRot;
+            pos = posBeginRel;
+            // pos.pos = posBeginRel.pos + translation;
+            // pos.rot = newRot;
             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 压低
-            // pos = posBeginRel;
-            pos.pos = posBeginRel.pos + translation;
-            pos.rot = newRot;
+            pos = posBeginRel;
+            // pos.pos = posBeginRel.pos + translation;
+            // pos.rot = newRot;
             MoveL(pos, dVelocity, dAcc, dRadius);
             // 正向圆弧运动
             idx = 0;
             for (; idx < posMidRelList.size() - 1; idx += 2) {
-                // posEnd = posMidRelList.at(idx + 1);
-                posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
-                posEnd.rot = newRot;
-                // posAux = posMidRelList.at(idx);
-                posAux.pos = posMidRelList.at(idx).pos + translation;
-                posAux.rot = newRot;
+                posEnd = posMidRelList.at(idx + 1);
+                // posEnd.pos = posMidRelList.at(idx + 1).pos + translation;
+                // posEnd.rot = newRot;
+                posAux = posMidRelList.at(idx);
+                // posAux.pos = posMidRelList.at(idx).pos + translation;
+                // posAux.rot = newRot;
                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
             }
-            // posEnd = posEndRel;
-            posEnd.pos = posEndRel.pos + translation;
-            posEnd.rot = newRot;
-            // posAux = posMidRelList.at(idx);
-            posAux.pos = posMidRelList.at(idx).pos + translation;
-            posAux.rot = newRot;
+            posEnd = posEndRel;
+            // posEnd.pos = posEndRel.pos + translation;
+            // posEnd.rot = newRot;
+            posAux = posMidRelList.at(idx);
+            // posAux.pos = posMidRelList.at(idx).pos + translation;
+            // posAux.rot = newRot;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         }
     }
@@ -1476,12 +1478,12 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     // }
     // 获取新的姿态
     newRot = Point::getNewRotation(rotation, moveDirection, angle);
-    qDebug() << rotation;
-    qDebug() << newRot;
+    // qDebug() << rotation;
+    // qDebug() << newRot;
     // 获取新姿态需要的平移量
     translation = Point::getTranslation(rotation, moveDirection, radius, angle);
-    qDebug() << moveDirection;
-    qDebug() << translation;
+    // qDebug() << moveDirection;
+    // qDebug() << translation;
     // 获取反向姿态和平移量
     rotation = pointSet.endPoint.rot;
     moveDirection = pointSet.beginPoint.pos - pointSet.endPoint.pos;
