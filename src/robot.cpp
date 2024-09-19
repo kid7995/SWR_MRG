@@ -1385,7 +1385,10 @@ Point Robot::MoveSphereRegion(const Craft &craft) {
         posListRight.append(pointSet.endPoint.pos);
     }
 
-    double axisAngle = 0.0;
+    // double axisAngle = 0.0;
+    double axisAngle =
+        Point::toAxisAngles(Point::toRotationMatrix(pointSet.beginPoint.rot))
+            .w();
     Point pos;
     // 移到起始辅助点
     pos.pos = posListLeft.constFirst();

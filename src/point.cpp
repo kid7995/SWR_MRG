@@ -219,6 +219,13 @@ QVector3D Point::toEulerAngles(const QMatrix3x3 &matrix) {
                      qRadiansToDegrees(rz));
 }
 
+QVector4D Point::toAxisAngles(const QMatrix3x3 &matrix) {
+    QVector3D axis;
+    float angle;
+    QQuaternion::fromRotationMatrix(matrix).getAxisAndAngle(&axis, &angle);
+    return QVector4D(axis, angle);
+}
+
 QVector3D Point::getNewRotation(const QVector3D &rotation,
                                 const QVector3D &moveDirection, float angle) {
     QMatrix3x3 R = toRotationMatrix(rotation);

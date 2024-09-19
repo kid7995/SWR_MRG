@@ -3,6 +3,7 @@
 
 #include <QGenericMatrix>
 #include <QVector3D>
+#include <QVector4D>
 #include <QVector>
 #include <QtMath>
 
@@ -44,10 +45,12 @@ class Point {
                                            const QVector3D &D);
     // 欧拉角转旋转矩阵
     static QMatrix3x3 toRotationMatrix(const QVector3D &rotation);
-    // 计算指定旋转轴和夹角的旋转矩阵
+    // 轴角转旋转矩阵
     static QMatrix3x3 toRotationMatrix(const QVector3D &axis, float angle);
     // 旋转矩阵转欧拉角
     static QVector3D toEulerAngles(const QMatrix3x3 &matrix);
+    // 旋转矩阵转轴角
+    static QVector4D toAxisAngles(const QMatrix3x3 &matrix);
     // 计算新的姿态
     static QVector3D getNewRotation(const QVector3D &rotation,
                                     const QVector3D &moveDirection,
