@@ -363,14 +363,24 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     if (craft.way != PolishWay::RegionArcWay_Vertical) {
         // 移到起始辅助点
         // point = pointSet.auxBeginPoint;
-        point.pos = pointSet.beginPoint.pos + translation;
-        point.rot = newRot;
+        if (craft.way == PolishWay::RegionArcWay1 ||
+            craft.way == PolishWay::RegionArcWay2) {
+            point = pointSet.beginPoint;
+        } else {
+            point.pos = pointSet.beginPoint.pos + translation;
+            point.rot = newRot;
+        }
         point = point.PosRelByTool(defaultDirection, defaultOffset);
         MoveL(point, dVelocity, dAcc, dRadius);
         // 移到起始点
         // point = pointSet.beginPoint;
-        point.pos = pointSet.beginPoint.pos + translation;
-        point.rot = newRot;
+        if (craft.way == PolishWay::RegionArcWay1 ||
+            craft.way == PolishWay::RegionArcWay2) {
+            point = pointSet.beginPoint;
+        } else {
+            point.pos = pointSet.beginPoint.pos + translation;
+            point.rot = newRot;
+        }
         dVelocity = craft.cutinSpeed;
         MoveL(point, dVelocity, dAcc, dRadius);
     }
@@ -507,7 +517,7 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     //          " "
     //          << posEndRel.rz;
     // 反向起始、结束
-    Point posBeginRelInv;
+    Point posBeginRelInv = pointSet.endOffsetPoint;
     posBeginRelInv.pos =
         pointSet.endOffsetPoint.pos - midOffset.pos * (count + 1);
     // qDebug() << "endOffsetPoint" << endOffsetPoint.x << " " <<
@@ -518,7 +528,7 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     // posBeginRelInv.y
     //          << " " << posBeginRelInv.z << " " << posBeginRelInv.rx << " "
     //          << posBeginRelInv.ry << " " << posBeginRelInv.rz;
-    Point posEndRelInv;
+    Point posEndRelInv = pointSet.beginOffsetPoint;
     posEndRelInv.pos =
         pointSet.beginOffsetPoint.pos - midOffset.pos * (count + 1);
     // qDebug() << "beginOffsetPoint" << beginOffsetPoint.x << " "
@@ -753,7 +763,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     //          " "
     //          << posEndRel.rz;
     // 反向起始、结束
-    Point posBeginRelInv;
+    Point posBeginRelInv = pointSet.endOffsetPoint;
     posBeginRelInv.pos =
         pointSet.endOffsetPoint.pos - endOffset.pos * (count + 1);
     // qDebug() << "endOffsetPoint" << endOffsetPoint.x << " " <<
@@ -764,7 +774,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     // posBeginRelInv.y
     //          << " " << posBeginRelInv.z << " " << posBeginRelInv.rx << " "
     //          << posBeginRelInv.ry << " " << posBeginRelInv.rz;
-    Point posEndRelInv;
+    Point posEndRelInv = pointSet.beginOffsetPoint;
     posEndRelInv.pos =
         pointSet.beginOffsetPoint.pos - beginOffset.pos * (count + 1);
     // qDebug() << "beginOffsetPoint" << beginOffsetPoint.x << " "
