@@ -5,6 +5,9 @@
 
 Point::Point() {}
 
+Point::Point(QVector3D position, QVector3D rotation)
+    : pos(position), rot(rotation) {}
+
 Point::Point(float x, float y, float z, float rx, float ry, float rz)
     : pos(x, y, z), rot(rx, ry, rz) {}
 
@@ -163,6 +166,13 @@ Point::calculateSpherecenter(const QVector3D &A, const QVector3D &B,
                                N;
 
     QVector3D spherecenter = circumcenter + toSpherecenter;
+    // 输出外心坐标
+    qDebug() << "The spherecenter of the triangle is at:" << spherecenter;
+    // 输出半径
+    qDebug() << "radius: " << A.distanceToPoint(spherecenter);
+    qDebug() << "radius: " << B.distanceToPoint(spherecenter);
+    qDebug() << "radius: " << C.distanceToPoint(spherecenter);
+    qDebug() << "radius: " << D.distanceToPoint(spherecenter);
 
     return spherecenter;
 }
@@ -223,6 +233,7 @@ QVector4D Point::toAxisAngles(const QMatrix3x3 &matrix) {
     QVector3D axis;
     float angle;
     QQuaternion::fromRotationMatrix(matrix).getAxisAndAngle(&axis, &angle);
+    qDebug() << "axis" << axis << "angle" << angle;
     return QVector4D(axis, angle);
 }
 
@@ -331,6 +342,19 @@ void Point::test() {
 //     QVector3D offset = getTranslation(rotation, moveDirection, 50, angle);
 //     qDebug() << offset;
 // }
+
+void Point::testAxisAngle() {
+    QVector3D axis = {1.0, 1.0, 1.0};
+    float angle = 30;
+    qDebug() << QQuaternion::fromAxisAndAngle(axis, angle).toRotationMatrix();
+    angle = -angle;
+    qDebug() << QQuaternion::fromAxisAndAngle(axis, angle).toRotationMatrix();
+    axis = -axis;
+    qDebug() << axis;
+    qDebug() << QQuaternion::fromAxisAndAngle(axis, angle).toRotationMatrix();
+    angle = -angle;
+    qDebug() << QQuaternion::fromAxisAndAngle(axis, angle).toRotationMatrix();
+}
 
 PointSet::PointSet()
     : isSafePointRecorded(false), isBeginPointRecorded(false),

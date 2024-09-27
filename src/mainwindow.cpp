@@ -89,6 +89,7 @@ MainWindow::MainWindow(QWidget *parent)
     // test
     // EnableButtons();
     // Point::test();
+    // Point::testAxisAngle();
 }
 
 MainWindow::~MainWindow() { delete ui; }

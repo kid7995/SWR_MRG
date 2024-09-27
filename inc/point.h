@@ -18,6 +18,7 @@ enum AngleUnit { Deg, Rad };
 class Point {
   public:
     Point();
+    Point(QVector3D position, QVector3D rotation);
     Point(float x, float y, float z, float rx, float ry, float rz);
 
     QVector3D calculateToolDirection(OffsetDirection direction,
@@ -60,6 +61,7 @@ class Point {
                                     const QVector3D &moveDirection,
                                     float radius, float angle);
     static void test();
+    static void testAxisAngle();
 
   private:
     QVector3D pos; // Position, Unit: mm
