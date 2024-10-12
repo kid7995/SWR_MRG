@@ -1,5 +1,7 @@
-﻿#include <QDebug>
+﻿#include <QCoreApplication>
+#include <QDebug>
 #include <QDesktopServices>
+#include <QFile>
 #include <QMessageBox>
 #include <QThread>
 #include <QUrl>
@@ -240,6 +242,7 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
         }
         break;
     case PolishWay::SphereRegionWay:
+    case PolishWay::SphereRegionWay_Arc:
         if (!pointSet.isBeginOffsetPointRecorded) {
             check.append("起始偏移点");
         }
@@ -329,7 +332,8 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     // AGP运行
     AGPRun(craft, isAGPRun);
     if (craft.way != PolishWay::RegionArcWay_Vertical &&
-        craft.way != PolishWay::SphereRegionWay) {
+        craft.way != PolishWay::SphereRegionWay &&
+        craft.way != PolishWay::SphereRegionWay_Arc) {
         // 移到起始辅助点
         // point = pointSet.auxBeginPoint;
         point.pos = pointSet.beginPoint.pos + translation;
@@ -1339,126 +1343,6 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
     return point;
 }
 
-Point Robot::MoveSphereRegion(const Craft &craft) {
-    // 定义运动速度
-    double dVelocity = defaultVelocity;
-    // 定义运动加速度
-    double dAcc = 2000;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 偏移次数
-    int count = craft.offsetCount;
-
-    // 计算球心、球半径
-    QVector3D sphereCenter = Point::calculateSpherecenter(
-        pointSet.beginPoint.pos, pointSet.endPoint.pos, pointSet.auxPoint.pos,
-        pointSet.beginOffsetPoint.pos);
-    double sphereRadius = (pointSet.beginPoint.pos - sphereCenter).length();
-    qDebug() << "sphereCenter" << sphereCenter;
-    qDebug() << "sphereRadius" << sphereRadius;
-    qDebug() << "sphereRadius2"
-             << pointSet.endOffsetPoint.pos.distanceToPoint(sphereCenter);
-
-    // 圆弧左界、圆弧右界
-    QVector<QVector3D> posListLeft, posListRight;
-    if (count > 0) {
-        QVector3D OA = pointSet.beginPoint.pos - sphereCenter;
-        QVector3D OB = pointSet.beginOffsetPoint.pos - sphereCenter;
-        double unitAngle =
-            qRadiansToDegrees(qAcos(QVector3D::dotProduct(OA, OB) /
-                                    (OA.length() * OB.length()))) /
-            (2 * count);
-        QVector3D axis = QVector3D::crossProduct(OA, OB);
-        for (int i = 0; i <= 2 * count; ++i) {
-            QMatrix3x3 R = Point::toRotationMatrix(axis, i * unitAngle);
-            posListLeft.append(Point::gemv(R, OA) + sphereCenter);
-        }
-
-        OA = pointSet.endPoint.pos - sphereCenter;
-        OB = pointSet.endOffsetPoint.pos - sphereCenter;
-        unitAngle = qRadiansToDegrees(qAcos(QVector3D::dotProduct(OA, OB) /
-                                            (OA.length() * OB.length()))) /
-                    (2 * count);
-        axis = QVector3D::crossProduct(OA, OB);
-        for (int i = 0; i <= 2 * count; ++i) {
-            QMatrix3x3 R = Point::toRotationMatrix(axis, i * unitAngle);
-            posListRight.append(Point::gemv(R, OA) + sphereCenter);
-        }
-    } else {
-        posListLeft.append(pointSet.beginPoint.pos);
-        posListRight.append(pointSet.endPoint.pos);
-    }
-
-    // double axisAngle = 0.0;
-    double axisAngle =
-        Point::toAxisAngles(Point::toRotationMatrix(pointSet.beginPoint.rot))
-            .w();
-    qDebug() << "axisAngle" << axisAngle;
-    Point pos;
-    // 移到起始辅助点
-    pos.pos = posListLeft.constFirst();
-    pos.rot = Point::toEulerAngles(
-        Point::toRotationMatrix(sphereCenter - pos.pos, axisAngle));
-    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-    MoveL(pos, dVelocity, dAcc, dRadius);
-    // 移到起始点
-    dVelocity = craft.cutinSpeed;
-    pos.pos = posListLeft.constFirst();
-    pos.rot = Point::toEulerAngles(
-        Point::toRotationMatrix(sphereCenter - pos.pos, axisAngle));
-    MoveL(pos, dVelocity, dAcc, dRadius);
-
-    Point posAux, posEnd;
-    // 圆弧运动
-    dVelocity = craft.moveSpeed;
-    dAcc = 100;
-    for (int i = 0; i <= count; ++i) {
-        if (i % 2 == 0) { // 正向
-            if (i > 0) {
-                posAux.pos = posListLeft.at(2 * i - 1);
-                posAux.rot = Point::toEulerAngles(Point::toRotationMatrix(
-                    sphereCenter - posAux.pos, axisAngle));
-                posEnd.pos = posListLeft.at(2 * i);
-                posEnd.rot = Point::toEulerAngles(Point::toRotationMatrix(
-                    sphereCenter - posEnd.pos, axisAngle));
-                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-            }
-            posAux.pos = ((posListLeft.at(2 * i) - sphereCenter) +
-                          (posListRight.at(2 * i) - sphereCenter))
-                                 .normalized() *
-                             sphereRadius +
-                         sphereCenter;
-            posAux.rot = Point::toEulerAngles(
-                Point::toRotationMatrix(sphereCenter - posAux.pos, axisAngle));
-            posEnd.pos = posListRight.at(2 * i);
-            posEnd.rot = Point::toEulerAngles(
-                Point::toRotationMatrix(sphereCenter - posEnd.pos, axisAngle));
-            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-        } else { // 反向
-            posAux.pos = posListRight.at(2 * i - 1);
-            posAux.rot = Point::toEulerAngles(
-                Point::toRotationMatrix(sphereCenter - posAux.pos, axisAngle));
-            posEnd.pos = posListRight.at(2 * i);
-            posEnd.rot = Point::toEulerAngles(
-                Point::toRotationMatrix(sphereCenter - posEnd.pos, axisAngle));
-            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-            posAux.pos = ((posListLeft.at(2 * i) - sphereCenter) +
-                          (posListRight.at(2 * i) - sphereCenter))
-                                 .normalized() *
-                             sphereRadius +
-                         sphereCenter;
-            posAux.rot = Point::toEulerAngles(
-                Point::toRotationMatrix(sphereCenter - posAux.pos, axisAngle));
-            posEnd.pos = posListLeft.at(2 * i);
-            posEnd.rot = Point::toEulerAngles(
-                Point::toRotationMatrix(sphereCenter - posEnd.pos, axisAngle));
-            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-        }
-    }
-
-    return posEnd;
-}
-
 // 球面扇形，无约束，轴等分
 Point Robot::MoveSphereRegion1(const Craft &craft) {
     // 定义运动速度
@@ -1946,6 +1830,505 @@ Point Robot::MoveSphereRegion1_2(const Craft &craft) {
     return posEnd;
 }
 
+// 球面扇形，角度约束，角度等分，变姿态
+Point Robot::MoveSphereRegion1_3(const Craft &craft) {
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = 1;
+    // 偏移次数
+    int count = craft.offsetCount;
+
+    // 计算球心、球半径
+    QVector3D sphereCenter = Point::calculateSpherecenter(
+        pointSet.beginPoint.pos, pointSet.endPoint.pos, pointSet.auxPoint.pos,
+        pointSet.beginOffsetPoint.pos);
+    double sphereRadius = (pointSet.beginPoint.pos - sphereCenter).length();
+    qDebug() << "sphereCenter:" << sphereCenter;
+    qDebug() << "sphereRadius" << sphereRadius;
+
+    // 计算圆弧圆心
+    QVector3D circumCenter = Point::calculateCircumcenter(
+        pointSet.beginPoint.pos, pointSet.auxPoint.pos, pointSet.endPoint.pos);
+    qDebug() << "circumCenter:" << circumCenter;
+    QVector3D axis = (circumCenter - sphereCenter).normalized();
+    double unitAngle = 0.0;
+    double leftUnitAngle = 0.0;
+    double rightUnitAngle = 0.0;
+    QVector3D OA, OB, center;
+    QMatrix3x3 R;
+    if (count > 0) {
+        double topAngle = qRadiansToDegrees(
+            qAcos(pointSet.beginPoint.pos.distanceToLine(sphereCenter, axis) /
+                  sphereRadius));
+        double leftAngle = qRadiansToDegrees(qAcos(
+            pointSet.beginOffsetPoint.pos.distanceToLine(sphereCenter, axis) /
+            sphereRadius));
+        double rightAngle = qRadiansToDegrees(qAcos(
+            pointSet.endOffsetPoint.pos.distanceToLine(sphereCenter, axis) /
+            sphereRadius));
+        unitAngle = (topAngle - qMax(leftAngle, rightAngle)) / count;
+
+        OA = pointSet.beginPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    topAngle - leftAngle);
+        center = axis * pointSet.beginOffsetPoint.pos.distanceToPlane(
+                            sphereCenter, axis) +
+                 sphereCenter;
+        OA = Point::gemv(R, OA) + sphereCenter - center;
+        OB = pointSet.beginOffsetPoint.pos - center;
+        leftUnitAngle = qRadiansToDegrees(
+            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) /
+            (count + (qMax(leftAngle, rightAngle) - leftAngle) / unitAngle));
+        if (QVector3D::dotProduct(QVector3D::crossProduct(OA, OB), axis) <
+            0.0) {
+            leftUnitAngle = -leftUnitAngle;
+        }
+
+        OA = pointSet.endPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    topAngle - rightAngle);
+        center = axis * pointSet.endOffsetPoint.pos.distanceToPlane(
+                            sphereCenter, axis) +
+                 sphereCenter;
+        OA = Point::gemv(R, OA) + sphereCenter - center;
+        OB = pointSet.endOffsetPoint.pos - center;
+        rightUnitAngle = qRadiansToDegrees(
+            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) /
+            (count + (qMax(leftAngle, rightAngle) - rightAngle) / unitAngle));
+        if (QVector3D::dotProduct(QVector3D::crossProduct(OA, OB), axis) <
+            0.0) {
+            rightUnitAngle = -rightUnitAngle;
+        }
+    }
+
+    // 圆心、圆弧左界、圆弧右界
+    QVector<QVector3D> centerList, posListLeft, posListMid, posListRight;
+    for (int i = 0; i <= count; ++i) {
+        OA = pointSet.beginPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    i * unitAngle);
+        OA = Point::gemv(R, OA);
+        R = Point::toRotationMatrix(axis, i * leftUnitAngle);
+        QVector3D posLeft = Point::gemv(R, OA) + sphereCenter;
+        posListLeft.append(posLeft);
+
+        OA = pointSet.endPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    i * unitAngle);
+        OA = Point::gemv(R, OA);
+        R = Point::toRotationMatrix(axis, i * rightUnitAngle);
+        QVector3D posRight = Point::gemv(R, OA) + sphereCenter;
+        posListRight.append(posRight);
+
+        center =
+            axis * posLeft.distanceToPlane(sphereCenter, axis) + sphereCenter;
+        centerList.append(center);
+        double radius = (posLeft - center).length();
+        QVector3D posMid =
+            ((posLeft - center) + (posRight - center)).normalized() * radius +
+            center;
+        posListMid.append(posMid);
+    }
+
+    Point pos;
+    // 移到起始辅助点
+    pos.pos = posListLeft.constFirst();
+    pos.rot = Point::getNormalRotation(sphereCenter - pos.pos,
+                                       centerList.constFirst() - pos.pos);
+    // pos.rot = pointSet.beginPoint.rot;
+    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(pos, dVelocity, dAcc, dRadius);
+    // 移到起始点
+    dVelocity = craft.cutinSpeed;
+    pos.pos = posListLeft.constFirst();
+    pos.rot = Point::getNormalRotation(sphereCenter - pos.pos,
+                                       centerList.constFirst() - pos.pos);
+    // pos.rot = pointSet.beginPoint.rot;
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    Point posAux, posEnd;
+    // 圆弧运动
+    dVelocity = craft.moveSpeed;
+    dAcc = 100;
+    for (int i = 0; i <= count; ++i) {
+        if (i % 2 == 0) { // 正向
+            if (i > 0) {
+                posAux.pos = ((posListLeft.at(i - 1) - sphereCenter) +
+                              (posListLeft.at(i) - sphereCenter))
+                                     .normalized() *
+                                 sphereRadius +
+                             sphereCenter;
+                center = axis * posAux.pos.distanceToPlane(sphereCenter, axis) +
+                         sphereCenter;
+                posAux.rot = Point::getNormalRotation(sphereCenter - posAux.pos,
+                                                      center - posAux.pos);
+                // posAux.rot = pointSet.beginPoint.rot;
+                posEnd.pos = posListLeft.at(i);
+                posEnd.rot = Point::getNormalRotation(
+                    sphereCenter - posEnd.pos, centerList.at(i) - posEnd.pos);
+                // posEnd.rot = pointSet.beginPoint.rot;
+                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            }
+
+            posAux.pos = posListMid.at(i);
+            posAux.rot = Point::getNormalRotation(
+                sphereCenter - posAux.pos, centerList.at(i) - posAux.pos);
+            // posAux.rot = pointSet.auxPoint.rot;
+            posEnd.pos = posListRight.at(i);
+            posEnd.rot = Point::getNormalRotation(
+                sphereCenter - posEnd.pos, centerList.at(i) - posEnd.pos);
+            // posEnd.rot = pointSet.endPoint.rot;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        } else { // 反向
+            posAux.pos = ((posListRight.at(i - 1) - sphereCenter) +
+                          (posListRight.at(i) - sphereCenter))
+                                 .normalized() *
+                             sphereRadius +
+                         sphereCenter;
+            center = axis * posAux.pos.distanceToPlane(sphereCenter, axis) +
+                     sphereCenter;
+            posAux.rot = Point::getNormalRotation(sphereCenter - posAux.pos,
+                                                  center - posAux.pos);
+            // posAux.rot = pointSet.endPoint.rot;
+            posEnd.pos = posListRight.at(i);
+            posEnd.rot = Point::getNormalRotation(
+                sphereCenter - posEnd.pos, centerList.at(i) - posEnd.pos);
+            // posEnd.rot = pointSet.endPoint.rot;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+
+            posAux.pos = posListMid.at(i);
+            posAux.rot = Point::getNormalRotation(
+                sphereCenter - posAux.pos, centerList.at(i) - posAux.pos);
+            // posAux.rot = pointSet.auxPoint.rot;
+            posEnd.pos = posListLeft.at(i);
+            posEnd.rot = Point::getNormalRotation(
+                sphereCenter - posEnd.pos, centerList.at(i) - posEnd.pos);
+            // posEnd.rot = pointSet.beginPoint.rot;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        }
+    }
+
+    return posEnd;
+}
+
+// 球面扇形，角度约束，角度等分，变姿态，加倾角
+Point Robot::MoveSphereRegionArc(const Craft &craft) {
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = 1;
+    // 偏移次数
+    int count = craft.offsetCount;
+
+    // 计算球心、球半径
+    QVector3D sphereCenter = Point::calculateSpherecenter(
+        pointSet.beginPoint.pos, pointSet.endPoint.pos, pointSet.auxPoint.pos,
+        pointSet.beginOffsetPoint.pos);
+    double sphereRadius = (pointSet.beginPoint.pos - sphereCenter).length();
+    qDebug() << "sphereCenter:" << sphereCenter;
+    qDebug() << "sphereRadius" << sphereRadius;
+
+    // 计算圆弧圆心
+    QVector3D circumCenter = Point::calculateCircumcenter(
+        pointSet.beginPoint.pos, pointSet.auxPoint.pos, pointSet.endPoint.pos);
+    qDebug() << "circumCenter:" << circumCenter;
+    QVector3D axis = (circumCenter - sphereCenter).normalized();
+    double unitAngle = 0.0;
+    double leftUnitAngle = 0.0;
+    double rightUnitAngle = 0.0;
+    QVector3D OA, OB, center;
+    QMatrix3x3 R;
+    if (count > 0) {
+        double topAngle = qRadiansToDegrees(
+            qAcos(pointSet.beginPoint.pos.distanceToLine(sphereCenter, axis) /
+                  sphereRadius));
+        double leftAngle = qRadiansToDegrees(qAcos(
+            pointSet.beginOffsetPoint.pos.distanceToLine(sphereCenter, axis) /
+            sphereRadius));
+        double rightAngle = qRadiansToDegrees(qAcos(
+            pointSet.endOffsetPoint.pos.distanceToLine(sphereCenter, axis) /
+            sphereRadius));
+        unitAngle = (topAngle - qMax(leftAngle, rightAngle)) / count;
+
+        OA = pointSet.beginPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    topAngle - leftAngle);
+        center = axis * pointSet.beginOffsetPoint.pos.distanceToPlane(
+                            sphereCenter, axis) +
+                 sphereCenter;
+        OA = Point::gemv(R, OA) + sphereCenter - center;
+        OB = pointSet.beginOffsetPoint.pos - center;
+        leftUnitAngle = qRadiansToDegrees(
+            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) /
+            (count + (qMax(leftAngle, rightAngle) - leftAngle) / unitAngle));
+        if (QVector3D::dotProduct(QVector3D::crossProduct(OA, OB), axis) <
+            0.0) {
+            leftUnitAngle = -leftUnitAngle;
+        }
+
+        OA = pointSet.endPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    topAngle - rightAngle);
+        center = axis * pointSet.endOffsetPoint.pos.distanceToPlane(
+                            sphereCenter, axis) +
+                 sphereCenter;
+        OA = Point::gemv(R, OA) + sphereCenter - center;
+        OB = pointSet.endOffsetPoint.pos - center;
+        rightUnitAngle = qRadiansToDegrees(
+            qAcos(QVector3D::dotProduct(OA, OB) / (OA.length() * OB.length())) /
+            (count + (qMax(leftAngle, rightAngle) - rightAngle) / unitAngle));
+        if (QVector3D::dotProduct(QVector3D::crossProduct(OA, OB), axis) <
+            0.0) {
+            rightUnitAngle = -rightUnitAngle;
+        }
+    }
+
+    // 圆心、圆弧左界、圆弧右界
+    QVector<QVector3D> centerList, posListLeft, posListMid, posListRight;
+    for (int i = 0; i <= count; ++i) {
+        OA = pointSet.beginPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    i * unitAngle);
+        OA = Point::gemv(R, OA);
+        R = Point::toRotationMatrix(axis, i * leftUnitAngle);
+        QVector3D posLeft = Point::gemv(R, OA) + sphereCenter;
+        posListLeft.append(posLeft);
+
+        OA = pointSet.endPoint.pos - sphereCenter;
+        R = Point::toRotationMatrix(QVector3D::crossProduct(axis, OA),
+                                    i * unitAngle);
+        OA = Point::gemv(R, OA);
+        R = Point::toRotationMatrix(axis, i * rightUnitAngle);
+        QVector3D posRight = Point::gemv(R, OA) + sphereCenter;
+        posListRight.append(posRight);
+
+        center =
+            axis * posLeft.distanceToPlane(sphereCenter, axis) + sphereCenter;
+        centerList.append(center);
+        double radius = (posLeft - center).length();
+        QVector3D posMid =
+            ((posLeft - center) + (posRight - center)).normalized() * radius +
+            center;
+        posListMid.append(posMid);
+    }
+
+    // 打磨片半径
+    double radius = craft.discRadius;
+    // 打磨角度
+    double angle = craft.grindAngle;
+    Point pos;
+    QVector3D rotation, moveDirection;
+    QVector3D normalVector, auxVector;
+    // 移到起始辅助点
+    pos.pos = posListLeft.constFirst();
+    normalVector = sphereCenter - pos.pos;
+    auxVector = centerList.constFirst() - pos.pos;
+    rotation = Point::getNormalRotation(normalVector, auxVector);
+    moveDirection =
+        QVector3D::crossProduct(normalVector, auxVector).normalized();
+    // 获取新的姿态
+    newRot = Point::getNewRotation(rotation, moveDirection, angle);
+    // 获取新姿态需要的平移量
+    translation = Point::getTranslation(rotation, moveDirection, radius, angle);
+    pos.pos += translation;
+    pos.rot = newRot;
+    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    // 移到起始点
+    dVelocity = craft.cutinSpeed;
+    pos.pos = posListLeft.constFirst();
+    normalVector = sphereCenter - pos.pos;
+    auxVector = centerList.constFirst() - pos.pos;
+    rotation = Point::getNormalRotation(normalVector, auxVector);
+    moveDirection =
+        QVector3D::crossProduct(normalVector, auxVector).normalized();
+    // 获取新的姿态
+    newRot = Point::getNewRotation(rotation, moveDirection, angle);
+    // 获取新姿态需要的平移量
+    translation = Point::getTranslation(rotation, moveDirection, radius, angle);
+    pos.pos += translation;
+    pos.rot = newRot;
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    Point posAux, posEnd;
+    // 圆弧运动
+    dVelocity = craft.moveSpeed;
+    dAcc = 100;
+    for (int i = 0; i <= count; ++i) {
+        if (i % 2 == 0) { // 正向
+            if (i > 0) {
+                // 抬高
+                pos.pos = posListLeft.at(i - 1);
+                normalVector = sphereCenter - pos.pos;
+                auxVector = centerList.at(i - 1) - pos.pos;
+                rotation = Point::getNormalRotation(normalVector, auxVector);
+                moveDirection =
+                    QVector3D::crossProduct(auxVector, normalVector).normalized();
+                // 获取新的姿态
+                newRotInv = Point::getNewRotation(rotation, moveDirection, angle);
+                // 获取新姿态需要的平移量
+                translationInv =
+                    Point::getTranslation(rotation, moveDirection, radius, angle);
+                pos.pos += translationInv;
+                pos.rot = newRotInv;
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+
+                // 改变位姿
+                pos.pos = posListLeft.at(i);
+                normalVector = sphereCenter - pos.pos;
+                auxVector = centerList.at(i) - pos.pos;
+                rotation = Point::getNormalRotation(normalVector, auxVector);
+                moveDirection =
+                    QVector3D::crossProduct(normalVector, auxVector).normalized();
+                // 获取新的姿态
+                newRot = Point::getNewRotation(rotation, moveDirection, angle);
+                // 获取新姿态需要的平移量
+                translation =
+                    Point::getTranslation(rotation, moveDirection, radius, angle);
+                pos.pos += translation;
+                pos.rot = newRot;
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+
+                // 压低
+                pos.pos = posListLeft.at(i);
+                normalVector = sphereCenter - pos.pos;
+                auxVector = centerList.at(i) - pos.pos;
+                rotation = Point::getNormalRotation(normalVector, auxVector);
+                moveDirection =
+                    QVector3D::crossProduct(normalVector, auxVector).normalized();
+                // 获取新的姿态
+                newRot = Point::getNewRotation(rotation, moveDirection, angle);
+                // 获取新姿态需要的平移量
+                translation =
+                    Point::getTranslation(rotation, moveDirection, radius, angle);
+                pos.pos += translation;
+                pos.rot = newRot;
+                MoveL(pos, dVelocity, dAcc, dRadius);
+            }
+
+            // 正向圆弧运动
+            posAux.pos = posListMid.at(i);
+            normalVector = sphereCenter - posAux.pos;
+            auxVector = centerList.at(i) - posAux.pos;
+            rotation = Point::getNormalRotation(normalVector, auxVector);
+            moveDirection =
+                QVector3D::crossProduct(normalVector, auxVector).normalized();
+            // 获取新的姿态
+            newRot = Point::getNewRotation(rotation, moveDirection, angle);
+            // 获取新姿态需要的平移量
+            translation =
+                Point::getTranslation(rotation, moveDirection, radius, angle);
+            posAux.pos += translation;
+            posAux.rot = newRot;
+
+            posEnd.pos = posListRight.at(i);
+            normalVector = sphereCenter - posEnd.pos;
+            auxVector = centerList.at(i) - posEnd.pos;
+            rotation = Point::getNormalRotation(normalVector, auxVector);
+            moveDirection =
+                QVector3D::crossProduct(normalVector, auxVector).normalized();
+            // 获取新的姿态
+            newRot = Point::getNewRotation(rotation, moveDirection, angle);
+            // 获取新姿态需要的平移量
+            translation =
+                Point::getTranslation(rotation, moveDirection, radius, angle);
+            posEnd.pos += translation;
+            posEnd.rot = newRot;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        } else { // 反向
+            // 抬高
+            pos.pos = posListRight.at(i - 1);
+            normalVector = sphereCenter - pos.pos;
+            auxVector = centerList.at(i - 1) - pos.pos;
+            rotation = Point::getNormalRotation(normalVector, auxVector);
+            moveDirection =
+                QVector3D::crossProduct(normalVector, auxVector).normalized();
+            // 获取新的姿态
+            newRot = Point::getNewRotation(rotation, moveDirection, angle);
+            // 获取新姿态需要的平移量
+            translation =
+                Point::getTranslation(rotation, moveDirection, radius, angle);
+            pos.pos += translation;
+            pos.rot = newRot;
+            pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+            MoveL(pos, dVelocity, dAcc, dRadius);
+
+            // 改变位姿
+            pos.pos = posListRight.at(i);
+            normalVector = sphereCenter - pos.pos;
+            auxVector = centerList.at(i) - pos.pos;
+            rotation = Point::getNormalRotation(normalVector, auxVector);
+            moveDirection =
+                QVector3D::crossProduct(auxVector, normalVector).normalized();
+            // 获取新的姿态
+            newRotInv = Point::getNewRotation(rotation, moveDirection, angle);
+            // 获取新姿态需要的平移量
+            translationInv =
+                Point::getTranslation(rotation, moveDirection, radius, angle);
+            pos.pos += translationInv;
+            pos.rot = newRotInv;
+            pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+            MoveL(pos, dVelocity, dAcc, dRadius);
+
+            // 压低
+            pos.pos = posListRight.at(i);
+            normalVector = sphereCenter - pos.pos;
+            auxVector = centerList.at(i) - pos.pos;
+            rotation = Point::getNormalRotation(normalVector, auxVector);
+            moveDirection =
+                QVector3D::crossProduct(auxVector, normalVector).normalized();
+            // 获取新的姿态
+            newRotInv = Point::getNewRotation(rotation, moveDirection, angle);
+            // 获取新姿态需要的平移量
+            translationInv =
+                Point::getTranslation(rotation, moveDirection, radius, angle);
+            pos.pos += translationInv;
+            pos.rot = newRotInv;
+            MoveL(pos, dVelocity, dAcc, dRadius);
+
+            // 反向圆弧运动
+            posAux.pos = posListMid.at(i);
+            normalVector = sphereCenter - posAux.pos;
+            auxVector = centerList.at(i) - posAux.pos;
+            rotation = Point::getNormalRotation(normalVector, auxVector);
+            moveDirection =
+                QVector3D::crossProduct(auxVector, normalVector).normalized();
+            // 获取新的姿态
+            newRotInv = Point::getNewRotation(rotation, moveDirection, angle);
+            // 获取新姿态需要的平移量
+            translationInv =
+                Point::getTranslation(rotation, moveDirection, radius, angle);
+            posAux.pos += translationInv;
+            posAux.rot = newRotInv;
+
+            posEnd.pos = posListLeft.at(i);
+            normalVector = sphereCenter - posEnd.pos;
+            auxVector = centerList.at(i) - posEnd.pos;
+            rotation = Point::getNormalRotation(normalVector, auxVector);
+            moveDirection =
+                QVector3D::crossProduct(auxVector, normalVector).normalized();
+            // 获取新的姿态
+            newRotInv = Point::getNewRotation(rotation, moveDirection, angle);
+            // 获取新姿态需要的平移量
+            translationInv =
+                Point::getTranslation(rotation, moveDirection, radius, angle);
+            posEnd.pos += translationInv;
+            posEnd.rot = newRotInv;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        }
+    }
+
+    return posEnd;
+}
+
 // 球面区域，固定姿态
 Point Robot::MoveSphereRegion2(const Craft &craft) {
     // 定义运动速度
@@ -2075,6 +2458,155 @@ Point Robot::MoveSphereRegion2(const Craft &craft) {
             //     Point::toRotationMatrix(sphereCenter - posEnd.pos,
             //     axisAngle));
             posEnd.rot = rot;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        }
+    }
+
+    return posEnd;
+}
+
+// 球面区域，变姿态
+Point Robot::MoveSphereRegion(const Craft &craft) {
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = 1;
+    // 偏移次数
+    int count = craft.offsetCount;
+
+    // 计算球心、球半径
+    QVector3D sphereCenter = Point::calculateSpherecenter(
+        pointSet.beginPoint.pos, pointSet.endPoint.pos, pointSet.auxPoint.pos,
+        pointSet.beginOffsetPoint.pos);
+    double sphereRadius = (pointSet.beginPoint.pos - sphereCenter).length();
+    qDebug() << "sphereCenter:" << sphereCenter;
+    qDebug() << "sphereRadius" << sphereRadius;
+
+    // 圆弧左界、圆弧右界
+    QVector<QVector3D> posListLeft, posListRight;
+    if (count > 0) {
+        QVector3D OA = pointSet.beginPoint.pos - sphereCenter;
+        QVector3D OB = pointSet.beginOffsetPoint.pos - sphereCenter;
+        double unitAngle =
+            qRadiansToDegrees(qAcos(QVector3D::dotProduct(OA, OB) /
+                                    (OA.length() * OB.length()))) /
+            (2 * count);
+        QVector3D axis = QVector3D::crossProduct(OA, OB);
+        for (int i = 0; i <= 2 * count; ++i) {
+            QMatrix3x3 R = Point::toRotationMatrix(axis, i * unitAngle);
+            posListLeft.append(Point::gemv(R, OA) + sphereCenter);
+        }
+
+        OA = pointSet.endPoint.pos - sphereCenter;
+        OB = pointSet.endOffsetPoint.pos - sphereCenter;
+        unitAngle = qRadiansToDegrees(qAcos(QVector3D::dotProduct(OA, OB) /
+                                            (OA.length() * OB.length()))) /
+                    (2 * count);
+        axis = QVector3D::crossProduct(OA, OB);
+        for (int i = 0; i <= 2 * count; ++i) {
+            QMatrix3x3 R = Point::toRotationMatrix(axis, i * unitAngle);
+            posListRight.append(Point::gemv(R, OA) + sphereCenter);
+        }
+    } else {
+        posListLeft.append(pointSet.beginPoint.pos);
+        posListRight.append(pointSet.endPoint.pos);
+    }
+
+    // QVector3D rot = pointSet.beginPoint.rot;
+    // QVector3D rot = pointSet.auxPoint.rot;
+    Point pos;
+    QVector3D auxAxis;
+    // 移到起始辅助点
+    pos.pos = posListLeft.constFirst();
+    auxAxis = QVector3D::crossProduct(posListLeft.constFirst() - sphereCenter,
+                                      posListRight.constFirst() - sphereCenter);
+    pos.rot = Point::getNormalRotation(sphereCenter - pos.pos, auxAxis);
+    // pos.rot = rot;
+    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(pos, dVelocity, dAcc, dRadius);
+    // 移到起始点
+    dVelocity = craft.cutinSpeed;
+    pos.pos = posListLeft.constFirst();
+    auxAxis = QVector3D::crossProduct(posListLeft.constFirst() - sphereCenter,
+                                      posListRight.constFirst() - sphereCenter);
+    pos.rot = Point::getNormalRotation(sphereCenter - pos.pos, auxAxis);
+    // pos.rot = rot;
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    Point posAux, posEnd;
+    // 圆弧运动
+    dVelocity = craft.moveSpeed;
+    dAcc = 100;
+    for (int i = 0; i <= count; ++i) {
+        if (i % 2 == 0) { // 正向
+            if (i > 0) {
+                posAux.pos = posListLeft.at(2 * i - 1);
+                auxAxis = QVector3D::crossProduct(
+                    posListLeft.at(2 * i - 1) - sphereCenter,
+                    posListRight.at(2 * i - 1) - sphereCenter);
+                posAux.rot = Point::getNormalRotation(sphereCenter - posAux.pos,
+                                                      auxAxis);
+                // posAux.rot = rot;
+                posEnd.pos = posListLeft.at(2 * i);
+                auxAxis = QVector3D::crossProduct(
+                    posListLeft.at(2 * i) - sphereCenter,
+                    posListRight.at(2 * i) - sphereCenter);
+                posEnd.rot = Point::getNormalRotation(sphereCenter - posEnd.pos,
+                                                      auxAxis);
+                // posEnd.rot = rot;
+                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            }
+
+            auxAxis =
+                QVector3D::crossProduct(posListLeft.at(2 * i) - sphereCenter,
+                                        posListRight.at(2 * i) - sphereCenter);
+            posAux.pos = ((posListLeft.at(2 * i) - sphereCenter) +
+                          (posListRight.at(2 * i) - sphereCenter))
+                                 .normalized() *
+                             sphereRadius +
+                         sphereCenter;
+            posAux.rot =
+                Point::getNormalRotation(sphereCenter - posAux.pos, auxAxis);
+            // posAux.rot = rot;
+            posEnd.pos = posListRight.at(2 * i);
+            posEnd.rot =
+                Point::getNormalRotation(sphereCenter - posEnd.pos, auxAxis);
+            // posEnd.rot = rot;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+        } else { // 反向
+            posAux.pos = posListRight.at(2 * i - 1);
+            auxAxis = QVector3D::crossProduct(
+                posListLeft.at(2 * i - 1) - sphereCenter,
+                posListRight.at(2 * i - 1) - sphereCenter);
+            posAux.rot =
+                Point::getNormalRotation(sphereCenter - posAux.pos, auxAxis);
+            // posAux.rot = rot;
+            posEnd.pos = posListRight.at(2 * i);
+            auxAxis =
+                QVector3D::crossProduct(posListLeft.at(2 * i) - sphereCenter,
+                                        posListRight.at(2 * i) - sphereCenter);
+            posEnd.rot =
+                Point::getNormalRotation(sphereCenter - posEnd.pos, auxAxis);
+            // posEnd.rot = rot;
+            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+
+            auxAxis =
+                QVector3D::crossProduct(posListLeft.at(2 * i) - sphereCenter,
+                                        posListRight.at(2 * i) - sphereCenter);
+            posAux.pos = ((posListLeft.at(2 * i) - sphereCenter) +
+                          (posListRight.at(2 * i) - sphereCenter))
+                                 .normalized() *
+                             sphereRadius +
+                         sphereCenter;
+            posAux.rot =
+                Point::getNormalRotation(sphereCenter - posAux.pos, auxAxis);
+            // posAux.rot = rot;
+            posEnd.pos = posListLeft.at(2 * i);
+            posEnd.rot =
+                Point::getNormalRotation(sphereCenter - posEnd.pos, auxAxis);
+            // posEnd.rot = rot;
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         }
     }
@@ -2217,9 +2749,11 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
         point = MoveRegionArcVertical(craft);
         break;
     case PolishWay::SphereRegionWay:
-        // point = MoveSphereRegion(craft);
-        // point = MoveSphereRegion1(craft);
-        point = MoveSphereRegion2(craft);
+        point = MoveSphereRegion(craft);
+        break;
+    case PolishWay::SphereRegionWay_Arc:
+        point = MoveSphereRegionArc(craft);
+        // point = MoveSphereRegion1_3(craft);
         break;
     case PolishWay::ZLineWay:
         MoveZLine(craft);
@@ -2239,6 +2773,57 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
         }
         QThread::msleep(100);
     }
+}
+
+void Robot::testRun() {
+    Craft craft;
+    // craft.way = PolishWay::SphereRegionWay;
+    craft.way = PolishWay::SphereRegionWay_Arc;
+    craft.discRadius = 0;
+    craft.grindAngle = 15;
+    craft.offsetCount = 2;
+    pointSet.beginPoint = Point(1604.942, 481.446, 1768.935, 0.0, 0.0, 0.0);
+    pointSet.endPoint = Point(1606.928, -574.926, 1904.055, 0.0, 0.0, 0.0);
+    pointSet.auxPoint = Point(1315.346, -53.932, 1474.868, 0.0, 0.0, 0.0);
+    pointSet.beginOffsetPoint =
+        Point(1318.477, 674.624, 1039.754, 0.0, 0.0, 0.0);
+    pointSet.endOffsetPoint =
+        Point(1190.182, -630.873, 1089.702, 0.0, 0.0, 0.0);
+    pointSet.safePoint = pointSet.auxPoint;
+    // 创建Path文件
+    QString filePath = QCoreApplication::applicationDirPath();
+    filePath += "/path.txt";
+    QFile file(filePath);
+    // 打开文件用于写入，如果文件存在则会被覆盖
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        file.close();
+    } else {
+        // 如果文件打开失败，输出错误信息
+        qDebug() << "Failed to open file for writing:" << filePath;
+    }
+    writePath("P (" + pointSet.beginPoint.toString() + ")");
+    writePath("P (" + pointSet.endPoint.toString() + ")");
+    writePath("P (" + pointSet.auxPoint.toString() + ")");
+    writePath("P (" + pointSet.beginOffsetPoint.toString() + ")");
+    writePath("P (" + pointSet.endOffsetPoint.toString() + ")");
+    writePath("P (" + pointSet.safePoint.toString() + ")");
+    // 生成路径
+    Run(craft, false);
+}
+
+void Robot::writePath(const QString &pathString) {
+    QString filePath = QCoreApplication::applicationDirPath();
+    filePath += "/path.txt";
+    QFile file(filePath);
+    // 打开文件用于追加内容
+    if (file.exists() && file.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << pathString << "\n"; // 追加文本并换行
+        file.close();
+    } /* else {
+         // 如果文件打开失败，输出错误信息
+         qDebug() << "Failed to open file for appending:" << filePath;
+     }*/
 }
 
 HansRobot::HansRobot() {}
@@ -3458,7 +4043,8 @@ void HansRobot::MoveL(const Point &point, double velocity, double acc,
     // 定义路点 ID
     string strCmdID = "0";
     // 直线运动
-    qDebug() << "point:" << point.pos << point.rot;
+    // qDebug() << "point:" << point.pos << point.rot;
+    writePath("L (" + point.toString() + ")");
     HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
                   point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
                   dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
@@ -3497,8 +4083,9 @@ void HansRobot::MoveC(const Point &auxPoint, const Point &endPoint,
     // 定义路点 ID
     string strCmdID = "0";
     // 圆弧运动
-    qDebug() << "aux point:" << auxPoint.pos << auxPoint.rot;
-    qDebug() << "end point:" << endPoint.pos << endPoint.rot;
+    // qDebug() << "aux point:" << auxPoint.pos << auxPoint.rot
+    //          << "end point:" << endPoint.pos << endPoint.rot;
+    writePath("C (" + auxPoint.toString() + ") (" + endPoint.toString() + ")");
     HRIF_WayPoint2(0, 0, nMoveType, endPoint.pos.x(), endPoint.pos.y(),
                    endPoint.pos.z(), endPoint.rot.x(), endPoint.rot.y(),
                    endPoint.rot.z(), auxPoint.pos.x(), auxPoint.pos.y(),

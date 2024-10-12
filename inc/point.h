@@ -60,6 +60,9 @@ class Point {
     static QVector3D getTranslation(const QVector3D &rotation,
                                     const QVector3D &moveDirection,
                                     float radius, float angle);
+    // 计算法向量姿态
+    static QVector3D getNormalRotation(const QVector3D &normal,
+                                       const QVector3D &aux);
     static void test();
     static void testAxisAngle();
 

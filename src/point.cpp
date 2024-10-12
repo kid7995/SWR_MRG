@@ -167,12 +167,12 @@ Point::calculateSpherecenter(const QVector3D &A, const QVector3D &B,
 
     QVector3D spherecenter = circumcenter + toSpherecenter;
     // 输出外心坐标
-    qDebug() << "The spherecenter of the triangle is at:" << spherecenter;
+    // qDebug() << "The spherecenter of the triangle is at:" << spherecenter;
     // 输出半径
-    qDebug() << "radius: " << A.distanceToPoint(spherecenter);
-    qDebug() << "radius: " << B.distanceToPoint(spherecenter);
-    qDebug() << "radius: " << C.distanceToPoint(spherecenter);
-    qDebug() << "radius: " << D.distanceToPoint(spherecenter);
+    // qDebug() << "radius: " << A.distanceToPoint(spherecenter);
+    // qDebug() << "radius: " << B.distanceToPoint(spherecenter);
+    // qDebug() << "radius: " << C.distanceToPoint(spherecenter);
+    // qDebug() << "radius: " << D.distanceToPoint(spherecenter);
 
     return spherecenter;
 }
@@ -263,6 +263,20 @@ QVector3D Point::getTranslation(const QVector3D &rotation,
             newR(2, 2) * translation.z());
 }
 
+QVector3D Point::getNormalRotation(const QVector3D &normal,
+                                   const QVector3D &aux){
+    QVector3D xAxis, yAxis, zAxis;
+    zAxis = normal.normalized();
+    xAxis = QVector3D::crossProduct(aux.normalized(), zAxis).normalized();
+    yAxis = QVector3D::crossProduct(zAxis, xAxis).normalized();
+    // yAxis = QVector3D::crossProduct(zAxis, aux.normalized()).normalized();
+    // xAxis = QVector3D::crossProduct(yAxis, zAxis).normalized();
+    // qDebug() << xAxis << yAxis << zAxis;
+    QMatrix3x3 R = QQuaternion::fromAxes(xAxis, yAxis, zAxis).toRotationMatrix();
+    // qDebug() << R;
+    return Point::toEulerAngles(R);
+}
+
 void Point::test() {
     // 定义四个点
     // QVector3D A(1, 0, 0);
@@ -286,10 +300,15 @@ void Point::test() {
     // QVector3D C(-1029.48, 1011.24, 2048.81);
     // QVector3D D(-1987.66, 1156.67, 995.67);
 
-    QVector3D A(1428.600, 1075.290, 1689.900);
-    QVector3D B(1261.610, -8.888, 1967.420);
-    QVector3D C(1143.090, 1136.160, 1084.010);
-    QVector3D D(812.207, -596.970, 1014.130);
+    // QVector3D A(1428.600, 1075.290, 1689.900);
+    // QVector3D B(1261.610, -8.888, 1967.420);
+    // QVector3D C(1143.090, 1136.160, 1084.010);
+    // QVector3D D(812.207, -596.970, 1014.130);
+
+    QVector3D A(1604.942, 481.446, 1768.935);
+    QVector3D B(1606.928, -574.926, 1904.055);
+    QVector3D C(1315.346, -53.932, 1474.868);
+    QVector3D D(1318.477, 674.624, 1039.754);
 
     // QVector3D A(886.973328, 2276.283936, 558.298828);
     // QVector3D B(1248.014038, 1278.356079, 1757.019043);
@@ -308,6 +327,13 @@ void Point::test() {
     qDebug() << "radius: " << B.distanceToPoint(spherecenter);
     qDebug() << "radius: " << C.distanceToPoint(spherecenter);
     qDebug() << "radius: " << D.distanceToPoint(spherecenter);
+    // 计算姿态
+    // QVector3D axis = spherecenter - A;
+    // float angle = 0.0;
+    // for(int i = 0; i < 6; ++i){
+    //     qDebug() << Point::toEulerAngles(Point::toRotationMatrix(axis, angle));
+    //     angle += 30;
+    // }
 }
 
 // void Point::test() {

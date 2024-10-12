@@ -90,6 +90,7 @@ MainWindow::MainWindow(QWidget *parent)
     // EnableButtons();
     // Point::test();
     // Point::testAxisAngle();
+    // robot.testRun();
 }
 
 MainWindow::~MainWindow() { delete ui; }
@@ -268,6 +269,7 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(true);
         break;
     case PolishWay::SphereRegionWay:
+    case PolishWay::SphereRegionWay_Arc:
         ui->leOffsetCount->setEnabled(true);
         ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/sphere_region.png"));

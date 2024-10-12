@@ -52,14 +52,18 @@ class Robot {
     Point MoveRegionArc2(const Craft &craft);
     Point MoveRegionArcHorizontal(const Craft &craft);
     Point MoveRegionArcVertical(const Craft &craft);
-    Point MoveSphereRegion(const Craft &craft);
     Point MoveSphereRegion1(const Craft &craft);
     Point MoveSphereRegion1_1(const Craft &craft);
     Point MoveSphereRegion1_2(const Craft &craft);
+    Point MoveSphereRegion1_3(const Craft &craft);
+    Point MoveSphereRegionArc(const Craft &craft);
     Point MoveSphereRegion2(const Craft &craft);
+    Point MoveSphereRegion(const Craft &craft);
     void MoveZLine(const Craft &craft);
     void MoveSpiralLine(const Craft &craft);
     void Run(const Craft &craft, bool isAGPRun);
+    void testRun();
+    void writePath(const QString &pathString);
 
   protected:
     AGP *agp;                 // AGP
