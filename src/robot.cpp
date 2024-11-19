@@ -946,33 +946,26 @@ Point Robot::MoveRegionArcHorizontal(const Craft &craft) {
     // 计算单次偏移量
     int count = craft.offsetCount;
 
-    double midOffset = 0.0;
-    if (count > 0) {
-        midOffset =
-            (((pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos)
-                  .length() +
-              (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos).length()) /
-             2) /
-            count;
-        if ((pointSet.beginPoint.pos - pointSet.endPoint.pos).length() <
-            (pointSet.beginOffsetPoint.pos - pointSet.endOffsetPoint.pos)
-                .length()) {
-            midOffset = -midOffset;
-        }
-    }
-
     // 圆弧上界
     QVector<Point> posListUp;
     posListUp.append(pointSet.beginPoint);
     posListUp.append(pointSet.midPoints);
     posListUp.append(pointSet.endPoint);
 
+    // 圆弧上界到下界的偏移距离
+    double midOffset = 0.0;
     QVector<QVector3D> offsetList;
     for (int i = 1; i < posListUp.size() - 1; i += 2) {
         QVector3D center = Point::calculateCircumcenter(
             posListUp.at(i - 1).pos, posListUp.at(i).pos,
             posListUp.at(i + 1).pos);
         if (i == 1) {
+            if (count > 0) {
+                midOffset =
+                    ((posListUp.at(i - 1).pos - center).length() -
+                     (pointSet.beginOffsetPoint.pos - center).length()) /
+                    count;
+            }
             offsetList.append((center - posListUp.at(i - 1).pos).normalized() *
                               midOffset);
         }
@@ -1234,17 +1227,7 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
 */
 
 Point Robot::MoveRegionArcVertical(const Craft &craft) {
-    double midOffset =
-        ((pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos).length() +
-         (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos).length()) /
-        2;
-    if ((pointSet.beginPoint.pos - pointSet.endPoint.pos).length() <
-        (pointSet.beginOffsetPoint.pos - pointSet.endOffsetPoint.pos)
-            .length()) {
-        midOffset = -midOffset;
-    }
-
-    // 圆弧上界、圆弧下界
+    // 圆弧上界
     QVector<Point> posListUp;
     posListUp.append(pointSet.beginPoint);
     posListUp.append(pointSet.midPoints);
@@ -1275,6 +1258,11 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
         lengthListUp.append(length);
         totalArcLengthUp += length;
     }
+    // 圆弧上界到下界的偏移距离
+    double midOffset =
+        radiusListUp.first() -
+        (pointSet.beginOffsetPoint.pos - centerListUp.first()).length();
+    // 最终圆弧上界与下界
     QVector<QVector3D> finalPosListUp, finalPosListDown;
     if (count > 0) {
         // double halfArcLengthUp = totalArcLengthUp / 2;
