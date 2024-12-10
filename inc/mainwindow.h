@@ -4,6 +4,7 @@
 #include <QElapsedTimer>
 #include <QMainWindow>
 #include <QVector>
+#include <QPushButton>
 
 #include "robot.h"
 
@@ -26,9 +27,12 @@ class MainWindow : public QMainWindow {
     void SavePara(int index);
     void DelCurrPara();
 
+    void InitButtons();
     void EnableButtons();
+
     void SetValidator();
     void SetPolishWay(const PolishWay &way);
+    void SetBackgroundColor(QPushButton* btn, const QColor& color);
 
     void ConnectRobot();
     void ConnectAGP();
@@ -77,6 +81,8 @@ class MainWindow : public QMainWindow {
     void on_leGrindAngle_editingFinished();
     void on_leOffsetCount_editingFinished();
     void on_leAddOffsetCount_editingFinished();
+    void on_leRaiseCount_editingFinished();
+    void on_leFloatCount_editingFinished();
 
     void on_cmbCraftID_currentIndexChanged(int index);
     void on_cmbPolishMode_currentIndexChanged(int index);

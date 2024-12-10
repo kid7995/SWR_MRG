@@ -228,6 +228,7 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     case PolishWay::RegionArcWay2:
     case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
+    case PolishWay::RegionArcWay_Vertical_Repeat:
         if (!pointSet.isBeginOffsetPointRecorded) {
             check.append("起始偏移点");
         }
@@ -268,6 +269,7 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     case PolishWay::RegionArcWay2:
     case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
+    case PolishWay::RegionArcWay_Vertical_Repeat:
         if (pointSet.midPoints.size() % 2 == 0) {
             QMessageBox::critical(NULL, "提示", "圆弧中间点数量不能为偶数个！");
             return false;
@@ -360,7 +362,8 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     MoveL(point, dVelocity, dAcc, dRadius);
     // AGP运行
     AGPRun(craft, isAGPRun);
-    if (craft.way != PolishWay::RegionArcWay_Vertical) {
+    if (craft.way != PolishWay::RegionArcWay_Vertical &&
+        craft.way != PolishWay::RegionArcWay_Vertical_Repeat) {
         // 移到起始辅助点
         // point = pointSet.auxBeginPoint;
         if (craft.way == PolishWay::RegionArcWay1 ||
@@ -1265,40 +1268,149 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
     // 最终圆弧上界与下界
     QVector<QVector3D> finalPosListUp, finalPosListDown;
     if (count > 0) {
-        // double halfArcLengthUp = totalArcLengthUp / 2;
-        // for (int i = 0; i < centerListUp.size(); ++i) {
-        //     if (halfArcLengthUp <= lengthListUp.at(i)) {
-        //         QVector3D axis = QVector3D::crossProduct(
-        //             posListUp.at(2 * i).pos - centerListUp.at(i),
-        //             posListUp.at(2 * i + 1).pos - centerListUp.at(i));
-        //         QMatrix3x3 R = Point::toRotationMatrix(
-        //             axis,
-        //             qRadiansToDegrees(halfArcLengthUp / radiusListUp.at(i)));
-        //         QVector3D trans = posListUp.at(2 * i).pos -
-        //         centerListUp.at(i); QVector3D newTrans =
-        //             QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
-        //                           R(0, 2) * trans.z(),
-        //                       R(1, 0) * trans.x() + R(1, 1) * trans.y() +
-        //                           R(1, 2) * trans.z(),
-        //                       R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-        //                           R(2, 2) * trans.z());
+        double unitArcLengthUp = totalArcLengthUp / count;
+        double arcLengthUp = 0.0;
+        for (int i = 0; i < centerListUp.size(); ++i) {
+            while (arcLengthUp <= lengthListUp.at(i)) {
+                QVector3D axis = QVector3D::crossProduct(
+                    posListUp.at(2 * i).pos - centerListUp.at(i),
+                    posListUp.at(2 * i + 1).pos - centerListUp.at(i));
+                QMatrix3x3 R = Point::toRotationMatrix(
+                    axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
+                QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
+                QVector3D newTrans =
+                    QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+                                  R(0, 2) * trans.z(),
+                              R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+                                  R(1, 2) * trans.z(),
+                              R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+                                  R(2, 2) * trans.z());
+                finalPosListUp.append(centerListUp.at(i) + newTrans);
+                finalPosListDown.append(centerListUp.at(i) +
+                                        newTrans.normalized() *
+                                            (radiusListUp.at(i) - midOffset));
+                arcLengthUp += unitArcLengthUp;
+            }
+            arcLengthUp -= lengthListUp.at(i);
+        }
+    } else {
+        finalPosListUp.append(pointSet.beginPoint.pos);
+        finalPosListDown.append(pointSet.beginOffsetPoint.pos);
+    }
 
-        //         double radius = craft.discRadius;
-        //         double angle = craft.grindAngle;
-        //         QVector3D rotation = pointSet.beginPoint.rot;
-        //         QVector3D moveDirection = -newTrans;
-        //         // 获取新的姿态
-        //         newRot = Point::getNewRotation(rotation, moveDirection,
-        //         angle);
-        //         // 获取新姿态需要的平移量
-        //         translation = Point::getTranslation(rotation, moveDirection,
-        //                                             radius, angle);
+    Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = 1;
 
-        //         break;
-        //     } else {
-        //         halfArcLengthUp -= lengthListUp.at(i);
-        //     }
-        // }
+    int raiseCount = craft.raiseCount;
+    int floatCount = craft.floatCount;
+    int interval =
+        raiseCount < 0 ? count : qCeil(count / (raiseCount + 1)); // 抬起间距
+
+    double radius = craft.discRadius;
+    double angle = craft.grindAngle;
+    QVector3D rotation = pointSet.beginPoint.rot;
+    QVector3D moveDirection;
+    // 定义空间目标位置
+    Point point;
+    // 移到起始辅助点
+    moveDirection = finalPosListDown.constFirst() - finalPosListUp.constFirst();
+    // 获取新的姿态
+    newRot = Point::getNewRotation(rotation, moveDirection, angle);
+    // 获取新姿态需要的平移量
+    translation = Point::getTranslation(rotation, moveDirection, radius, angle);
+    point.pos = finalPosListDown.constFirst() + translation;
+    point.rot = newRot;
+    point = point.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(point, dVelocity, dAcc, dRadius);
+    // 移到起始点
+    dVelocity = craft.cutinSpeed;
+    for (int i = 0; i < finalPosListUp.size(); ++i) {
+        moveDirection = finalPosListDown.at(i) - finalPosListUp.at(i);
+        // 获取新的姿态
+        newRot = Point::getNewRotation(rotation, moveDirection, angle);
+        // 获取新姿态需要的平移量
+        translation =
+            Point::getTranslation(rotation, moveDirection, radius, angle);
+
+        point.pos = finalPosListDown.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+
+        if (interval > 0 && i != 0 && i != count && i % interval == 0) {
+            dVelocity = craft.cutinSpeed;
+            dAcc = 2000;
+            point = point.PosRelByTool(defaultDirection, defaultOffset);
+            MoveL(point, dVelocity, dAcc, dRadius); // 抬起
+
+            for (int j = 0; j < floatCount; ++j) { // 浮动
+                point = point.PosRelByTool(defaultDirection, 10);
+                MoveL(point, dVelocity, dAcc, dRadius); // 落下
+
+                point = point.PosRelByTool(defaultDirection, -10);
+                MoveL(point, dVelocity, dAcc, dRadius); // 抬起
+            }
+
+            point = point.PosRelByTool(defaultDirection, -defaultOffset);
+            MoveL(point, dVelocity, dAcc, dRadius); // 落下
+        }
+
+        dVelocity = craft.moveSpeed;
+        dAcc = 100;
+        point.pos = finalPosListUp.at(i) + translation;
+        point.rot = newRot;
+        MoveL(point, dVelocity, dAcc, dRadius);
+    }
+    point.pos = finalPosListDown.last() + translation;
+    point.rot = newRot;
+    MoveL(point, dVelocity, dAcc, dRadius);
+
+    return point;
+}
+
+Point Robot::MoveRegionArcVerticalRepeat(const Craft &craft) {
+    // 圆弧上界
+    QVector<Point> posListUp;
+    posListUp.append(pointSet.beginPoint);
+    posListUp.append(pointSet.midPoints);
+    posListUp.append(pointSet.endPoint);
+
+    // 偏移次数
+    int count = craft.offsetCount;
+    // 计算上圆弧组中圆弧圆心、半径和弧长
+    QVector<QVector3D> centerListUp;
+    QVector<double> radiusListUp, lengthListUp;
+    double totalArcLengthUp = 0.0;
+    for (int i = 1; i < posListUp.size() - 1; i += 2) {
+        QVector3D center = Point::calculateCircumcenter(
+            posListUp.at(i - 1).pos, posListUp.at(i).pos,
+            posListUp.at(i + 1).pos);
+        centerListUp.append(center);
+        double radius = (posListUp.at(i).pos - center).length();
+        radiusListUp.append(radius);
+        QVector3D OA = posListUp.at(i - 1).pos - center;
+        QVector3D OM = posListUp.at(i).pos - center;
+        QVector3D OB = posListUp.at(i + 1).pos - center;
+        // 适用OA、OB夹角大于180°的情况
+        double length = (qAcos(QVector3D::dotProduct(OA, OM) /
+                               (OA.length() * OM.length())) +
+                         qAcos(QVector3D::dotProduct(OM, OB) /
+                               (OM.length() * OB.length()))) *
+                        radius;
+        lengthListUp.append(length);
+        totalArcLengthUp += length;
+    }
+    // 圆弧上界到下界的偏移距离
+    double midOffset =
+        radiusListUp.first() -
+        (pointSet.beginOffsetPoint.pos - centerListUp.first()).length();
+    // 最终圆弧上界与下界
+    QVector<QVector3D> finalPosListUp, finalPosListDown;
+    if (count > 0) {
         double unitArcLengthUp = totalArcLengthUp / count;
         double arcLengthUp = 0.0;
         for (int i = 0; i < centerListUp.size(); ++i) {
@@ -1470,7 +1582,7 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     double angle = craft.grindAngle;
     QVector3D rotation = pointSet.beginPoint.rot;
     QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
-    // if (craft.way == PolishWay::RegionArcWay_Vertical) {
+    // if (craft.way == PolishWay::RegionArcWay_Vertical_Repeat) {
     //     moveDirection = pointSet.beginOffsetPoint.pos -
     //     pointSet.beginPoint.pos;
     // }
@@ -1513,6 +1625,9 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
         break;
     case PolishWay::RegionArcWay_Vertical:
         point = MoveRegionArcVertical(craft);
+        break;
+    case PolishWay::RegionArcWay_Vertical_Repeat:
+        point = MoveRegionArcVerticalRepeat(craft);
         break;
     case PolishWay::ZLineWay:
         MoveZLine(craft);

@@ -11,6 +11,7 @@ enum PolishWay {
     LineWay,
     RegionArcWay_Horizontal,
     RegionArcWay_Vertical,
+    RegionArcWay_Vertical_Repeat,
     RegionArcWay1,
     RegionArcWay2,
     ZLineWay,
@@ -34,8 +35,10 @@ class Craft {
     int transitionTime;     // 过渡时间，ms
     int discRadius;         // 打磨片半径，mm
     int grindAngle;         // 打磨角度，°
-    int offsetCount;        // 圆弧偏移次数
+    int offsetCount;        // 偏移次数
     int addOffsetCount;     // 新增偏移次数
+    int raiseCount;         // 中途抬起次数
+    int floatCount;         // 浮动次数
 
     friend class MainWindow;
     friend class Robot;

@@ -8,15 +8,16 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-const QString defaultStyleSheet =
-    "background-color:rgb(173, 49, 34);color:white;";
-const QString greenStyleSheet = "background-color:green;color:white;";
-const QString goldStyleSheet = "background-color:gold;color:white;";
+const QColor defaultColor(173, 49, 34);
+const QColor greenColor("green");
+const QColor goldColor("gold");
+const QColor greyColor("grey");
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), lastPageIdx(0),
       currCraftIdx(0) {
     ui->setupUi(this);
+    InitButtons();
     // ui->lblAddOffsetCount->setVisible(false);
     // ui->leAddOffsetCount->setVisible(false);
     // 读取工艺参数文件
@@ -37,7 +38,8 @@ MainWindow::MainWindow(QWidget *parent)
                 "10\n1\\CutinSpeed=100\n1\\MovingSpeed=50\n1\\RotationSpeed="
                 "4500\n1\\ContactForce=10\n1\\SettingForce="
                 "80\n1\\TransitionTime=1500\n1\\DiscRadius=50\n1\\GrindAngle="
-                "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n");
+                "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
+                "0\n1\\FloatCount=0\n");
             // 关闭文件
             file.close();
         } else {
@@ -71,6 +73,8 @@ MainWindow::MainWindow(QWidget *parent)
         craft.grindAngle = settings.value("GrindAngle").toInt();
         craft.offsetCount = settings.value("OffsetCount").toInt();
         craft.addOffsetCount = settings.value("AddOffsetCount").toInt();
+        craft.raiseCount = settings.value("RaiseCount").toInt();
+        craft.floatCount = settings.value("FloatCount").toInt();
         crafts.append(craft);
     }
     settings.endArray();
@@ -115,6 +119,8 @@ void MainWindow::SavePara(int index) {
     settings.setValue("GrindAngle", crafts.at(index).grindAngle);
     settings.setValue("OffsetCount", crafts.at(index).offsetCount);
     settings.setValue("AddOffsetCount", crafts.at(index).addOffsetCount);
+    settings.setValue("RaiseCount", crafts.at(index).raiseCount);
+    settings.setValue("FloatCount", crafts.at(index).floatCount);
     // 记录工艺参数数量
     settings.setArrayIndex(crafts.size() - 1);
     settings.endArray();
@@ -146,6 +152,10 @@ void MainWindow::ReadCurrPara() {
         QString::number(crafts.at(currCraftIdx).offsetCount));
     ui->leAddOffsetCount->setText(
         QString::number(crafts.at(currCraftIdx).addOffsetCount));
+    ui->leRaiseCount->setText(
+        QString::number(crafts.at(currCraftIdx).raiseCount));
+    ui->leFloatCount->setText(
+        QString::number(crafts.at(currCraftIdx).floatCount));
 }
 
 void MainWindow::DelCurrPara() {
@@ -163,44 +173,82 @@ void MainWindow::DelCurrPara() {
     }
 }
 
+void MainWindow::InitButtons() {
+    // 首页按钮
+    SetBackgroundColor(ui->btnDrag, greyColor);
+    SetBackgroundColor(ui->btnClear, greyColor);
+    SetBackgroundColor(ui->btnClearMid, greyColor);
+    SetBackgroundColor(ui->btnDelLastMid, greyColor);
+    SetBackgroundColor(ui->btnSafe, greyColor);
+    SetBackgroundColor(ui->btnBegin, greyColor);
+    SetBackgroundColor(ui->btnEnd, greyColor);
+    SetBackgroundColor(ui->btnMid, greyColor);
+    SetBackgroundColor(ui->btnAux, greyColor);
+    SetBackgroundColor(ui->btnBeginOffset, greyColor);
+    SetBackgroundColor(ui->btnEndOffset, greyColor);
+    SetBackgroundColor(ui->btnStop, greyColor);
+    SetBackgroundColor(ui->btnTryRun, greyColor);
+    SetBackgroundColor(ui->btnRun, greyColor);
+    SetBackgroundColor(ui->btnMoveToPoint, greyColor);
+    SetBackgroundColor(ui->btnClearHistory, greyColor);
+    SetBackgroundColor(ui->btnCoverPoint, greyColor);
+    SetBackgroundColor(ui->btnStop2, greyColor);
+
+    // 参数页面按钮
+    // SetBackgroundColor(ui->btnAddNewPara, defaultColor);
+    // SetBackgroundColor(ui->btnDelCurrPara, defaultColor);
+    // SetBackgroundColor(ui->btnSaveCurrPara, defaultColor);
+
+    // 历史点页面按钮
+    SetBackgroundColor(ui->btnClearHistory, greyColor);
+    SetBackgroundColor(ui->btnCoverPoint, greyColor);
+    SetBackgroundColor(ui->btnMoveToPoint, greyColor);
+    SetBackgroundColor(ui->btnStop2, greyColor);
+
+    // 设备连接页面按钮
+    SetBackgroundColor(ui->btnRobotConnect, defaultColor);
+    SetBackgroundColor(ui->btnAGPConnect, defaultColor);
+    // SetBackgroundColor(ui->btnSettingReturn, defaultColor);
+}
+
 void MainWindow::EnableButtons() {
     // 启用首页按钮
     ui->btnDrag->setEnabled(true);
-    ui->btnDrag->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnDrag, defaultColor);
     ui->btnClear->setEnabled(true);
-    ui->btnClear->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnClear, defaultColor);
     ui->btnClearMid->setEnabled(true);
-    ui->btnClearMid->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnClearMid, defaultColor);
     ui->btnDelLastMid->setEnabled(true);
-    ui->btnDelLastMid->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnDelLastMid, defaultColor);
     ui->btnSafe->setEnabled(true);
-    ui->btnSafe->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnSafe, defaultColor);
     ui->btnBegin->setEnabled(true);
-    ui->btnBegin->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnBegin, defaultColor);
     ui->btnEnd->setEnabled(true);
-    ui->btnEnd->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnEnd, defaultColor);
     ui->btnMid->setEnabled(true);
-    ui->btnMid->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnMid, defaultColor);
     ui->btnAux->setEnabled(true);
-    ui->btnAux->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnAux, defaultColor);
     ui->btnBeginOffset->setEnabled(true);
-    ui->btnBeginOffset->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnBeginOffset, defaultColor);
     ui->btnEndOffset->setEnabled(true);
-    ui->btnEndOffset->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnEndOffset, defaultColor);
     ui->btnStop->setEnabled(true);
-    ui->btnStop->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnStop, defaultColor);
     ui->btnTryRun->setEnabled(true);
-    ui->btnTryRun->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnTryRun, defaultColor);
     ui->btnRun->setEnabled(true);
-    ui->btnRun->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnRun, defaultColor);
     ui->btnMoveToPoint->setEnabled(true);
-    ui->btnMoveToPoint->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnMoveToPoint, defaultColor);
     ui->btnClearHistory->setEnabled(true);
-    ui->btnClearHistory->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnClearHistory, defaultColor);
     ui->btnCoverPoint->setEnabled(true);
-    ui->btnCoverPoint->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnCoverPoint, defaultColor);
     ui->btnStop2->setEnabled(true);
-    ui->btnStop2->setStyleSheet(defaultStyleSheet);
+    SetBackgroundColor(ui->btnStop2, defaultColor);
 }
 
 void MainWindow::SetValidator() {
@@ -216,6 +264,8 @@ void MainWindow::SetValidator() {
     ui->leGrindAngle->setValidator(new QIntValidator(ui->leGrindAngle));
     ui->leOffsetCount->setValidator(new QIntValidator(ui->leOffsetCount));
     ui->leAddOffsetCount->setValidator(new QIntValidator(ui->leAddOffsetCount));
+    ui->leRaiseCount->setValidator(new QIntValidator(ui->leRaiseCount));
+    ui->leFloatCount->setValidator(new QIntValidator(ui->leFloatCount));
 }
 
 void MainWindow::SetPolishWay(const PolishWay &way) {
@@ -224,7 +274,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->leDiscRadius->setEnabled(true);
         ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(false);
-        ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/arc.png"));
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 110);
@@ -236,7 +285,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->leDiscRadius->setEnabled(true);
         ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(false);
-        ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/line.png"));
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 310);
@@ -245,22 +293,10 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::RegionArcWay1:
-        ui->leDiscRadius->setEnabled(false);
-        ui->leGrindAngle->setEnabled(false);
-        ui->leOffsetCount->setEnabled(true);
-        ui->leAddOffsetCount->setEnabled(true);
-        ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
-        ui->btnAux->setVisible(false);
-        ui->btnMid->move(550, 110);
-        ui->btnMid->setVisible(true);
-        ui->btnBeginOffset->setVisible(true);
-        ui->btnEndOffset->setVisible(true);
-        break;
     case PolishWay::RegionArcWay2:
         ui->leDiscRadius->setEnabled(false);
         ui->leGrindAngle->setEnabled(false);
         ui->leOffsetCount->setEnabled(true);
-        ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 110);
@@ -270,10 +306,10 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         break;
     case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
+    case PolishWay::RegionArcWay_Vertical_Repeat:
         ui->leDiscRadius->setEnabled(true);
         ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
-        ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 110);
@@ -285,7 +321,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->leDiscRadius->setEnabled(true);
         ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
-        ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/z_line.png"));
         ui->btnAux->move(150, 130);
         ui->btnAux->setVisible(true);
@@ -297,7 +332,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->leDiscRadius->setEnabled(true);
         ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
-        ui->leAddOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/spiral_line.png"));
         ui->btnAux->move(350, 130);
         ui->btnAux->setVisible(true);
@@ -308,21 +342,49 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
     default:
         break;
     }
+
+    switch (way) {
+    case PolishWay::RegionArcWay1:
+        ui->leAddOffsetCount->setEnabled(true);
+        break;
+    default:
+        ui->leAddOffsetCount->setEnabled(false);
+        break;
+    }
+
+    switch (way) {
+    case PolishWay::RegionArcWay_Vertical:
+        ui->leRaiseCount->setEnabled(true);
+        ui->leFloatCount->setEnabled(true);
+        break;
+    default:
+        ui->leRaiseCount->setEnabled(false);
+        ui->leFloatCount->setEnabled(false);
+        break;
+    }
+}
+
+void MainWindow::SetBackgroundColor(QPushButton *btn, const QColor &color) {
+    QPalette pal = btn->palette();
+    pal.setColor(QPalette::Button, color);
+    btn->setPalette(pal);
+    btn->setAutoFillBackground(true);
+    btn->show();
 }
 
 void MainWindow::ConnectRobot() {
     ui->btnRobotConnect->setEnabled(false);
-    ui->btnRobotConnect->setStyleSheet(goldStyleSheet);
+    SetBackgroundColor(ui->btnRobotConnect, goldColor);
     ui->btnRobotConnect->setText("连接中");
     // 连接机器人
     std::thread t([this] {
         if (robot.RobotConnect(ui->leRobotIP->text())) {
             EnableButtons();
-            ui->btnRobotConnect->setStyleSheet(greenStyleSheet);
+            SetBackgroundColor(ui->btnRobotConnect, greenColor);
             ui->btnRobotConnect->setText("已连接");
         } else {
             ui->btnRobotConnect->setEnabled(true);
-            ui->btnRobotConnect->setStyleSheet(defaultStyleSheet);
+            SetBackgroundColor(ui->btnRobotConnect, defaultColor);
             ui->btnRobotConnect->setText("连接");
         }
     });
@@ -331,16 +393,16 @@ void MainWindow::ConnectRobot() {
 
 void MainWindow::ConnectAGP() {
     ui->btnAGPConnect->setEnabled(false);
-    ui->btnAGPConnect->setStyleSheet(goldStyleSheet);
+    SetBackgroundColor(ui->btnAGPConnect, goldColor);
     ui->btnAGPConnect->setText("连接中");
     // 连接AGP
     std::thread t([this] {
         if (robot.AGPConnect(ui->leAGPIP->text())) {
-            ui->btnAGPConnect->setStyleSheet(greenStyleSheet);
+            SetBackgroundColor(ui->btnAGPConnect, greenColor);
             ui->btnAGPConnect->setText("已连接");
         } else {
             ui->btnAGPConnect->setEnabled(true);
-            ui->btnAGPConnect->setStyleSheet(defaultStyleSheet);
+            SetBackgroundColor(ui->btnAGPConnect, defaultColor);
             ui->btnAGPConnect->setText("连接");
         }
     });
@@ -365,9 +427,9 @@ void MainWindow::AddHistoryPoint(const QString &strPoint) {
 
 void MainWindow::on_btnDrag_clicked() {
     if (robot.RobotTeach(crafts.at(currCraftIdx).teachPointReferPos)) {
-        ui->btnDrag->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnDrag, greenColor);
     } else {
-        ui->btnDrag->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnDrag, defaultColor);
     }
 }
 
@@ -375,9 +437,9 @@ void MainWindow::on_btnSafe_clicked() {
     QString strPoint = "";
     if (robot.GetSafePoint(strPoint)) {
         AddHistoryPoint(strPoint);
-        ui->btnSafe->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnSafe, greenColor);
     } else {
-        ui->btnSafe->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnSafe, defaultColor);
     }
 }
 
@@ -401,9 +463,9 @@ void MainWindow::on_btnBegin_clicked() {
     QString strPoint = "";
     if (robot.GetBeginPoint(strPoint)) {
         AddHistoryPoint(strPoint);
-        ui->btnBegin->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnBegin, greenColor);
     } else {
-        ui->btnBegin->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnBegin, defaultColor);
     }
 }
 
@@ -411,9 +473,9 @@ void MainWindow::on_btnEnd_clicked() {
     QString strPoint = "";
     if (robot.GetEndPoint(strPoint)) {
         AddHistoryPoint(strPoint);
-        ui->btnEnd->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnEnd, greenColor);
     } else {
-        ui->btnEnd->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnEnd, defaultColor);
     }
 }
 
@@ -424,11 +486,11 @@ void MainWindow::on_btnTryRun_clicked() {
     ui->btnRun->setEnabled(false);
     ui->btnTryRun->setEnabled(false);
     ui->btnMoveToPoint->setEnabled(false);
-    ui->btnTryRun->setStyleSheet(greenStyleSheet);
+    SetBackgroundColor(ui->btnTryRun, greenColor);
     ui->btnTryRun->setText("试运行中");
     if (robot.CloseFreeDriver()) {
         // QThread::msleep(1000);
-        ui->btnDrag->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnDrag, defaultColor);
     }
     // robot.Run(crafts.at(currCraftIdx), false);
     // AGP停止
@@ -437,7 +499,7 @@ void MainWindow::on_btnTryRun_clicked() {
         ui->btnRun->setEnabled(true);
         ui->btnTryRun->setEnabled(true);
         ui->btnMoveToPoint->setEnabled(true);
-        ui->btnTryRun->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnTryRun, defaultColor);
         ui->btnTryRun->setText("试运行");
     });
     t.detach();
@@ -450,11 +512,11 @@ void MainWindow::on_btnRun_clicked() {
     ui->btnRun->setEnabled(false);
     ui->btnTryRun->setEnabled(false);
     ui->btnMoveToPoint->setEnabled(false);
-    ui->btnRun->setStyleSheet(greenStyleSheet);
+    SetBackgroundColor(ui->btnRun, greenColor);
     ui->btnRun->setText("运行中");
     if (robot.CloseFreeDriver()) {
         // QThread::msleep(1000);
-        ui->btnDrag->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnDrag, defaultColor);
     }
     // robot.Run(crafts.at(currCraftIdx), true);
     // AGP停止
@@ -464,7 +526,7 @@ void MainWindow::on_btnRun_clicked() {
         ui->btnRun->setEnabled(true);
         ui->btnTryRun->setEnabled(true);
         ui->btnMoveToPoint->setEnabled(true);
-        ui->btnRun->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnRun, defaultColor);
         ui->btnRun->setText("运行");
     });
     t.detach();
@@ -552,18 +614,26 @@ void MainWindow::on_btnDelCurrPara_clicked() {
 }
 
 void MainWindow::on_btnStop_clicked() {
-    if (robot.Stop()) {
-        ui->btnDrag->setStyleSheet(defaultStyleSheet);
-    }
+    ui->btnStop->setEnabled(false);
+    SetBackgroundColor(ui->btnStop, greenColor);
+    std::thread t([this] {
+        if (robot.Stop()) {
+            SetBackgroundColor(ui->btnDrag, defaultColor);
+        }
+        QThread::msleep(200);
+        ui->btnStop->setEnabled(true);
+        SetBackgroundColor(ui->btnStop, defaultColor);
+    });
+    t.detach();
 }
 
 void MainWindow::on_btnAux_clicked() {
     QString strPoint = "";
     if (robot.GetAuxPoint(strPoint)) {
         AddHistoryPoint(strPoint);
-        ui->btnAux->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnAux, greenColor);
     } else {
-        ui->btnAux->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnAux, defaultColor);
     }
 }
 
@@ -574,9 +644,9 @@ void MainWindow::on_btnMid_clicked() {
         AddHistoryPoint(strPoint);
     }
     if (size > 0) {
-        ui->btnMid->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnMid, greenColor);
     } else {
-        ui->btnMid->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnMid, defaultColor);
     }
     ui->btnMid->setText("中间点" + QString::number(size));
 }
@@ -594,9 +664,9 @@ void MainWindow::on_btnBeginOffset_clicked() {
     QString strPoint = "";
     if (robot.GetBeginOffsetPoint(strPoint)) {
         AddHistoryPoint(strPoint);
-        ui->btnBeginOffset->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnBeginOffset, greenColor);
     } else {
-        ui->btnBeginOffset->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnBeginOffset, defaultColor);
     }
 }
 
@@ -604,21 +674,21 @@ void MainWindow::on_btnEndOffset_clicked() {
     QString strPoint = "";
     if (robot.GetEndOffsetPoint(strPoint)) {
         AddHistoryPoint(strPoint);
-        ui->btnEndOffset->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnEndOffset, greenColor);
     } else {
-        ui->btnEndOffset->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnEndOffset, defaultColor);
     }
 }
 
 void MainWindow::on_btnClear_clicked() {
     if (robot.ClearPoints()) {
-        ui->btnSafe->setStyleSheet(defaultStyleSheet);
-        ui->btnBegin->setStyleSheet(defaultStyleSheet);
-        ui->btnEnd->setStyleSheet(defaultStyleSheet);
-        ui->btnAux->setStyleSheet(defaultStyleSheet);
-        ui->btnBeginOffset->setStyleSheet(defaultStyleSheet);
-        ui->btnEndOffset->setStyleSheet(defaultStyleSheet);
-        ui->btnMid->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnSafe, defaultColor);
+        SetBackgroundColor(ui->btnBegin, defaultColor);
+        SetBackgroundColor(ui->btnEnd, defaultColor);
+        SetBackgroundColor(ui->btnAux, defaultColor);
+        SetBackgroundColor(ui->btnBeginOffset, defaultColor);
+        SetBackgroundColor(ui->btnEndOffset, defaultColor);
+        SetBackgroundColor(ui->btnMid, defaultColor);
         ui->btnMid->setText("中间点" + QString::number(0));
     }
 }
@@ -635,7 +705,7 @@ void MainWindow::on_btnMid_pressed() { midPressDuration.start(); }
 
 void MainWindow::on_btnClearMid_clicked() {
     if (robot.ClearMidPoints()) {
-        ui->btnMid->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnMid, defaultColor);
         ui->btnMid->setText("中间点0");
     }
 }
@@ -643,7 +713,7 @@ void MainWindow::on_btnClearMid_clicked() {
 void MainWindow::on_btnDelLastMid_clicked() {
     int size = robot.DelLastMidPoint();
     if (size == 0) {
-        ui->btnMid->setStyleSheet(defaultStyleSheet);
+        SetBackgroundColor(ui->btnMid, defaultColor);
     }
     ui->btnMid->setText("中间点" + QString::number(size));
 }
@@ -656,17 +726,17 @@ void MainWindow::on_btnMoveToPoint_clicked() {
         ui->btnRun->setEnabled(false);
         ui->btnTryRun->setEnabled(false);
         ui->btnMoveToPoint->setEnabled(false);
-        ui->btnMoveToPoint->setStyleSheet(greenStyleSheet);
+        SetBackgroundColor(ui->btnMoveToPoint, greenColor);
         ui->btnMoveToPoint->setText("移动中");
         if (robot.CloseFreeDriver()) {
-            ui->btnDrag->setStyleSheet(defaultStyleSheet);
+            SetBackgroundColor(ui->btnDrag, defaultColor);
         }
         std::thread t([this, strValues] {
             robot.MoveToPoint(strValues);
             ui->btnRun->setEnabled(true);
             ui->btnTryRun->setEnabled(true);
             ui->btnMoveToPoint->setEnabled(true);
-            ui->btnMoveToPoint->setStyleSheet(defaultStyleSheet);
+            SetBackgroundColor(ui->btnMoveToPoint, defaultColor);
             ui->btnMoveToPoint->setText("移动到点");
         });
         t.detach();
@@ -682,9 +752,17 @@ void MainWindow::on_leGrindAngle_editingFinished() {
 }
 
 void MainWindow::on_btnStop2_clicked() {
-    if (robot.Stop()) {
-        ui->btnDrag->setStyleSheet(defaultStyleSheet);
-    }
+    ui->btnStop2->setEnabled(false);
+    SetBackgroundColor(ui->btnStop2, greenColor);
+    std::thread t([this] {
+        if (robot.Stop()) {
+            SetBackgroundColor(ui->btnDrag, defaultColor);
+        }
+        QThread::msleep(200);
+        ui->btnStop2->setEnabled(true);
+        SetBackgroundColor(ui->btnStop2, defaultColor);
+    });
+    t.detach();
 }
 
 void MainWindow::on_btnClearHistory_clicked() { ui->lstHistoryPoint->clear(); }
@@ -696,4 +774,12 @@ void MainWindow::on_btnCoverPoint_clicked() {
     }
     robot.CoverPoint(strPoint);
     AddHistoryPoint(strPoint);
+}
+
+void MainWindow::on_leRaiseCount_editingFinished() {
+    crafts[currCraftIdx].raiseCount = ui->leRaiseCount->text().toInt();
+}
+
+void MainWindow::on_leFloatCount_editingFinished() {
+    crafts[currCraftIdx].floatCount = ui->leFloatCount->text().toInt();
 }

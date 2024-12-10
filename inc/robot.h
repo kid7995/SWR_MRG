@@ -53,6 +53,7 @@ class Robot {
     Point MoveRegionArc2(const Craft &craft);
     Point MoveRegionArcHorizontal(const Craft &craft);
     Point MoveRegionArcVertical(const Craft &craft);
+    Point MoveRegionArcVerticalRepeat(const Craft &craft);
     void MoveZLine(const Craft &craft);
     void MoveSpiralLine(const Craft &craft);
     void Run(const Craft &craft, bool isAGPRun);
