@@ -54,6 +54,8 @@ class Robot {
     Point MoveRegionArcHorizontal(const Craft &craft);
     Point MoveRegionArcVertical(const Craft &craft);
     Point MoveRegionArcVerticalRepeat(const Craft &craft);
+    Point MoveCylinderHorizontal(const Craft &craft);
+    Point MoveCylinderVertical(const Craft &craft);
     void MoveZLine(const Craft &craft);
     void MoveSpiralLine(const Craft &craft);
     void Run(const Craft &craft, bool isAGPRun);

@@ -225,6 +225,21 @@ QVector3D Point::getTranslation(const QVector3D &rotation,
             newR(2, 2) * translation.z());
 }
 
+QVector3D Point::getNormalRotation(const QVector3D &normal,
+                                   const QVector3D &aux) {
+    QVector3D xAxis, yAxis, zAxis;
+    zAxis = normal.normalized();
+    xAxis = QVector3D::crossProduct(aux.normalized(), zAxis).normalized();
+    yAxis = QVector3D::crossProduct(zAxis, xAxis).normalized();
+    // yAxis = QVector3D::crossProduct(zAxis, aux.normalized()).normalized();
+    // xAxis = QVector3D::crossProduct(yAxis, zAxis).normalized();
+    // qDebug() << xAxis << yAxis << zAxis;
+    QMatrix3x3 R =
+        QQuaternion::fromAxes(xAxis, yAxis, zAxis).toRotationMatrix();
+    // qDebug() << R;
+    return Point::toEulerAngles(R);
+}
+
 void Point::test() {
     // 定义三个点
     // QVector3D A(1, 2, 3);

@@ -317,6 +317,18 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnBeginOffset->setVisible(true);
         ui->btnEndOffset->setVisible(true);
         break;
+    case PolishWay::CylinderWay_Horizontal:
+    case PolishWay::CylinderWay_Vertical:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
+        ui->leOffsetCount->setEnabled(true);
+        ui->lblBackground->setPixmap(QPixmap(":/pic/cylinder.png"));
+        ui->btnAux->setVisible(false);
+        ui->btnMid->move(550, 240);
+        ui->btnMid->setVisible(true);
+        ui->btnBeginOffset->setVisible(true);
+        ui->btnEndOffset->setVisible(false);
+        break;
     case PolishWay::ZLineWay:
         ui->leDiscRadius->setEnabled(true);
         ui->leGrindAngle->setEnabled(true);
@@ -360,6 +372,20 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
     default:
         ui->leRaiseCount->setEnabled(false);
         ui->leFloatCount->setEnabled(false);
+        break;
+    }
+
+    switch (way) {
+    case PolishWay::CylinderWay_Horizontal:
+    case PolishWay::CylinderWay_Vertical:
+        ui->btnBegin->move(150, 210);
+        ui->btnEnd->move(930, 210);
+        ui->btnBeginOffset->move(150, 360);
+        break;
+    default:
+        ui->btnBegin->move(150, 310);
+        ui->btnEnd->move(930, 310);
+        ui->btnBeginOffset->move(320, 430);
         break;
     }
 }

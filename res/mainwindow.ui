@@ -254,7 +254,7 @@ border: none;</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -325,7 +325,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -357,7 +357,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -389,7 +389,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -424,7 +424,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -456,7 +456,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -488,7 +488,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -539,7 +539,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -571,7 +571,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -603,7 +603,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -635,7 +635,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -667,7 +667,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -702,7 +702,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -737,7 +737,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -1312,6 +1312,16 @@ color: rgb(255, 255, 255);</string>
           <item>
            <property name="text">
             <string>区域圆弧2</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>柱面-横向</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>柱面-纵向</string>
            </property>
           </item>
          </widget>
@@ -2115,7 +2125,7 @@ color: rgb(255, 255, 255);</string>
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>17</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

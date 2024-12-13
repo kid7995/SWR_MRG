@@ -14,6 +14,8 @@ enum PolishWay {
     RegionArcWay_Vertical_Repeat,
     RegionArcWay1,
     RegionArcWay2,
+    CylinderWay_Horizontal,
+    CylinderWay_Vertical,
     ZLineWay,
     SpiralLineWay
 };
