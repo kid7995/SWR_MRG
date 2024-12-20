@@ -35,7 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
             out << QString(
                 "[CraftParameter]\nsize=1\n1\\CraftName=\\x4e00\n1\\PolishMode="
                 "0\n1\\PolishWay=0\n1\\TeachingPointReferencePosition="
-                "7\n1\\CutinSpeed=100\n1\\MovingSpeed=50\n1\\RotationSpeed="
+                "7\n1\\CutinSpeed=20\n1\\MovingSpeed=80\n1\\RotationSpeed="
                 "4500\n1\\ContactForce=10\n1\\SettingForce="
                 "80\n1\\TransitionTime=1500\n1\\DiscRadius=50\n1\\GrindAngle="
                 "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
