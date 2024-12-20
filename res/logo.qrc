@@ -6,6 +6,7 @@
         <file>pic/z_line.png</file>
         <file>pic/region_arc.png</file>
         <file>pic/spiral_line.png</file>
-        <file>pic/cylinder.png</file>
+        <file>pic/cylinder_convex.png</file>
+        <file>pic/cylinder_concave.png</file>
     </qresource>
 </RCC>

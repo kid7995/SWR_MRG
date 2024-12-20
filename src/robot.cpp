@@ -232,8 +232,10 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
         if (!pointSet.isEndOffsetPointRecorded) {
             check.append("结束偏移点");
         }
-    case PolishWay::CylinderWay_Horizontal:
-    case PolishWay::CylinderWay_Vertical:
+    case PolishWay::CylinderWay_Horizontal_Convex:
+    case PolishWay::CylinderWay_Vertical_Convex:
+    case PolishWay::CylinderWay_Horizontal_Concave:
+    case PolishWay::CylinderWay_Vertical_Concave:
         if (!pointSet.isBeginOffsetPointRecorded) {
             check.append("起始偏移点");
         }
@@ -272,8 +274,10 @@ bool Robot::CheckAllPoints(const PolishWay &way) {
     case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
     case PolishWay::RegionArcWay_Vertical_Repeat:
-    case PolishWay::CylinderWay_Horizontal:
-    case PolishWay::CylinderWay_Vertical:
+    case PolishWay::CylinderWay_Horizontal_Convex:
+    case PolishWay::CylinderWay_Vertical_Convex:
+    case PolishWay::CylinderWay_Horizontal_Concave:
+    case PolishWay::CylinderWay_Vertical_Concave:
         if (pointSet.midPoints.size() % 2 == 0) {
             QMessageBox::critical(NULL, "提示", "圆弧中间点数量不能为偶数个！");
             return false;
@@ -368,8 +372,10 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     AGPRun(craft, isAGPRun);
     if (craft.way != PolishWay::RegionArcWay_Vertical &&
         craft.way != PolishWay::RegionArcWay_Vertical_Repeat &&
-        craft.way != PolishWay::CylinderWay_Horizontal &&
-        craft.way != PolishWay::CylinderWay_Vertical) {
+        craft.way != PolishWay::CylinderWay_Horizontal_Convex &&
+        craft.way != PolishWay::CylinderWay_Vertical_Convex &&
+        craft.way != PolishWay::CylinderWay_Horizontal_Concave &&
+        craft.way != PolishWay::CylinderWay_Vertical_Concave) {
         // 移到起始辅助点
         // point = pointSet.auxBeginPoint;
         if (craft.way == PolishWay::RegionArcWay1 ||
@@ -1498,7 +1504,7 @@ Point Robot::MoveRegionArcVerticalRepeat(const Craft &craft) {
     return point;
 }
 
-Point Robot::MoveCylinderHorizontal(const Craft &craft) {
+Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
     // 圆弧上界
     QVector<Point> posListUp;
     posListUp.append(pointSet.beginPoint);
@@ -1514,6 +1520,8 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft) {
     QVector<double> lengthListUp;
     lengthListUp.append(totalArcLengthUp);
     QVector<QVector3D> newRotList, translationList;
+    QVector3D aux =
+        (pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos).normalized();
     for (int i = 1; i < posListUp.size() - 1; i += 2) {
         QVector3D center = Point::calculateCircumcenter(
             posListUp.at(i - 1).pos, posListUp.at(i).pos,
@@ -1536,8 +1544,16 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft) {
         // 计算各点姿态与对应偏移
         QVector3D axis, normal, rotation, moveDirection;
         axis = QVector3D::crossProduct(OA, OM).normalized();
+        if (!isConvex) {
+            axis = -axis;
+        }
         if (i == 1) {
-            normal = -OA;
+            normal =
+                QVector3D::crossProduct(QVector3D::crossProduct(aux, -OA), aux)
+                    .normalized();
+            if (!isConvex) {
+                normal = -normal;
+            }
             rotation = Point::getNormalRotation(normal, axis);
             moveDirection = QVector3D::crossProduct(normal, axis).normalized();
             // 获取新的姿态
@@ -1548,7 +1564,11 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft) {
                                                 discRadius, grindAngle);
             translationList.append(translation);
         }
-        normal = -OM;
+        normal = QVector3D::crossProduct(QVector3D::crossProduct(aux, -OM), aux)
+                     .normalized();
+        if (!isConvex) {
+            normal = -normal;
+        }
         rotation = Point::getNormalRotation(normal, axis);
         moveDirection = QVector3D::crossProduct(normal, axis).normalized();
         // 获取新的姿态
@@ -1559,7 +1579,11 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft) {
                                             grindAngle);
         translationList.append(translation);
 
-        normal = -OB;
+        normal = QVector3D::crossProduct(QVector3D::crossProduct(aux, -OB), aux)
+                     .normalized();
+        if (!isConvex) {
+            normal = -normal;
+        }
         rotation = Point::getNormalRotation(normal, axis);
         moveDirection = QVector3D::crossProduct(normal, axis).normalized();
         // 获取新的姿态
@@ -1644,7 +1668,7 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft) {
     return posEnd;
 }
 
-Point Robot::MoveCylinderVertical(const Craft &craft) {
+Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
     // 圆弧上界
     QVector<Point> posListUp;
     posListUp.append(pointSet.beginPoint);
@@ -1688,9 +1712,11 @@ Point Robot::MoveCylinderVertical(const Craft &craft) {
         double arcLengthUp = 0.0;
         for (int i = 0; i < centerListUp.size(); ++i) {
             while (arcLengthUp <= lengthListUp.at(i)) {
-                QVector3D axis = QVector3D::crossProduct(
-                    posListUp.at(2 * i).pos - centerListUp.at(i),
-                    posListUp.at(2 * i + 1).pos - centerListUp.at(i));
+                QVector3D axis =
+                    QVector3D::crossProduct(
+                        posListUp.at(2 * i).pos - centerListUp.at(i),
+                        posListUp.at(2 * i + 1).pos - centerListUp.at(i))
+                        .normalized();
                 QMatrix3x3 R = Point::toRotationMatrix(
                     axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
                 QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
@@ -1705,12 +1731,16 @@ Point Robot::MoveCylinderVertical(const Craft &craft) {
                 finalPosListDown.append(centerListUp.at(i) + newTrans +
                                         posOffset);
                 // 计算姿态和对应偏移
-                QVector3D aux = -posOffset.normalized();
+                QVector3D aux = posOffset.normalized();
                 QVector3D normal =
                     QVector3D::crossProduct(
                         QVector3D::crossProduct(aux, -newTrans), aux)
                         .normalized();
-                QVector3D rotation = Point::getNormalRotation(normal, aux);
+                if (!isConvex) {
+                    normal = -normal;
+                    axis = -axis;
+                }
+                QVector3D rotation = Point::getNormalRotation(normal, axis);
                 QVector3D moveDirection = posOffset.normalized();
                 // 获取新的姿态
                 newRot =
@@ -1728,13 +1758,20 @@ Point Robot::MoveCylinderVertical(const Craft &craft) {
         finalPosListUp.append(pointSet.beginPoint.pos);
         finalPosListDown.append(pointSet.beginOffsetPoint.pos);
         // 计算姿态和对应偏移
-        QVector3D trans =
-            posListUp.constFirst().pos - centerListUp.constFirst();
-        QVector3D aux = -posOffset.normalized();
+        QVector3D axis =
+            QVector3D::crossProduct(posListUp.at(0).pos - centerListUp.at(0),
+                                    posListUp.at(1).pos - centerListUp.at(0))
+                .normalized();
+        QVector3D trans = posListUp.at(0).pos - centerListUp.at(0);
+        QVector3D aux = posOffset.normalized();
         QVector3D normal =
             QVector3D::crossProduct(QVector3D::crossProduct(aux, -trans), aux)
                 .normalized();
-        QVector3D rotation = Point::getNormalRotation(normal, aux);
+        if (!isConvex) {
+            normal = -normal;
+            axis = -axis;
+        }
+        QVector3D rotation = Point::getNormalRotation(normal, axis);
         QVector3D moveDirection = posOffset.normalized();
         // 获取新的姿态
         newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
@@ -1931,11 +1968,17 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     case PolishWay::RegionArcWay_Vertical_Repeat:
         point = MoveRegionArcVerticalRepeat(craft);
         break;
-    case PolishWay::CylinderWay_Horizontal:
-        point = MoveCylinderHorizontal(craft);
+    case PolishWay::CylinderWay_Horizontal_Convex:
+        point = MoveCylinderHorizontal(craft, true);
         break;
-    case PolishWay::CylinderWay_Vertical:
-        point = MoveCylinderVertical(craft);
+    case PolishWay::CylinderWay_Vertical_Convex:
+        point = MoveCylinderVertical(craft, true);
+        break;
+    case PolishWay::CylinderWay_Horizontal_Concave:
+        point = MoveCylinderHorizontal(craft, false);
+        break;
+    case PolishWay::CylinderWay_Vertical_Concave:
+        point = MoveCylinderVertical(craft, false);
         break;
     case PolishWay::ZLineWay:
         MoveZLine(craft);
@@ -3123,7 +3166,8 @@ void HansRobot::Run(const Craft &craft, bool isAGPRun) {
 */
 bool HansRobot::Stop() {
     // 机器人停止
-    HRIF_GrpStop(0, 0);
+    // HRIF_GrpStop(0, 0);
+    HRIF_StopScript(0);
     // AGP停止
     if (agp != nullptr) {
         agp->SetSpeed(0);
@@ -3162,7 +3206,7 @@ void HansRobot::MoveL(const Point &point, double velocity, double acc,
     // 定义运动速度
     double dVelocity = velocity;
     // 定义运动加速度
-    double dAcc = acc;
+    double dAcc = 1000;
     // 定义过渡半径
     double dRadius = radius;
     // 定义是否使用关节角度
@@ -3200,7 +3244,7 @@ void HansRobot::MoveC(const Point &auxPoint, const Point &endPoint,
     // 定义运动速度
     double dVelocity = velocity;
     // 定义运动加速度
-    double dAcc = acc;
+    double dAcc = 1000;
     // 定义过渡半径
     double dRadius = radius;
     // 定义是否使用关节角度

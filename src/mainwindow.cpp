@@ -35,7 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
             out << QString(
                 "[CraftParameter]\nsize=1\n1\\CraftName=\\x4e00\n1\\PolishMode="
                 "0\n1\\PolishWay=0\n1\\TeachingPointReferencePosition="
-                "10\n1\\CutinSpeed=100\n1\\MovingSpeed=50\n1\\RotationSpeed="
+                "7\n1\\CutinSpeed=100\n1\\MovingSpeed=50\n1\\RotationSpeed="
                 "4500\n1\\ContactForce=10\n1\\SettingForce="
                 "80\n1\\TransitionTime=1500\n1\\DiscRadius=50\n1\\GrindAngle="
                 "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
@@ -200,13 +200,19 @@ void MainWindow::InitButtons() {
     // SetBackgroundColor(ui->btnSaveCurrPara, defaultColor);
 
     // 历史点页面按钮
+    ui->btnClearHistory->setVisible(true);
     SetBackgroundColor(ui->btnClearHistory, greyColor);
+    ui->btnCoverPoint->setVisible(true);
     SetBackgroundColor(ui->btnCoverPoint, greyColor);
+    ui->btnMoveToPoint->setVisible(true);
     SetBackgroundColor(ui->btnMoveToPoint, greyColor);
+    ui->btnStop2->setVisible(true);
     SetBackgroundColor(ui->btnStop2, greyColor);
 
     // 设备连接页面按钮
+    ui->btnRobotConnect->setVisible(true);
     SetBackgroundColor(ui->btnRobotConnect, defaultColor);
+    ui->btnAGPConnect->setVisible(true);
     SetBackgroundColor(ui->btnAGPConnect, defaultColor);
     // SetBackgroundColor(ui->btnSettingReturn, defaultColor);
 }
@@ -317,14 +323,26 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnBeginOffset->setVisible(true);
         ui->btnEndOffset->setVisible(true);
         break;
-    case PolishWay::CylinderWay_Horizontal:
-    case PolishWay::CylinderWay_Vertical:
+    case PolishWay::CylinderWay_Horizontal_Convex:
+    case PolishWay::CylinderWay_Vertical_Convex:
         ui->leDiscRadius->setEnabled(true);
         ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
-        ui->lblBackground->setPixmap(QPixmap(":/pic/cylinder.png"));
+        ui->lblBackground->setPixmap(QPixmap(":/pic/cylinder_convex.png"));
         ui->btnAux->setVisible(false);
         ui->btnMid->move(550, 240);
+        ui->btnMid->setVisible(true);
+        ui->btnBeginOffset->setVisible(true);
+        ui->btnEndOffset->setVisible(false);
+        break;
+    case PolishWay::CylinderWay_Horizontal_Concave:
+    case PolishWay::CylinderWay_Vertical_Concave:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
+        ui->leOffsetCount->setEnabled(true);
+        ui->lblBackground->setPixmap(QPixmap(":/pic/cylinder_concave.png"));
+        ui->btnAux->setVisible(false);
+        ui->btnMid->move(550, 180);
         ui->btnMid->setVisible(true);
         ui->btnBeginOffset->setVisible(true);
         ui->btnEndOffset->setVisible(false);
@@ -376,8 +394,10 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
     }
 
     switch (way) {
-    case PolishWay::CylinderWay_Horizontal:
-    case PolishWay::CylinderWay_Vertical:
+    case PolishWay::CylinderWay_Horizontal_Convex:
+    case PolishWay::CylinderWay_Vertical_Convex:
+    case PolishWay::CylinderWay_Horizontal_Concave:
+    case PolishWay::CylinderWay_Vertical_Concave:
         ui->btnBegin->move(150, 210);
         ui->btnEnd->move(930, 210);
         ui->btnBeginOffset->move(150, 360);
@@ -395,7 +415,7 @@ void MainWindow::SetBackgroundColor(QPushButton *btn, const QColor &color) {
     pal.setColor(QPalette::Button, color);
     btn->setPalette(pal);
     btn->setAutoFillBackground(true);
-    btn->show();
+    // btn->show();
 }
 
 void MainWindow::ConnectRobot() {
@@ -588,11 +608,33 @@ void MainWindow::on_cmbPolishMode_currentIndexChanged(int index) {
 }
 
 void MainWindow::on_leCutinSpeed_editingFinished() {
-    crafts[currCraftIdx].cutinSpeed = ui->leCutinSpeed->text().toInt();
+    QString str = ui->leCutinSpeed->text();
+    int pos = 0;
+    QIntValidator v(0, 50);
+    if (v.validate(str, pos) != QValidator::Acceptable) {
+        QMessageBox::warning(
+            NULL, "提示",
+            QString("切入速度范围：%1~%2").arg(v.bottom()).arg(v.top()));
+        ui->leCutinSpeed->setText(
+            QString::number(crafts.at(currCraftIdx).cutinSpeed));
+    } else {
+        crafts[currCraftIdx].cutinSpeed = ui->leCutinSpeed->text().toInt();
+    }
 }
 
 void MainWindow::on_leMoveSpeed_editingFinished() {
-    crafts[currCraftIdx].moveSpeed = ui->leMoveSpeed->text().toInt();
+    QString str = ui->leMoveSpeed->text();
+    int pos = 0;
+    QIntValidator v(0, 350);
+    if (v.validate(str, pos) != QValidator::Acceptable) {
+        QMessageBox::warning(
+            NULL, "提示",
+            QString("行进速度范围：%1~%2").arg(v.bottom()).arg(v.top()));
+        ui->leMoveSpeed->setText(
+            QString::number(crafts.at(currCraftIdx).moveSpeed));
+    } else {
+        crafts[currCraftIdx].moveSpeed = ui->leMoveSpeed->text().toInt();
+    }
 }
 
 void MainWindow::on_leRotateSpeed_editingFinished() {

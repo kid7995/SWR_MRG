@@ -254,7 +254,7 @@ border: none;</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -325,7 +325,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -357,7 +357,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -389,7 +389,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -424,7 +424,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -456,7 +456,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -488,7 +488,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -539,7 +539,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -571,7 +571,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -603,7 +603,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -635,7 +635,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -667,7 +667,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -702,7 +702,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -737,7 +737,7 @@ color: rgb(255, 255, 255);</string>
          </font>
         </property>
         <property name="autoFillBackground">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(173, 49, 34);
@@ -1142,30 +1142,6 @@ color: rgb(255, 255, 255);</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
-         <widget class="QComboBox" name="cmbCraftID">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="editable">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="3">
          <widget class="QLabel" name="lblPolishWay">
           <property name="sizePolicy">
@@ -1279,6 +1255,9 @@ color: rgb(255, 255, 255);</string>
             <pointsize>18</pointsize>
            </font>
           </property>
+          <property name="maxVisibleItems">
+           <number>12</number>
+          </property>
           <item>
            <property name="text">
             <string>圆弧</string>
@@ -1316,12 +1295,22 @@ color: rgb(255, 255, 255);</string>
           </item>
           <item>
            <property name="text">
-            <string>柱面-横向</string>
+            <string>柱面-横向-凸面</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>柱面-纵向</string>
+            <string>柱面-纵向-凸面</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>柱面-横向-凹面</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>柱面-纵向-凹面</string>
            </property>
           </item>
          </widget>
@@ -1685,7 +1674,7 @@ color: rgb(255, 255, 255);</string>
            <set>Qt::ImhDigitsOnly</set>
           </property>
           <property name="text">
-           <string>10</string>
+           <string>7</string>
           </property>
          </widget>
         </item>
@@ -1746,6 +1735,33 @@ color: rgb(255, 255, 255);</string>
           </property>
           <property name="text">
            <string>0</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="2">
+         <widget class="QComboBox" name="cmbCraftID">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+          <property name="maxVisibleItems">
+           <number>10</number>
           </property>
          </widget>
         </item>
@@ -2125,7 +2141,7 @@ color: rgb(255, 255, 255);</string>
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>21</height>
+     <height>17</height>
     </rect>
    </property>
   </widget>
