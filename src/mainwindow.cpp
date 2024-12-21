@@ -37,9 +37,9 @@ MainWindow::MainWindow(QWidget *parent)
                 "0\n1\\PolishWay=0\n1\\TeachingPointReferencePosition="
                 "7\n1\\CutinSpeed=20\n1\\MovingSpeed=80\n1\\RotationSpeed="
                 "4500\n1\\ContactForce=10\n1\\SettingForce="
-                "80\n1\\TransitionTime=1500\n1\\DiscRadius=50\n1\\GrindAngle="
-                "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
-                "0\n1\\FloatCount=0\n");
+                "80\n1\\TransitionTime=1500\n1\\DiscRadius="
+                "50\n1\\DiscThickness=8\n1\\GrindAngle=0\n1\\OffsetCount="
+                "0\n1\\AddOffsetCount=0\n1\\RaiseCount=0\n1\\FloatCount=0\n");
             // 关闭文件
             file.close();
         } else {
@@ -70,6 +70,7 @@ MainWindow::MainWindow(QWidget *parent)
         craft.settingForce = settings.value("SettingForce").toInt();
         craft.transitionTime = settings.value("TransitionTime").toInt();
         craft.discRadius = settings.value("DiscRadius").toInt();
+        craft.discThickness = settings.value("DiscThickness").toInt();
         craft.grindAngle = settings.value("GrindAngle").toInt();
         craft.offsetCount = settings.value("OffsetCount").toInt();
         craft.addOffsetCount = settings.value("AddOffsetCount").toInt();
@@ -116,6 +117,7 @@ void MainWindow::SavePara(int index) {
     settings.setValue("SettingForce", crafts.at(index).settingForce);
     settings.setValue("TransitionTime", crafts.at(index).transitionTime);
     settings.setValue("DiscRadius", crafts.at(index).discRadius);
+    settings.setValue("DiscThickness", crafts.at(index).discThickness);
     settings.setValue("GrindAngle", crafts.at(index).grindAngle);
     settings.setValue("OffsetCount", crafts.at(index).offsetCount);
     settings.setValue("AddOffsetCount", crafts.at(index).addOffsetCount);
@@ -146,6 +148,8 @@ void MainWindow::ReadCurrPara() {
         QString::number(crafts.at(currCraftIdx).transitionTime));
     ui->leDiscRadius->setText(
         QString::number(crafts.at(currCraftIdx).discRadius));
+    ui->leDiscThickness->setText(
+        QString::number(crafts.at(currCraftIdx).discThickness));
     ui->leGrindAngle->setText(
         QString::number(crafts.at(currCraftIdx).grindAngle));
     ui->leOffsetCount->setText(
@@ -156,6 +160,9 @@ void MainWindow::ReadCurrPara() {
         QString::number(crafts.at(currCraftIdx).raiseCount));
     ui->leFloatCount->setText(
         QString::number(crafts.at(currCraftIdx).floatCount));
+
+    robot.teachPos = crafts.at(currCraftIdx).teachPointReferPos;
+    robot.discThickness = crafts.at(currCraftIdx).discThickness;
 }
 
 void MainWindow::DelCurrPara() {
@@ -267,6 +274,7 @@ void MainWindow::SetValidator() {
     ui->leSettingForce->setValidator(new QIntValidator(ui->leSettingForce));
     ui->leTeachPos->setValidator(new QIntValidator(ui->leTeachPos));
     ui->leDiscRadius->setValidator(new QIntValidator(ui->leDiscRadius));
+    ui->leDiscThickness->setValidator(new QIntValidator(ui->leDiscThickness));
     ui->leGrindAngle->setValidator(new QIntValidator(ui->leGrindAngle));
     ui->leOffsetCount->setValidator(new QIntValidator(ui->leOffsetCount));
     ui->leAddOffsetCount->setValidator(new QIntValidator(ui->leAddOffsetCount));
@@ -277,8 +285,6 @@ void MainWindow::SetValidator() {
 void MainWindow::SetPolishWay(const PolishWay &way) {
     switch (way) {
     case PolishWay::ArcWay:
-        ui->leDiscRadius->setEnabled(true);
-        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/arc.png"));
         ui->btnAux->setVisible(false);
@@ -288,8 +294,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::LineWay:
-        ui->leDiscRadius->setEnabled(true);
-        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(false);
         ui->lblBackground->setPixmap(QPixmap(":/pic/line.png"));
         ui->btnAux->setVisible(false);
@@ -300,8 +304,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         break;
     case PolishWay::RegionArcWay1:
     case PolishWay::RegionArcWay2:
-        ui->leDiscRadius->setEnabled(false);
-        ui->leGrindAngle->setEnabled(false);
         ui->leOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
         ui->btnAux->setVisible(false);
@@ -313,8 +315,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
     case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
     case PolishWay::RegionArcWay_Vertical_Repeat:
-        ui->leDiscRadius->setEnabled(true);
-        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
         ui->btnAux->setVisible(false);
@@ -325,8 +325,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         break;
     case PolishWay::CylinderWay_Horizontal_Convex:
     case PolishWay::CylinderWay_Vertical_Convex:
-        ui->leDiscRadius->setEnabled(true);
-        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/cylinder_convex.png"));
         ui->btnAux->setVisible(false);
@@ -337,8 +335,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         break;
     case PolishWay::CylinderWay_Horizontal_Concave:
     case PolishWay::CylinderWay_Vertical_Concave:
-        ui->leDiscRadius->setEnabled(true);
-        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/cylinder_concave.png"));
         ui->btnAux->setVisible(false);
@@ -348,8 +344,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::ZLineWay:
-        ui->leDiscRadius->setEnabled(true);
-        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/z_line.png"));
         ui->btnAux->move(150, 130);
@@ -359,8 +353,6 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     case PolishWay::SpiralLineWay:
-        ui->leDiscRadius->setEnabled(true);
-        ui->leGrindAngle->setEnabled(true);
         ui->leOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/spiral_line.png"));
         ui->btnAux->move(350, 130);
@@ -370,6 +362,20 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
         ui->btnEndOffset->setVisible(false);
         break;
     default:
+        break;
+    }
+
+    switch (way) {
+    case PolishWay::RegionArcWay1:
+    case PolishWay::RegionArcWay2:
+        ui->leDiscRadius->setEnabled(false);
+        ui->leDiscThickness->setEnabled(false);
+        ui->leGrindAngle->setEnabled(false);
+        break;
+    default:
+        ui->leDiscRadius->setEnabled(true);
+        ui->leDiscThickness->setEnabled(true);
+        ui->leGrindAngle->setEnabled(true);
         break;
     }
 
@@ -468,6 +474,10 @@ void MainWindow::AddHistoryPoint(const QString &strPoint) {
         for (const auto &pItem : pItems) {
             pItem->setText(strPoint);
         }
+    }
+    QListWidgetItem *pCurrItem = ui->lstHistoryPoint->currentItem();
+    if (pCurrItem != nullptr) {
+        ui->lstHistoryPoint->currentTextChanged(pCurrItem->text());
     }
 }
 
@@ -660,6 +670,7 @@ void MainWindow::on_cmbPolishWay_currentIndexChanged(int index) {
 
 void MainWindow::on_leTeachPos_editingFinished() {
     crafts[currCraftIdx].teachPointReferPos = ui->leTeachPos->text().toInt();
+    robot.teachPos = ui->leTeachPos->text().toInt();
 }
 
 void MainWindow::on_btnAddNewPara_clicked() {
@@ -850,4 +861,9 @@ void MainWindow::on_leRaiseCount_editingFinished() {
 
 void MainWindow::on_leFloatCount_editingFinished() {
     crafts[currCraftIdx].floatCount = ui->leFloatCount->text().toInt();
+}
+
+void MainWindow::on_leDiscThickness_editingFinished() {
+    crafts[currCraftIdx].discThickness = ui->leDiscThickness->text().toInt();
+    robot.discThickness = ui->leDiscThickness->text().toInt();
 }

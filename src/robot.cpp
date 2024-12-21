@@ -16,7 +16,7 @@ constexpr double precision = 1e-4;
 int status = -1;
 std::string robotIPAddr;
 
-Robot::Robot() : agp(nullptr), isTeach(false) {}
+Robot::Robot() : agp(nullptr), isTeach(false), discThickness(0), teachPos(0) {}
 
 Robot::~Robot() {
     if (agp != nullptr) {
@@ -31,6 +31,8 @@ bool Robot::AGPConnect(QString agpIP) {
     }
     agp = new AGP(agpIP.toStdString());
     if (agp != nullptr && agp->AGP_connect()) {
+        agp->Control(FUNC::RESET);
+        agp->Control(FUNC::ENABLE);
         agp->SetMode(MODE::ForceMode);
         agp->SetLoadWeight(22);
         agp->SetForce(20);
@@ -42,6 +44,8 @@ bool Robot::AGPConnect(QString agpIP) {
 
 void Robot::AGPRun(const Craft &craft, bool isRotated) {
     // 设置AGP参数
+    agp->Control(FUNC::RESET);
+    agp->Control(FUNC::ENABLE);
     switch (craft.mode) {
     case PolishMode::MomentMode:
         agp->SetMode(MODE::ForceMode);
@@ -82,6 +86,18 @@ bool Robot::IsAGPEnabled() {
         }
     }
     return false;
+}
+
+bool Robot::GetPoint(Point &point) {
+    if (!GetTcpPoint(point)) {
+        return false;
+    }
+    double pos = teachPos;
+    if (agp != nullptr) {
+        pos = agp->ReadPos() / 100.0;
+    }
+    point = point.PosRelByTool(defaultDirection, pos + discThickness);
+    return true;
 }
 
 bool Robot::GetSafePoint(QString &strPoint) {
@@ -326,6 +342,22 @@ void Robot::CoverPoint(QString &strPoint) {
                        pointSet.midPoints.at(id - 1).toString();
         }
     }
+}
+
+void Robot::MoveL(const Point &point, double dVelocity, double dAcc,
+                  double dRadius) {
+    Point tcpPoint =
+        point.PosRelByTool(defaultDirection, -(teachPos + discThickness));
+    MoveTcpL(tcpPoint, dVelocity, dAcc, dRadius);
+}
+
+void Robot::MoveC(const Point &auxPoint, const Point &endPoint,
+                  double dVelocity, double dAcc, double dRadius) {
+    Point auxTcpPoint =
+        auxPoint.PosRelByTool(defaultDirection, -(teachPos + discThickness));
+    Point endTcpPoint =
+        endPoint.PosRelByTool(defaultDirection, -(teachPos + discThickness));
+    MoveTcpC(auxTcpPoint, endTcpPoint, dVelocity, dAcc, dRadius);
 }
 
 void Robot::MoveToPoint(const QStringList &coordinates) {
@@ -2086,6 +2118,8 @@ bool HansRobot::RobotTeach(int pos) {
     if (!isTeach) {
         if (agp != nullptr) {
             // 设置AGP默认参数
+            agp->Control(FUNC::RESET);
+            agp->Control(FUNC::ENABLE);
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
             agp->SetForce(200);
@@ -2110,6 +2144,8 @@ bool HansRobot::RobotTeach(int pos) {
                 return isTeach;
             }
         }
+        // 设置速度比
+        HRIF_SetOverride(0, 0, 1.0);
         // 启用自由拖拽
         int nRet = HRIF_GrpOpenFreeDriver(0, 0);
         if (nRet == 0) {
@@ -2135,7 +2171,7 @@ bool HansRobot::CloseFreeDriver() {
     return false;
 }
 
-bool HansRobot::GetPoint(Point &point) {
+bool HansRobot::GetTcpPoint(Point &point) {
     // 获取位姿信息
     // int nRet = HRIF_ReadCmdTcpPos(0, 0, point.x, point.y, point.z, point.rx,
     //                               point.ry, point.rz);
@@ -3188,8 +3224,8 @@ void HansRobot::OpenWeb(QString ip) {
     QDesktopServices::openUrl(QUrl("http://" + ip + "/dist"));
 }
 
-void HansRobot::MoveL(const Point &point, double velocity, double acc,
-                      double radius) {
+void HansRobot::MoveTcpL(const Point &point, double velocity, double acc,
+                         double radius) {
     // 定义运动类型
     int nMoveType = 1;
     // 定义关节目标位置
@@ -3226,8 +3262,8 @@ void HansRobot::MoveL(const Point &point, double velocity, double acc,
                   nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
 }
 
-void HansRobot::MoveC(const Point &auxPoint, const Point &endPoint,
-                      double velocity, double acc, double radius) {
+void HansRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
+                         double velocity, double acc, double radius) {
     // 定义运动类型
     int nMoveType = 2;
     // 定义关节目标位置
@@ -3301,6 +3337,8 @@ bool DucoRobot::RobotTeach(int pos) {
         qDebug() << "if:" << isTeach;
         if (agp != nullptr) {
             // 设置AGP默认参数
+            agp->Control(FUNC::RESET);
+            agp->Control(FUNC::ENABLE);
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
             agp->SetForce(200);
@@ -3340,7 +3378,7 @@ bool DucoRobot::RobotTeach(int pos) {
     return isTeach;
 }
 
-bool DucoRobot::GetPoint(Point &point) {
+bool DucoRobot::GetTcpPoint(Point &point) {
     // 获取位姿信息
     std::vector<double> data(6);
     ducoCobot->get_tcp_pose(data);
@@ -3699,7 +3737,7 @@ bool JakaRobot::RobotConnect(QString robotIP) {
     return true;
 }
 
-bool JakaRobot::GetPoint(Point &point) {
+bool JakaRobot::GetTcpPoint(Point &point) {
     CartesianPose tcp_pos;
     errno_t ret = jakaRobot.get_tcp_position(&tcp_pos);
     if (ret != ERR_SUCC) {
@@ -3718,6 +3756,8 @@ bool JakaRobot::RobotTeach(int pos) {
     if (!isTeach) {
         if (agp != nullptr) {
             // 设置AGP默认参数
+            agp->Control(FUNC::RESET);
+            agp->Control(FUNC::ENABLE);
             agp->SetMode(MODE::PosMode);
             agp->SetPos(pos * 100);
             agp->SetForce(200);
@@ -3809,8 +3849,8 @@ bool JakaRobot::IsRobotMoved() {
 
 void JakaRobot::OpenWeb(QString ip) {}
 
-void JakaRobot::MoveL(const Point &point, double dVelocity, double dAcc,
-                      double dRadius) {
+void JakaRobot::MoveTcpL(const Point &point, double dVelocity, double dAcc,
+                         double dRadius) {
     CartesianPose pos;
     pos.tran.x = point.pos.x();
     pos.tran.y = point.pos.y();
@@ -3823,8 +3863,8 @@ void JakaRobot::MoveL(const Point &point, double dVelocity, double dAcc,
                           NULL, 3.14 / 10, 12.56 / 10);
 }
 
-void JakaRobot::MoveC(const Point &auxPoint, const Point &endPoint,
-                      double dVelocity, double dAcc, double dRadius) {
+void JakaRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
+                         double dVelocity, double dAcc, double dRadius) {
     CartesianPose midPos, endPos;
     midPos.tran.x = auxPoint.pos.x();
     midPos.tran.y = auxPoint.pos.y();

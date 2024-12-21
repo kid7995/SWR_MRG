@@ -38,6 +38,7 @@ class Craft {
     int settingForce;       // 设定力，N
     int transitionTime;     // 过渡时间，ms
     int discRadius;         // 打磨片半径，mm
+    int discThickness;      // 打磨片厚度，mm
     int grindAngle;         // 打磨角度，°
     int offsetCount;        // 偏移次数
     int addOffsetCount;     // 新增偏移次数

@@ -3,8 +3,8 @@
 
 #include <QElapsedTimer>
 #include <QMainWindow>
-#include <QVector>
 #include <QPushButton>
+#include <QVector>
 
 #include "robot.h"
 
@@ -32,7 +32,7 @@ class MainWindow : public QMainWindow {
 
     void SetValidator();
     void SetPolishWay(const PolishWay &way);
-    void SetBackgroundColor(QPushButton* btn, const QColor& color);
+    void SetBackgroundColor(QPushButton *btn, const QColor &color);
 
     void ConnectRobot();
     void ConnectAGP();
@@ -78,6 +78,7 @@ class MainWindow : public QMainWindow {
     void on_leSettingForce_editingFinished();
     void on_leTeachPos_editingFinished();
     void on_leDiscRadius_editingFinished();
+    void on_leDiscThickness_editingFinished();
     void on_leGrindAngle_editingFinished();
     void on_leOffsetCount_editingFinished();
     void on_leAddOffsetCount_editingFinished();
@@ -89,9 +90,9 @@ class MainWindow : public QMainWindow {
     void on_cmbPolishWay_currentIndexChanged(int index);
     void on_cmbCraftID_editTextChanged(const QString &arg1);
 
-private:
+  private:
     Ui::MainWindow *ui;
-    HansRobot robot;       // 大族机器人
+    HansRobot robot; // 大族机器人
     // DucoRobot robot;       // 新松机器人
     // JakaRobot robot;                // 节卡机器人
     QVector<Craft> crafts;          // 工艺参数列表

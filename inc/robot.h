@@ -17,7 +17,7 @@ class Robot {
     bool IsAGPEnabled();                             // 打磨头是否使能
 
     virtual bool RobotConnect(QString robotIP) = 0; // 连接机器人
-    virtual bool GetPoint(Point &point) = 0;        // 获取点位
+    virtual bool GetTcpPoint(Point &point) = 0;     // 获取TCP点位
     virtual bool RobotTeach(int pos) = 0;           // 开始示教
     virtual bool CloseFreeDriver() = 0;             // 结束示教
     virtual bool Stop() = 0;                        // 急停
@@ -25,12 +25,13 @@ class Robot {
     virtual bool IsRobotEnabled() = 0;              // 是否使能
     virtual bool IsRobotMoved() = 0;                // 是否正在移动
     virtual void OpenWeb(QString ip) = 0;           // 打开网页示教器
-    virtual void MoveL(const Point &point, double dVelocity, double dAcc,
-                       double dRadius) = 0; // 直线运动
-    virtual void MoveC(const Point &auxPoint, const Point &endPoint,
-                       double dVelocity, double dAcc,
-                       double dRadius) = 0; // 圆弧运动
+    virtual void MoveTcpL(const Point &point, double dVelocity, double dAcc,
+                          double dRadius) = 0; // 直线运动
+    virtual void MoveTcpC(const Point &auxPoint, const Point &endPoint,
+                          double dVelocity, double dAcc,
+                          double dRadius) = 0; // 圆弧运动
 
+    bool GetPoint(Point &point);
     bool GetSafePoint(QString &strPoint);
     bool GetBeginPoint(QString &strPoint);
     bool GetEndPoint(QString &strPoint);
@@ -44,6 +45,10 @@ class Robot {
     bool CheckAllPoints(const PolishWay &way);
     void CoverPoint(QString &strPoint);
 
+    void MoveL(const Point &point, double dVelocity, double dAcc,
+               double dRadius);
+    void MoveC(const Point &auxPoint, const Point &endPoint, double dVelocity,
+               double dAcc, double dRadius);
     void MoveToPoint(const QStringList &coordinates);
     void MoveBefore(const Craft &craft, bool isAGPRun);
     void MoveAfter(const Craft &craft, Point point);
@@ -61,13 +66,17 @@ class Robot {
     void Run(const Craft &craft, bool isAGPRun);
 
   protected:
-    AGP *agp;              // AGP
-    PointSet pointSet;     // 点位集合
-    bool isTeach;          // 自由拖拽是否启用
-    QVector3D newRot;      // 倾斜指定角度后的姿态
-    QVector3D translation; // 变换姿态后需要的平移量
+    AGP *agp;                 // AGP
+    PointSet pointSet;        // 点位集合
+    bool isTeach;             // 自由拖拽是否启用
+    QVector3D newRot;         // 倾斜指定角度后的姿态
+    QVector3D translation;    // 变换姿态后需要的平移量
     QVector3D newRotInv;      // 倾斜指定角度后的姿态
     QVector3D translationInv; // 变换姿态后需要的平移量
+
+  public:
+    int discThickness; // 打磨片厚度，mm
+    int teachPos;      // 示教点参考位置，mm
 };
 
 class HansRobot : public Robot {
@@ -77,7 +86,7 @@ class HansRobot : public Robot {
 
     bool RobotConnect(QString robotIP);
     bool RobotTeach(int pos);
-    bool GetPoint(Point &point);
+    bool GetTcpPoint(Point &point);
     // void MoveBefore(const Craft &craft, bool isAGPRun);
     // void MoveAfter(const Craft &craft, Point point);
     // void MoveLine(const Craft &craft);
@@ -94,11 +103,11 @@ class HansRobot : public Robot {
     bool Stop();
 
     void OpenWeb(QString ip); // 打开网页示教器
-    void MoveL(const Point &point, double velocity, double acc,
-               double radius); // 直线运动
-    void MoveC(const Point &auxPoint, const Point &endPoint, double velocity,
-               double acc,
-               double radius); // 圆弧运动
+    void MoveTcpL(const Point &point, double velocity, double acc,
+                  double radius); // 直线运动
+    void MoveTcpC(const Point &auxPoint, const Point &endPoint, double velocity,
+                  double acc,
+                  double radius); // 圆弧运动
 };
 /*
 class DucoRobot : public Robot {
@@ -108,7 +117,7 @@ class DucoRobot : public Robot {
 
     bool RobotConnect(QString robotIP);
     bool RobotTeach(int pos);
-    bool GetPoint(Point &point);
+    bool GetTcpPoint(Point &point);
     void MoveBefore(DucoRPC::DucoCobot *robot, const Craft &craft,
                     bool isAGPRun);
     void MoveAfter(DucoRPC::DucoCobot *robot, const Craft &craft, Point point);
@@ -135,7 +144,7 @@ class JakaRobot : public Robot {
     ~JakaRobot();
 
     bool RobotConnect(QString robotIP); // 连接机器人
-    bool GetPoint(Point &point);        // 获取点位
+    bool GetTcpPoint(Point &point);     // 获取点位
     bool RobotTeach(int pos);           // 开始示教
     bool CloseFreeDriver();             // 结束示教
     bool Stop();                        // 急停
@@ -143,11 +152,11 @@ class JakaRobot : public Robot {
     bool IsRobotEnabled();              // 是否使能
     bool IsRobotMoved();                // 是否正在移动
     void OpenWeb(QString ip);           // 打开网页示教器
-    void MoveL(const Point &point, double dVelocity, double dAcc,
-               double dRadius); // 直线运动
-    void MoveC(const Point &auxPoint, const Point &endPoint, double dVelocity,
-               double dAcc,
-               double dRadius); // 圆弧运动
+    void MoveTcpL(const Point &point, double dVelocity, double dAcc,
+                  double dRadius); // 直线运动
+    void MoveTcpC(const Point &auxPoint, const Point &endPoint,
+                  double dVelocity, double dAcc,
+                  double dRadius); // 圆弧运动
 
   private:
     JAKAZuRobot jakaRobot;
