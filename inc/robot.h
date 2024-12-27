@@ -73,6 +73,7 @@ class Robot {
     QVector3D translation;    // 变换姿态后需要的平移量
     QVector3D newRotInv;      // 倾斜指定角度后的姿态
     QVector3D translationInv; // 变换姿态后需要的平移量
+    std::atomic<bool> isStop; // 是否停止
 
   public:
     int discThickness; // 打磨片厚度，mm

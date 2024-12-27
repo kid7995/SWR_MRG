@@ -16,7 +16,9 @@ constexpr double precision = 1e-4;
 int status = -1;
 std::string robotIPAddr;
 
-Robot::Robot() : agp(nullptr), isTeach(false), discThickness(0), teachPos(0) {}
+Robot::Robot()
+    : agp(nullptr), isTeach(false), isStop(true), discThickness(0),
+      teachPos(0) {}
 
 Robot::~Robot() {
     if (agp != nullptr) {
@@ -346,6 +348,9 @@ void Robot::CoverPoint(QString &strPoint) {
 
 void Robot::MoveL(const Point &point, double dVelocity, double dAcc,
                   double dRadius) {
+    if (isStop.load()) {
+        return;
+    }
     Point tcpPoint =
         point.PosRelByTool(defaultDirection, -(teachPos + discThickness));
     MoveTcpL(tcpPoint, dVelocity, dAcc, dRadius);
@@ -353,6 +358,9 @@ void Robot::MoveL(const Point &point, double dVelocity, double dAcc,
 
 void Robot::MoveC(const Point &auxPoint, const Point &endPoint,
                   double dVelocity, double dAcc, double dRadius) {
+    if (isStop.load()) {
+        return;
+    }
     Point auxTcpPoint =
         auxPoint.PosRelByTool(defaultDirection, -(teachPos + discThickness));
     Point endTcpPoint =
@@ -378,10 +386,12 @@ void Robot::MoveToPoint(const QStringList &coordinates) {
     point.rot.setX(coordinates.at(3).toDouble());
     point.rot.setY(coordinates.at(4).toDouble());
     point.rot.setZ(coordinates.at(5).toDouble());
+    isStop.store(false);
     MoveL(point, dVelocity, dAcc, dRadius);
     // 等待运动完成
     while (true) {
         if (!IsRobotMoved()) {
+            isStop.store(true);
             break;
         }
         QThread::msleep(100);
@@ -1972,6 +1982,7 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     translationInv =
         Point::getTranslation(rotation, moveDirection, radius, angle);
     // 开始运动
+    isStop.store(false);
     MoveBefore(craft, isAGPRun);
     // Point point = pointSet.auxEndPoint;
     Point point;
@@ -2026,6 +2037,7 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
     // 等待运动完成
     while (true) {
         if (!IsRobotMoved()) {
+            isStop.store(true);
             break;
         }
         QThread::msleep(100);
@@ -3202,8 +3214,9 @@ void HansRobot::Run(const Craft &craft, bool isAGPRun) {
 */
 bool HansRobot::Stop() {
     // 机器人停止
-    // HRIF_GrpStop(0, 0);
-    HRIF_StopScript(0);
+    isStop.store(true);
+    HRIF_GrpStop(0, 0);
+    // HRIF_StopScript(0);
     // AGP停止
     if (agp != nullptr) {
         agp->SetSpeed(0);
