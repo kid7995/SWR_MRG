@@ -84,13 +84,16 @@ class MainWindow : public QMainWindow {
     void on_leAddOffsetCount_editingFinished();
     void on_leRaiseCount_editingFinished();
     void on_leFloatCount_editingFinished();
+    void on_leTransitionRadius_editingFinished();
 
     void on_cmbCraftID_currentIndexChanged(int index);
     void on_cmbPolishMode_currentIndexChanged(int index);
     void on_cmbPolishWay_currentIndexChanged(int index);
     void on_cmbCraftID_editTextChanged(const QString &arg1);
 
-  private:
+    void on_chkMirror_stateChanged(int arg1);
+
+private:
     Ui::MainWindow *ui;
     HansRobot robot; // 大族机器人
     // DucoRobot robot;       // 新松机器人

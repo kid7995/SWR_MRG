@@ -37,9 +37,10 @@ MainWindow::MainWindow(QWidget *parent)
                 "0\n1\\PolishWay=0\n1\\TeachingPointReferencePosition="
                 "7\n1\\CutinSpeed=20\n1\\MovingSpeed=80\n1\\RotationSpeed="
                 "4500\n1\\ContactForce=10\n1\\SettingForce="
-                "80\n1\\TransitionTime=1500\n1\\DiscRadius="
-                "50\n1\\DiscThickness=8\n1\\GrindAngle=0\n1\\OffsetCount="
-                "0\n1\\AddOffsetCount=0\n1\\RaiseCount=0\n1\\FloatCount=0\n");
+                "80\n1\\TransitionTime=1500\n1\\TransitionRadius="
+                "0\n1\\DiscRadius=50\n1\\DiscThickness=8\n1\\GrindAngle="
+                "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
+                "0\n1\\FloatCount=0\n1\\IsMirror=false\n");
             // 关闭文件
             file.close();
         } else {
@@ -69,6 +70,7 @@ MainWindow::MainWindow(QWidget *parent)
         craft.contactForce = settings.value("ContactForce").toInt();
         craft.settingForce = settings.value("SettingForce").toInt();
         craft.transitionTime = settings.value("TransitionTime").toInt();
+        craft.transitionRadius = settings.value("TransitionRadius").toInt();
         craft.discRadius = settings.value("DiscRadius").toInt();
         craft.discThickness = settings.value("DiscThickness").toInt();
         craft.grindAngle = settings.value("GrindAngle").toInt();
@@ -76,6 +78,7 @@ MainWindow::MainWindow(QWidget *parent)
         craft.addOffsetCount = settings.value("AddOffsetCount").toInt();
         craft.raiseCount = settings.value("RaiseCount").toInt();
         craft.floatCount = settings.value("FloatCount").toInt();
+        craft.isMirror = settings.value("IsMirror").toBool();
         crafts.append(craft);
     }
     settings.endArray();
@@ -116,6 +119,7 @@ void MainWindow::SavePara(int index) {
     settings.setValue("ContactForce", crafts.at(index).contactForce);
     settings.setValue("SettingForce", crafts.at(index).settingForce);
     settings.setValue("TransitionTime", crafts.at(index).transitionTime);
+    settings.setValue("TransitionRadius", crafts.at(index).transitionRadius);
     settings.setValue("DiscRadius", crafts.at(index).discRadius);
     settings.setValue("DiscThickness", crafts.at(index).discThickness);
     settings.setValue("GrindAngle", crafts.at(index).grindAngle);
@@ -123,6 +127,7 @@ void MainWindow::SavePara(int index) {
     settings.setValue("AddOffsetCount", crafts.at(index).addOffsetCount);
     settings.setValue("RaiseCount", crafts.at(index).raiseCount);
     settings.setValue("FloatCount", crafts.at(index).floatCount);
+    settings.setValue("IsMirror", crafts.at(index).isMirror);
     // 记录工艺参数数量
     settings.setArrayIndex(crafts.size() - 1);
     settings.endArray();
@@ -146,6 +151,8 @@ void MainWindow::ReadCurrPara() {
         QString::number(crafts.at(currCraftIdx).settingForce));
     ui->leTransitionTime->setText(
         QString::number(crafts.at(currCraftIdx).transitionTime));
+    ui->leTransitionRadius->setText(
+        QString::number(crafts.at(currCraftIdx).transitionRadius));
     ui->leDiscRadius->setText(
         QString::number(crafts.at(currCraftIdx).discRadius));
     ui->leDiscThickness->setText(
@@ -160,6 +167,8 @@ void MainWindow::ReadCurrPara() {
         QString::number(crafts.at(currCraftIdx).raiseCount));
     ui->leFloatCount->setText(
         QString::number(crafts.at(currCraftIdx).floatCount));
+    ui->chkMirror->setCheckState(
+        crafts.at(currCraftIdx).isMirror ? Qt::Checked : Qt::Unchecked);
 
     robot.teachPos = crafts.at(currCraftIdx).teachPointReferPos;
     robot.discThickness = crafts.at(currCraftIdx).discThickness;
@@ -271,6 +280,8 @@ void MainWindow::SetValidator() {
     ui->leRotateSpeed->setValidator(new QIntValidator(ui->leRotateSpeed));
     ui->leContactForce->setValidator(new QIntValidator(ui->leContactForce));
     ui->leTransitionTime->setValidator(new QIntValidator(ui->leTransitionTime));
+    ui->leTransitionRadius->setValidator(
+        new QIntValidator(ui->leTransitionRadius));
     ui->leSettingForce->setValidator(new QIntValidator(ui->leSettingForce));
     ui->leTeachPos->setValidator(new QIntValidator(ui->leTeachPos));
     ui->leDiscRadius->setValidator(new QIntValidator(ui->leDiscRadius));
@@ -866,4 +877,22 @@ void MainWindow::on_leFloatCount_editingFinished() {
 void MainWindow::on_leDiscThickness_editingFinished() {
     crafts[currCraftIdx].discThickness = ui->leDiscThickness->text().toInt();
     robot.discThickness = ui->leDiscThickness->text().toInt();
+}
+
+void MainWindow::on_leTransitionRadius_editingFinished() {
+    crafts[currCraftIdx].transitionRadius =
+        ui->leTransitionRadius->text().toInt();
+}
+
+void MainWindow::on_chkMirror_stateChanged(int arg1) {
+    switch (arg1) {
+    case Qt::Unchecked:
+        crafts[currCraftIdx].isMirror = false;
+        break;
+    case Qt::Checked:
+        crafts[currCraftIdx].isMirror = true;
+        break;
+    default:
+        break;
+    }
 }

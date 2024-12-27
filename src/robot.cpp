@@ -406,7 +406,7 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     // 定义运动加速度
     double dAcc = 2000;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
     // 移到安全点
     point = pointSet.safePoint;
     MoveL(point, dVelocity, dAcc, dRadius);
@@ -449,7 +449,7 @@ void Robot::MoveAfter(const Craft &craft, Point point) {
     // 定义运动加速度
     double dAcc = 2000;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
     // 移到结束辅助点
     MoveL(point, dVelocity, dAcc, dRadius);
     // 移到安全点
@@ -464,7 +464,7 @@ void Robot::MoveLine(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 100;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
     // 定义空间目标位置
     Point point;
     for (int i = 0; i < pointSet.midPoints.size(); ++i) {
@@ -488,7 +488,7 @@ void Robot::MoveArc(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 100;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
     // 圆弧运动
     int i = 0;
     Point posMidRel, posEndRel;
@@ -520,7 +520,7 @@ Point Robot::MoveRegionArc1(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 100;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
     // 计算单次偏移量
     int count = craft.offsetCount;
     // Position beginOffset = (beginOffsetPoint - beginPoint) / count;
@@ -755,7 +755,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 100;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
     // 计算单次偏移量
     int count = craft.offsetCount;
     // Position beginOffset = (beginOffsetPoint - beginPoint) / count;
@@ -999,7 +999,7 @@ Point Robot::MoveRegionArcHorizontal(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 100;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
     // 计算单次偏移量
     int count = craft.offsetCount;
 
@@ -1358,7 +1358,7 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 2000;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
 
     int raiseCount = craft.raiseCount;
     int floatCount = craft.floatCount;
@@ -1501,7 +1501,7 @@ Point Robot::MoveRegionArcVerticalRepeat(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 2000;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
 
     double radius = craft.discRadius;
     double angle = craft.grindAngle;
@@ -1658,7 +1658,7 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
     // 定义运动加速度
     double dAcc = 2000;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
 
     Point pos, posAux, posEnd;
     pos.pos = posListUp.constLast().pos + translationList.constLast();
@@ -1832,7 +1832,7 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
     // 定义运动加速度
     double dAcc = 2000;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
 
     // 定义空间目标位置
     Point pos, posAux, posEnd;
@@ -1879,7 +1879,7 @@ void Robot::MoveZLine(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 100;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
 
     int size = craft.offsetCount + 1;
     float factor = 1.0 / size;
@@ -1907,7 +1907,7 @@ void Robot::MoveSpiralLine(const Craft &craft) {
     // 定义运动加速度
     double dAcc = 100;
     // 定义过渡半径
-    double dRadius = 1;
+    double dRadius = craft.transitionRadius;
 
     int size = craft.offsetCount + 1;
     float factor = 1.0 / (2 * size + 2);

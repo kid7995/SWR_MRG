@@ -44,6 +44,8 @@ class Craft {
     int addOffsetCount;     // 新增偏移次数
     int raiseCount;         // 中途抬起次数
     int floatCount;         // 浮动次数
+    int transitionRadius;   // 过渡半径，mm
+    bool isMirror;          // 圆柱打磨是否采用镜像
 
     friend class MainWindow;
     friend class Robot;
