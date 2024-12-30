@@ -415,11 +415,19 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
     case PolishWay::CylinderWay_Vertical_Convex:
     case PolishWay::CylinderWay_Horizontal_Concave:
     case PolishWay::CylinderWay_Vertical_Concave:
-        ui->btnBegin->move(150, 210);
-        ui->btnEnd->move(930, 210);
-        ui->btnBeginOffset->move(150, 360);
+        ui->chkMirror->setVisible(true);
+        if (crafts.at(currCraftIdx).isMirror) {
+            ui->btnBegin->move(930, 210);
+            ui->btnEnd->move(150, 210);
+            ui->btnBeginOffset->move(930, 360);
+        } else {
+            ui->btnBegin->move(150, 210);
+            ui->btnEnd->move(930, 210);
+            ui->btnBeginOffset->move(150, 360);
+        }
         break;
     default:
+        ui->chkMirror->setVisible(false);
         ui->btnBegin->move(150, 310);
         ui->btnEnd->move(930, 310);
         ui->btnBeginOffset->move(320, 430);
@@ -895,4 +903,5 @@ void MainWindow::on_chkMirror_stateChanged(int arg1) {
     default:
         break;
     }
+    SetPolishWay(crafts.at(currCraftIdx).way);
 }

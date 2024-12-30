@@ -1589,6 +1589,9 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
         if (!isConvex) {
             axis = -axis;
         }
+        if (craft.isMirror) {
+            axis = -axis;
+        }
         if (i == 1) {
             normal =
                 QVector3D::crossProduct(QVector3D::crossProduct(aux, -OA), aux)
@@ -1598,6 +1601,9 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
             }
             rotation = Point::getNormalRotation(normal, axis);
             moveDirection = QVector3D::crossProduct(normal, axis).normalized();
+            if (craft.isMirror) {
+                moveDirection = -moveDirection;
+            }
             // 获取新的姿态
             newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
             newRotList.append(newRot);
@@ -1613,6 +1619,9 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
         }
         rotation = Point::getNormalRotation(normal, axis);
         moveDirection = QVector3D::crossProduct(normal, axis).normalized();
+        if (craft.isMirror) {
+            moveDirection = -moveDirection;
+        }
         // 获取新的姿态
         newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
         newRotList.append(newRot);
@@ -1628,6 +1637,9 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
         }
         rotation = Point::getNormalRotation(normal, axis);
         moveDirection = QVector3D::crossProduct(normal, axis).normalized();
+        if (craft.isMirror) {
+            moveDirection = -moveDirection;
+        }
         // 获取新的姿态
         newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
         newRotList.append(newRot);
@@ -1782,6 +1794,9 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
                     normal = -normal;
                     axis = -axis;
                 }
+                if (craft.isMirror) {
+                    axis = -axis;
+                }
                 QVector3D rotation = Point::getNormalRotation(normal, axis);
                 QVector3D moveDirection = posOffset.normalized();
                 // 获取新的姿态
@@ -1811,6 +1826,9 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
                 .normalized();
         if (!isConvex) {
             normal = -normal;
+            axis = -axis;
+        }
+        if (craft.isMirror) {
             axis = -axis;
         }
         QVector3D rotation = Point::getNormalRotation(normal, axis);
