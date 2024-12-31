@@ -1362,6 +1362,7 @@ Point Robot::MoveRegionArcVertical(const Craft &craft) {
 
     int raiseCount = craft.raiseCount;
     int floatCount = craft.floatCount;
+    count = finalPosListUp.size() - 1;
     int interval =
         raiseCount < 0 ? count : qCeil(count / (raiseCount + 1)); // 抬起间距
 
