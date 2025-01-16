@@ -1547,6 +1547,7 @@ Point Robot::MoveRegionArcVerticalRepeat(const Craft &craft) {
     return point;
 }
 
+/*
 Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
     // 圆弧上界
     QVector<Point> posListUp;
@@ -1721,6 +1722,68 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
     }
 
     return posEnd;
+}
+*/
+
+Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
+    // 打磨片半径
+    double discRadius = craft.discRadius;
+    // 打磨角度
+    double grindAngle = craft.grindAngle;
+    // 计算姿态和平移量
+    QVector3D rotation = pointSet.beginPoint.rot;
+    QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
+    // 获取新的姿态
+    newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
+    // 获取新姿态需要的平移量
+    translation =
+        Point::getTranslation(rotation, moveDirection, discRadius, grindAngle);
+
+    // 偏移次数
+    int count = craft.offsetCount;
+    // 单次偏移距离
+    QVector3D posOffset;
+    if (count > 0) {
+        posOffset =
+            (pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos) / count;
+    }
+
+    // 定义运动速度
+    double dVelocity = defaultVelocity;
+    // 定义运动加速度
+    double dAcc = 2000;
+    // 定义过渡半径
+    double dRadius = craft.transitionRadius;
+
+    Point pos;
+    pos.pos = pointSet.endPoint.pos + translation;
+    pos.rot = newRot;
+    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    dVelocity = craft.cutinSpeed;
+    pos.pos = pointSet.endPoint.pos + translation;
+    pos.rot = newRot;
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    dVelocity = craft.moveSpeed;
+    dAcc = 100;
+    for (int i = 0; i < count + 1; ++i) {
+        pos.pos = pointSet.beginPoint.pos + posOffset * i + translation;
+        pos.rot = newRot;
+        MoveL(pos, dVelocity, dAcc, dRadius);
+        if (i != count) {
+            pos.pos = pointSet.endPoint.pos + posOffset * (i + 1) + translation;
+            pos.rot = newRot;
+            MoveL(pos, dVelocity, dAcc, dRadius);
+        } else {
+            pos.pos = pointSet.endPoint.pos + posOffset * i + translation;
+            pos.rot = newRot;
+            MoveL(pos, dVelocity, dAcc, dRadius);
+        }
+    }
+
+    return pos;
 }
 
 Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
