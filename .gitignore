@@ -3,3 +3,5 @@ lib/duco/static/**/*.lib
 lib/duco/static/**/*.dll 
 *.lib 
 *.dll 
+lib/duco/static/**/*.lib 
+lib/duco/static/**/*.dll 
