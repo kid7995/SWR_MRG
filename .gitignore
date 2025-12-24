@@ -1,3 +1,10 @@
 build/*
 
 *.pro.user
+
+lib/duco/static/**/*.lib"lib/duco/static/**/*.lib" 
+"lib/**/*.dll" 
+"*.exe" 
+"*.dll" 
+"*.so" 
+"*.app" 
