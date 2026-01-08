@@ -20,8 +20,10 @@
 #include <winsock2.h>
 #pragma comment(lib, "Ws2_32.lib")
 using X_SOCKET = SOCKET;
+#ifndef _SSIZE_T_DEFINED
+#define _SSIZE_T_DEFINED
 using ssize_t = int;
-
+#endif
 #define X_ISVALIDSOCKET(s) ((s) != INVALID_SOCKET)
 #define X_CLOSE_SOCKET(s) closesocket(s)
 #define X_ISCONNECTSUCCEED(s) ((s) != SOCKET_ERROR)

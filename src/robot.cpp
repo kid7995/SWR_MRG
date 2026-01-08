@@ -1788,6 +1788,7 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
 
 Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
     // 圆弧上界
+    // posListUp 包含起点、中间路径点（可能多个）和终点，用于拟合圆弧段
     QVector<Point> posListUp;
     posListUp.append(pointSet.beginPoint);
     posListUp.append(pointSet.midPoints);
@@ -1797,17 +1798,22 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
     QVector<QVector3D> centerListUp;
     QVector<double> radiusListUp, lengthListUp;
     double totalArcLengthUp = 0.0;
+    // 每3个点定一段圆弧，i 指向每段的中间点
     for (int i = 1; i < posListUp.size() - 1; i += 2) {
+        // 计算当前段 ABC 的外心坐标
         QVector3D center = Point::calculateCircumcenter(
             posListUp.at(i - 1).pos, posListUp.at(i).pos,
             posListUp.at(i + 1).pos);
         centerListUp.append(center);
+        // 计算外心圆到各个点的距离作为半径
         double radius = (posListUp.at(i).pos - center).length();
         radiusListUp.append(radius);
+        // 构建圆心指向各样点的向量，用于计算圆心角
         QVector3D OA = posListUp.at(i - 1).pos - center;
         QVector3D OM = posListUp.at(i).pos - center;
         QVector3D OB = posListUp.at(i + 1).pos - center;
         // 适用OA、OB夹角大于180°的情况
+        // 弧长 L = (∠AOM + ∠MOB) * Radius
         double length = (qAcos(QVector3D::dotProduct(OA, OM) /
                                (OA.length() * OM.length())) +
                          qAcos(QVector3D::dotProduct(OM, OB) /
@@ -1817,6 +1823,7 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
         totalArcLengthUp += length;
     }
     // 圆弧上界到下界的偏移距离
+    // 计算上界点到下界点的固定偏移向量，用于生成平行的加工面
     QVector3D posOffset =
         pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
     // 最终圆弧上界与下界
@@ -1826,17 +1833,22 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
     QVector<QVector3D> finalPosListUp, finalPosListDown;
     QVector<QVector3D> newRotList, translationList;
     if (count > 0) {
+        // 根据偏移次数计算每个插补点的单位弧长步长（除以2通常是为了MoveC的中间点储备）
         double unitArcLengthUp = totalArcLengthUp / count / 2;
         double arcLengthUp = 0.0;
         for (int i = 0; i < centerListUp.size(); ++i) {
+            // 在当前圆弧段长度范围内循环进行步进插值
             while (arcLengthUp <= lengthListUp.at(i)) {
+                // [旋转轴提取] 计算起点向量与中间点向量的叉乘，得到圆弧平面的法向量轴 axis
                 QVector3D axis =
                     QVector3D::crossProduct(
                         posListUp.at(2 * i).pos - centerListUp.at(i),
                         posListUp.at(2 * i + 1).pos - centerListUp.at(i))
                         .normalized();
+                // [Rodrigues旋转] 将当前走过的弧长转换为对应的角度，生成3D旋转矩阵 R
                 QMatrix3x3 R = Point::toRotationMatrix(
                     axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
+                // [坐标旋转变换] 将半径向量 trans 绕轴 axis 旋转R角度，得到当前插值点位置
                 QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
                 QVector3D newTrans =
                     QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
@@ -1849,11 +1861,13 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
                 finalPosListDown.append(centerListUp.at(i) + newTrans +
                                         posOffset);
                 // 计算姿态和对应偏移
-                QVector3D aux = posOffset.normalized();
+                QVector3D aux = posOffset.normalized();// 表面偏移方向参考
+                // [表面法线推导] 通过双叉乘确定当前加工点的局部法向方向 normal
                 QVector3D normal =
                     QVector3D::crossProduct(
                         QVector3D::crossProduct(aux, -newTrans), aux)
                         .normalized();
+                // 根据工件的凹凸属性及镜像设置调整法向和旋转轴方向
                 if (!isConvex) {
                     normal = -normal;
                     axis = -axis;
@@ -1861,6 +1875,7 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
                 if (craft.isMirror) {
                     axis = -axis;
                 }
+                // [姿态映射] 将几何法向转化为机器人的 Euler 角/四元数姿态
                 QVector3D rotation = Point::getNormalRotation(normal, axis);
                 QVector3D moveDirection = posOffset.normalized();
                 // 获取新的姿态
@@ -1876,6 +1891,7 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
             arcLengthUp -= lengthListUp.at(i);
         }
     } else {
+        // 处理不偏移的特殊情况（仅执行起点逻辑）
         finalPosListUp.append(pointSet.beginPoint.pos);
         finalPosListDown.append(pointSet.beginOffsetPoint.pos);
         // 计算姿态和对应偏移
@@ -1905,6 +1921,7 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
                                             grindAngle);
         translationList.append(translation);
     }
+    // 安全校验
     Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
     Q_ASSERT(finalPosListUp.size() == newRotList.size());
     Q_ASSERT(finalPosListUp.size() == translationList.size());
@@ -1918,7 +1935,7 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
 
     // 定义空间目标位置
     Point pos, posAux, posEnd;
-
+    // 下界轨迹第一个点 带姿态补偿
     pos.pos = finalPosListDown.constFirst() + translationList.constFirst();
     pos.rot = newRotList.constFirst();
     pos = pos.PosRelByTool(defaultDirection, defaultOffset);
@@ -3805,176 +3822,176 @@ void DucoRobot::OpenWeb(QString ip) {
 
 */
 
-JakaRobot::JakaRobot() {}
+// JakaRobot::JakaRobot() {}
 
-JakaRobot::~JakaRobot() {
-    jakaRobot.drag_mode_enable(FALSE);
-    // jakaRobot.disable_robot();
-    // jakaRobot.login_out();
-}
+// JakaRobot::~JakaRobot() {
+//     jakaRobot.drag_mode_enable(FALSE);
+//     // jakaRobot.disable_robot();
+//     // jakaRobot.login_out();
+// }
 
-bool JakaRobot::RobotConnect(QString robotIP) {
-    // std::string ip = robotIP.toStdString();
-    // std::string ip = "192.168.1.20";
-    std::string ip = "10.5.5.100";
-    const char *hostname = ip.c_str();
-    // 连接机器人
-    errno_t ret = jakaRobot.login_in(hostname);
-    if (ret != ERR_SUCC) {
-        return false;
-    }
-    // 机器人上电
-    // jakaRobot.power_on();
-    // 机器人使能
-    // jakaRobot.enable_robot();
-    // 设置速度比
-    // jakaRobot.set_rapidrate(1.0);
-    return true;
-}
+// bool JakaRobot::RobotConnect(QString robotIP) {
+//     // std::string ip = robotIP.toStdString();
+//     // std::string ip = "192.168.1.20";
+//     std::string ip = "10.5.5.100";
+//     const char *hostname = ip.c_str();
+//     // 连接机器人
+//     errno_t ret = jakaRobot.login_in(hostname);
+//     if (ret != ERR_SUCC) {
+//         return false;
+//     }
+//     // 机器人上电
+//     // jakaRobot.power_on();
+//     // 机器人使能
+//     // jakaRobot.enable_robot();
+//     // 设置速度比
+//     // jakaRobot.set_rapidrate(1.0);
+//     return true;
+// }
 
-bool JakaRobot::GetTcpPoint(Point &point) {
-    CartesianPose tcp_pos;
-    errno_t ret = jakaRobot.get_tcp_position(&tcp_pos);
-    if (ret != ERR_SUCC) {
-        return false;
-    }
-    point.pos.setX(tcp_pos.tran.x);
-    point.pos.setY(tcp_pos.tran.y);
-    point.pos.setZ(tcp_pos.tran.z);
-    point.rot.setX(qRound(qRadiansToDegrees(tcp_pos.rpy.rx) * 1000.0) / 1000.0);
-    point.rot.setY(qRound(qRadiansToDegrees(tcp_pos.rpy.ry) * 1000.0) / 1000.0);
-    point.rot.setZ(qRound(qRadiansToDegrees(tcp_pos.rpy.rz) * 1000.0) / 1000.0);
-    return true;
-}
+// bool JakaRobot::GetTcpPoint(Point &point) {
+//     CartesianPose tcp_pos;
+//     errno_t ret = jakaRobot.get_tcp_position(&tcp_pos);
+//     if (ret != ERR_SUCC) {
+//         return false;
+//     }
+//     point.pos.setX(tcp_pos.tran.x);
+//     point.pos.setY(tcp_pos.tran.y);
+//     point.pos.setZ(tcp_pos.tran.z);
+//     point.rot.setX(qRound(qRadiansToDegrees(tcp_pos.rpy.rx) * 1000.0) / 1000.0);
+//     point.rot.setY(qRound(qRadiansToDegrees(tcp_pos.rpy.ry) * 1000.0) / 1000.0);
+//     point.rot.setZ(qRound(qRadiansToDegrees(tcp_pos.rpy.rz) * 1000.0) / 1000.0);
+//     return true;
+// }
 
-bool JakaRobot::RobotTeach(int pos) {
-    if (!isTeach) {
-        if (agp != nullptr) {
-            // 设置AGP默认参数
-            agp->Control(FUNC::RESET);
-            agp->Control(FUNC::ENABLE);
-            agp->SetMode(MODE::PosMode);
-            agp->SetPos(pos * 100);
-            agp->SetForce(200);
-            agp->SetTouchForce(0);
-            agp->SetRampTime(0);
-            if (!IsAGPEnabled()) {
-                agp->Control(FUNC::ENABLE);
-            }
-        }
-        // if (!IsRobotElectrified()) {
-        //     // 机器人上电
-        //     jakaRobot.power_on();
-        //     if (!IsRobotElectrified()) {
-        //         return isTeach;
-        //     }
-        // }
-        if (!IsRobotEnabled()) {
-            // 机器人使能
-            jakaRobot.enable_robot();
-            // QThread::msleep(1500);
-            if (!IsRobotEnabled()) {
-                return isTeach;
-            }
-        }
-        // 启用自由拖拽
-        errno_t ret = jakaRobot.drag_mode_enable(TRUE);
-        if (ret == ERR_SUCC) {
-            isTeach = true;
-        }
-    } else {
-        // 关闭自由拖拽
-        errno_t ret = jakaRobot.drag_mode_enable(FALSE);
-        if (ret == ERR_SUCC) {
-            isTeach = false;
-        }
-    }
-    return isTeach;
-}
+// bool JakaRobot::RobotTeach(int pos) {
+//     if (!isTeach) {
+//         if (agp != nullptr) {
+//             // 设置AGP默认参数
+//             agp->Control(FUNC::RESET);
+//             agp->Control(FUNC::ENABLE);
+//             agp->SetMode(MODE::PosMode);
+//             agp->SetPos(pos * 100);
+//             agp->SetForce(200);
+//             agp->SetTouchForce(0);
+//             agp->SetRampTime(0);
+//             if (!IsAGPEnabled()) {
+//                 agp->Control(FUNC::ENABLE);
+//             }
+//         }
+//         // if (!IsRobotElectrified()) {
+//         //     // 机器人上电
+//         //     jakaRobot.power_on();
+//         //     if (!IsRobotElectrified()) {
+//         //         return isTeach;
+//         //     }
+//         // }
+//         if (!IsRobotEnabled()) {
+//             // 机器人使能
+//             jakaRobot.enable_robot();
+//             // QThread::msleep(1500);
+//             if (!IsRobotEnabled()) {
+//                 return isTeach;
+//             }
+//         }
+//         // 启用自由拖拽
+//         errno_t ret = jakaRobot.drag_mode_enable(TRUE);
+//         if (ret == ERR_SUCC) {
+//             isTeach = true;
+//         }
+//     } else {
+//         // 关闭自由拖拽
+//         errno_t ret = jakaRobot.drag_mode_enable(FALSE);
+//         if (ret == ERR_SUCC) {
+//             isTeach = false;
+//         }
+//     }
+//     return isTeach;
+// }
 
-bool JakaRobot::CloseFreeDriver() {
-    // 关闭自由拖拽
-    errno_t ret = jakaRobot.drag_mode_enable(FALSE);
-    if (ret == ERR_SUCC) {
-        isTeach = false;
-        return true;
-    }
-    return false;
-}
+// bool JakaRobot::CloseFreeDriver() {
+//     // 关闭自由拖拽
+//     errno_t ret = jakaRobot.drag_mode_enable(FALSE);
+//     if (ret == ERR_SUCC) {
+//         isTeach = false;
+//         return true;
+//     }
+//     return false;
+// }
 
-bool JakaRobot::Stop() {
-    // 机器人停止
-    jakaRobot.motion_abort();
-    // AGP停止
-    if (agp != nullptr) {
-        agp->SetSpeed(0);
-    }
-    // 机器人复位
-    // jakaRobot.disable_robot();
-    // AGP复位
-    if (agp != nullptr) {
-        agp->Control(FUNC::RESET);
-    }
-    // 自由拖拽复位
-    isTeach = false;
+// bool JakaRobot::Stop() {
+//     // 机器人停止
+//     jakaRobot.motion_abort();
+//     // AGP停止
+//     if (agp != nullptr) {
+//         agp->SetSpeed(0);
+//     }
+//     // 机器人复位
+//     // jakaRobot.disable_robot();
+//     // AGP复位
+//     if (agp != nullptr) {
+//         agp->Control(FUNC::RESET);
+//     }
+//     // 自由拖拽复位
+//     isTeach = false;
 
-    return true;
-}
+//     return true;
+// }
 
-bool JakaRobot::IsRobotElectrified() {
-    RobotStatus robstatus;
-    jakaRobot.get_robot_status(&robstatus);
+// bool JakaRobot::IsRobotElectrified() {
+//     RobotStatus robstatus;
+//     jakaRobot.get_robot_status(&robstatus);
 
-    return robstatus.powered_on;
-}
+//     return robstatus.powered_on;
+// }
 
-bool JakaRobot::IsRobotEnabled() {
-    RobotStatus robstatus;
-    jakaRobot.get_robot_status(&robstatus);
+// bool JakaRobot::IsRobotEnabled() {
+//     RobotStatus robstatus;
+//     jakaRobot.get_robot_status(&robstatus);
 
-    return robstatus.enabled;
-}
+//     return robstatus.enabled;
+// }
 
-bool JakaRobot::IsRobotMoved() {
-    BOOL in_pos;
-    jakaRobot.is_in_pos(&in_pos);
+// bool JakaRobot::IsRobotMoved() {
+//     BOOL in_pos;
+//     jakaRobot.is_in_pos(&in_pos);
 
-    return !in_pos;
-}
+//     return !in_pos;
+// }
 
-void JakaRobot::OpenWeb(QString ip) {}
+// void JakaRobot::OpenWeb(QString ip) {}
 
-void JakaRobot::MoveTcpL(const Point &point, double dVelocity, double dAcc,
-                         double dRadius) {
-    CartesianPose pos;
-    pos.tran.x = point.pos.x();
-    pos.tran.y = point.pos.y();
-    pos.tran.z = point.pos.z();
-    pos.rpy.rx = qDegreesToRadians(point.rot.x());
-    pos.rpy.ry = qDegreesToRadians(point.rot.y());
-    pos.rpy.rz = qDegreesToRadians(point.rot.z());
+// void JakaRobot::MoveTcpL(const Point &point, double dVelocity, double dAcc,
+//                          double dRadius) {
+//     CartesianPose pos;
+//     pos.tran.x = point.pos.x();
+//     pos.tran.y = point.pos.y();
+//     pos.tran.z = point.pos.z();
+//     pos.rpy.rx = qDegreesToRadians(point.rot.x());
+//     pos.rpy.ry = qDegreesToRadians(point.rot.y());
+//     pos.rpy.rz = qDegreesToRadians(point.rot.z());
 
-    jakaRobot.linear_move(&pos, MoveMode::ABS, FALSE, dVelocity, dAcc, 0.1,
-                          NULL, 3.14 / 10, 12.56 / 10);
-}
+//     jakaRobot.linear_move(&pos, MoveMode::ABS, FALSE, dVelocity, dAcc, 0.1,
+//                           NULL, 3.14 / 10, 12.56 / 10);
+// }
 
-void JakaRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
-                         double dVelocity, double dAcc, double dRadius) {
-    CartesianPose midPos, endPos;
-    midPos.tran.x = auxPoint.pos.x();
-    midPos.tran.y = auxPoint.pos.y();
-    midPos.tran.z = auxPoint.pos.z();
-    midPos.rpy.rx = qDegreesToRadians(auxPoint.rot.x());
-    midPos.rpy.ry = qDegreesToRadians(auxPoint.rot.y());
-    midPos.rpy.rz = qDegreesToRadians(auxPoint.rot.z());
+// void JakaRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
+//                          double dVelocity, double dAcc, double dRadius) {
+//     CartesianPose midPos, endPos;
+//     midPos.tran.x = auxPoint.pos.x();
+//     midPos.tran.y = auxPoint.pos.y();
+//     midPos.tran.z = auxPoint.pos.z();
+//     midPos.rpy.rx = qDegreesToRadians(auxPoint.rot.x());
+//     midPos.rpy.ry = qDegreesToRadians(auxPoint.rot.y());
+//     midPos.rpy.rz = qDegreesToRadians(auxPoint.rot.z());
 
-    endPos.tran.x = endPoint.pos.x();
-    endPos.tran.y = endPoint.pos.y();
-    endPos.tran.z = endPoint.pos.z();
-    endPos.rpy.rx = qDegreesToRadians(endPoint.rot.x());
-    endPos.rpy.ry = qDegreesToRadians(endPoint.rot.y());
-    endPos.rpy.rz = qDegreesToRadians(endPoint.rot.z());
+//     endPos.tran.x = endPoint.pos.x();
+//     endPos.tran.y = endPoint.pos.y();
+//     endPos.tran.z = endPoint.pos.z();
+//     endPos.rpy.rx = qDegreesToRadians(endPoint.rot.x());
+//     endPos.rpy.ry = qDegreesToRadians(endPoint.rot.y());
+//     endPos.rpy.rz = qDegreesToRadians(endPoint.rot.z());
 
-    jakaRobot.circular_move(&endPos, &midPos, MoveMode::ABS, FALSE, dVelocity,
-                            dAcc, 0.1, NULL);
-}
+//     jakaRobot.circular_move(&endPos, &midPos, MoveMode::ABS, FALSE, dVelocity,
+//                             dAcc, 0.1, NULL);
+// }

@@ -15,23 +15,17 @@ const QColor greyColor("grey");
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), lastPageIdx(0),
-      currCraftIdx(0) {
+    currCraftIdx(0) {
     ui->setupUi(this);
     InitButtons();
-    // ui->lblAddOffsetCount->setVisible(false);
-    // ui->leAddOffsetCount->setVisible(false);
-    // 读取工艺参数文件
+
     QString fileName = QCoreApplication::applicationDirPath();
-    // QString fileName =
-    //     QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     fileName += "/config.ini";
     if (!QFile::exists(fileName)) {
-        // 打开文件用于写入，如果文件不存在则创建它
         QFile file(fileName);
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream out(&file);
-            out.setCodec("UTF-8"); // 设置编码，确保文本文件以UTF-8编码保存
-            // 将字符串写入文件
+            out.setCodec("UTF-8");
             out << QString(
                 "[CraftParameter]\nsize=1\n1\\CraftName=\\x4e00\n1\\PolishMode="
                 "0\n1\\PolishWay=0\n1\\TeachingPointReferencePosition="
@@ -41,10 +35,8 @@ MainWindow::MainWindow(QWidget *parent)
                 "0\n1\\DiscRadius=50\n1\\DiscThickness=8\n1\\GrindAngle="
                 "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
                 "0\n1\\FloatCount=0\n1\\IsMirror=false\n");
-            // 关闭文件
             file.close();
         } else {
-            // 如果文件无法打开，可以在这里处理错误
             setEnabled(false);
             QMessageBox::critical(NULL, "提示", "无法创建工艺参数文件");
             return;
@@ -55,7 +47,6 @@ MainWindow::MainWindow(QWidget *parent)
     if (size == 0) {
         return;
     }
-    // 读取所有工艺参数
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
         Craft craft;
@@ -82,27 +73,18 @@ MainWindow::MainWindow(QWidget *parent)
         crafts.append(craft);
     }
     settings.endArray();
-    // 添加工艺编号
     for (int i = 0; i < size; ++i) {
         ui->cmbCraftID->addItem(crafts.at(i).craftID);
     }
-    // 打磨方式首页界面设置
     SetPolishWay(crafts.at(0).way);
-    // 设置验证器
     SetValidator();
-    // 连接机器人
     ConnectRobot();
-    // 连接AGP
     ConnectAGP();
-    // test
-    // EnableButtons();
-    // Point::test();
 }
 
 MainWindow::~MainWindow() { delete ui; }
 
 void MainWindow::SavePara(int index) {
-    // 保存工艺参数
     QString fileName = QCoreApplication::applicationDirPath();
     fileName += "/config.ini";
     QSettings settings(fileName, QSettings::IniFormat);
@@ -128,13 +110,11 @@ void MainWindow::SavePara(int index) {
     settings.setValue("RaiseCount", crafts.at(index).raiseCount);
     settings.setValue("FloatCount", crafts.at(index).floatCount);
     settings.setValue("IsMirror", crafts.at(index).isMirror);
-    // 记录工艺参数数量
     settings.setArrayIndex(crafts.size() - 1);
     settings.endArray();
 }
 
 void MainWindow::ReadCurrPara() {
-    // 读取当前工艺参数
     ui->cmbPolishMode->setCurrentIndex(crafts.at(currCraftIdx).mode);
     ui->cmbPolishWay->setCurrentIndex(crafts.at(currCraftIdx).way);
     ui->leTeachPos->setText(
@@ -175,7 +155,6 @@ void MainWindow::ReadCurrPara() {
 }
 
 void MainWindow::DelCurrPara() {
-    // 删除当前工艺参数
     crafts.remove(currCraftIdx);
     QString fileName = QCoreApplication::applicationDirPath();
     fileName += "/config.ini";
@@ -190,7 +169,6 @@ void MainWindow::DelCurrPara() {
 }
 
 void MainWindow::InitButtons() {
-    // 首页按钮
     SetBackgroundColor(ui->btnDrag, greyColor);
     SetBackgroundColor(ui->btnClear, greyColor);
     SetBackgroundColor(ui->btnClearMid, greyColor);
@@ -210,12 +188,6 @@ void MainWindow::InitButtons() {
     SetBackgroundColor(ui->btnCoverPoint, greyColor);
     SetBackgroundColor(ui->btnStop2, greyColor);
 
-    // 参数页面按钮
-    // SetBackgroundColor(ui->btnAddNewPara, defaultColor);
-    // SetBackgroundColor(ui->btnDelCurrPara, defaultColor);
-    // SetBackgroundColor(ui->btnSaveCurrPara, defaultColor);
-
-    // 历史点页面按钮
     ui->btnClearHistory->setVisible(true);
     SetBackgroundColor(ui->btnClearHistory, greyColor);
     ui->btnCoverPoint->setVisible(true);
@@ -225,16 +197,13 @@ void MainWindow::InitButtons() {
     ui->btnStop2->setVisible(true);
     SetBackgroundColor(ui->btnStop2, greyColor);
 
-    // 设备连接页面按钮
     ui->btnRobotConnect->setVisible(true);
     SetBackgroundColor(ui->btnRobotConnect, defaultColor);
     ui->btnAGPConnect->setVisible(true);
     SetBackgroundColor(ui->btnAGPConnect, defaultColor);
-    // SetBackgroundColor(ui->btnSettingReturn, defaultColor);
 }
 
 void MainWindow::EnableButtons() {
-    // 启用首页按钮
     ui->btnDrag->setEnabled(true);
     SetBackgroundColor(ui->btnDrag, defaultColor);
     ui->btnClear->setEnabled(true);
@@ -274,7 +243,6 @@ void MainWindow::EnableButtons() {
 }
 
 void MainWindow::SetValidator() {
-    // 设置验证器
     ui->leCutinSpeed->setValidator(new QIntValidator(ui->leCutinSpeed));
     ui->leMoveSpeed->setValidator(new QIntValidator(ui->leMoveSpeed));
     ui->leRotateSpeed->setValidator(new QIntValidator(ui->leRotateSpeed));
@@ -440,24 +408,26 @@ void MainWindow::SetBackgroundColor(QPushButton *btn, const QColor &color) {
     pal.setColor(QPalette::Button, color);
     btn->setPalette(pal);
     btn->setAutoFillBackground(true);
-    // btn->show();
 }
 
 void MainWindow::ConnectRobot() {
     ui->btnRobotConnect->setEnabled(false);
     SetBackgroundColor(ui->btnRobotConnect, goldColor);
     ui->btnRobotConnect->setText("连接中");
-    // 连接机器人
+
     std::thread t([this] {
-        if (robot.RobotConnect(ui->leRobotIP->text())) {
-            EnableButtons();
-            SetBackgroundColor(ui->btnRobotConnect, greenColor);
-            ui->btnRobotConnect->setText("已连接");
-        } else {
-            ui->btnRobotConnect->setEnabled(true);
-            SetBackgroundColor(ui->btnRobotConnect, defaultColor);
-            ui->btnRobotConnect->setText("连接");
-        }
+        bool connected = robot.RobotConnect(ui->leRobotIP->text());
+        QMetaObject::invokeMethod(this, [this, connected] {
+            if (connected) {
+                EnableButtons();
+                SetBackgroundColor(ui->btnRobotConnect, greenColor);
+                ui->btnRobotConnect->setText("已连接");
+            } else {
+                ui->btnRobotConnect->setEnabled(true);
+                SetBackgroundColor(ui->btnRobotConnect, defaultColor);
+                ui->btnRobotConnect->setText("连接");
+            }
+        });
     });
     t.detach();
 }
@@ -466,16 +436,19 @@ void MainWindow::ConnectAGP() {
     ui->btnAGPConnect->setEnabled(false);
     SetBackgroundColor(ui->btnAGPConnect, goldColor);
     ui->btnAGPConnect->setText("连接中");
-    // 连接AGP
+
     std::thread t([this] {
-        if (robot.AGPConnect(ui->leAGPIP->text())) {
-            SetBackgroundColor(ui->btnAGPConnect, greenColor);
-            ui->btnAGPConnect->setText("已连接");
-        } else {
-            ui->btnAGPConnect->setEnabled(true);
-            SetBackgroundColor(ui->btnAGPConnect, defaultColor);
-            ui->btnAGPConnect->setText("连接");
-        }
+        bool connected = robot.AGPConnect(ui->leAGPIP->text());
+        QMetaObject::invokeMethod(this, [this, connected] {
+            if (connected) {
+                SetBackgroundColor(ui->btnAGPConnect, greenColor);
+                ui->btnAGPConnect->setText("已连接");
+            } else {
+                ui->btnAGPConnect->setEnabled(true);
+                SetBackgroundColor(ui->btnAGPConnect, defaultColor);
+                ui->btnAGPConnect->setText("连接");
+            }
+        });
     });
     t.detach();
 }
@@ -487,7 +460,6 @@ void MainWindow::AddHistoryPoint(const QString &strPoint) {
     QList<QListWidgetItem *> pItems = ui->lstHistoryPoint->findItems(
         strPoint.left(strPoint.indexOf("：")), Qt::MatchStartsWith);
     if (pItems.isEmpty()) {
-        // ui->lstHistoryPoint->insertItem(0, strPoint);
         ui->lstHistoryPoint->addItem(strPoint);
     } else {
         for (const auto &pItem : pItems) {
@@ -564,18 +536,17 @@ void MainWindow::on_btnTryRun_clicked() {
     SetBackgroundColor(ui->btnTryRun, greenColor);
     ui->btnTryRun->setText("试运行中");
     if (robot.CloseFreeDriver()) {
-        // QThread::msleep(1000);
         SetBackgroundColor(ui->btnDrag, defaultColor);
     }
-    // robot.Run(crafts.at(currCraftIdx), false);
-    // AGP停止
     std::thread t([this] {
         robot.Run(crafts.at(currCraftIdx), false);
-        ui->btnRun->setEnabled(true);
-        ui->btnTryRun->setEnabled(true);
-        ui->btnMoveToPoint->setEnabled(true);
-        SetBackgroundColor(ui->btnTryRun, defaultColor);
-        ui->btnTryRun->setText("试运行");
+        QMetaObject::invokeMethod(this, [this] {
+            ui->btnRun->setEnabled(true);
+            ui->btnTryRun->setEnabled(true);
+            ui->btnMoveToPoint->setEnabled(true);
+            SetBackgroundColor(ui->btnTryRun, defaultColor);
+            ui->btnTryRun->setText("试运行");
+        });
     });
     t.detach();
 }
@@ -590,19 +561,18 @@ void MainWindow::on_btnRun_clicked() {
     SetBackgroundColor(ui->btnRun, greenColor);
     ui->btnRun->setText("运行中");
     if (robot.CloseFreeDriver()) {
-        // QThread::msleep(1000);
         SetBackgroundColor(ui->btnDrag, defaultColor);
     }
-    // robot.Run(crafts.at(currCraftIdx), true);
-    // AGP停止
     std::thread t([this] {
         robot.Run(crafts.at(currCraftIdx), true);
         robot.AGPStop();
-        ui->btnRun->setEnabled(true);
-        ui->btnTryRun->setEnabled(true);
-        ui->btnMoveToPoint->setEnabled(true);
-        SetBackgroundColor(ui->btnRun, defaultColor);
-        ui->btnRun->setText("运行");
+        QMetaObject::invokeMethod(this, [this] {
+            ui->btnRun->setEnabled(true);
+            ui->btnTryRun->setEnabled(true);
+            ui->btnMoveToPoint->setEnabled(true);
+            SetBackgroundColor(ui->btnRun, defaultColor);
+            ui->btnRun->setText("运行");
+        });
     });
     t.detach();
 }
@@ -715,12 +685,15 @@ void MainWindow::on_btnStop_clicked() {
     ui->btnStop->setEnabled(false);
     SetBackgroundColor(ui->btnStop, greenColor);
     std::thread t([this] {
-        if (robot.Stop()) {
-            SetBackgroundColor(ui->btnDrag, defaultColor);
-        }
+        bool stopSuccess = robot.Stop();
         QThread::msleep(200);
-        ui->btnStop->setEnabled(true);
-        SetBackgroundColor(ui->btnStop, defaultColor);
+        QMetaObject::invokeMethod(this, [this, stopSuccess] {
+            if (stopSuccess) {
+                SetBackgroundColor(ui->btnDrag, defaultColor);
+            }
+            ui->btnStop->setEnabled(true);
+            SetBackgroundColor(ui->btnStop, defaultColor);
+        });
     });
     t.detach();
 }
@@ -831,11 +804,13 @@ void MainWindow::on_btnMoveToPoint_clicked() {
         }
         std::thread t([this, strValues] {
             robot.MoveToPoint(strValues);
-            ui->btnRun->setEnabled(true);
-            ui->btnTryRun->setEnabled(true);
-            ui->btnMoveToPoint->setEnabled(true);
-            SetBackgroundColor(ui->btnMoveToPoint, defaultColor);
-            ui->btnMoveToPoint->setText("移动到点");
+            QMetaObject::invokeMethod(this, [this] {
+                ui->btnRun->setEnabled(true);
+                ui->btnTryRun->setEnabled(true);
+                ui->btnMoveToPoint->setEnabled(true);
+                SetBackgroundColor(ui->btnMoveToPoint, defaultColor);
+                ui->btnMoveToPoint->setText("移动到点");
+            });
         });
         t.detach();
     }
@@ -853,12 +828,15 @@ void MainWindow::on_btnStop2_clicked() {
     ui->btnStop2->setEnabled(false);
     SetBackgroundColor(ui->btnStop2, greenColor);
     std::thread t([this] {
-        if (robot.Stop()) {
-            SetBackgroundColor(ui->btnDrag, defaultColor);
-        }
+        bool stopSuccess = robot.Stop();
         QThread::msleep(200);
-        ui->btnStop2->setEnabled(true);
-        SetBackgroundColor(ui->btnStop2, defaultColor);
+        QMetaObject::invokeMethod(this, [this, stopSuccess] {
+            if (stopSuccess) {
+                SetBackgroundColor(ui->btnDrag, defaultColor);
+            }
+            ui->btnStop2->setEnabled(true);
+            SetBackgroundColor(ui->btnStop2, defaultColor);
+        });
     });
     t.detach();
 }

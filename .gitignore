@@ -1,7 +1,22 @@
-# Ignore large library files 
-lib/duco/static/**/*.lib 
-lib/duco/static/**/*.dll 
-*.lib 
-*.dll 
-lib/duco/static/**/*.lib 
-lib/duco/static/**/*.dll 
+# --- Qt Creator / User specific ---
+*.pro.user
+*.pro.user.*
+.qtcreator/
+*.pyc
+
+# --- Build directories (Very Important) ---
+build/
+debug/
+release/
+*.o
+*.obj
+
+# --- Large library files (As you requested) ---
+*.lib
+*.dll
+lib/duco/static/**/*.lib
+lib/duco/static/**/*.dll
+
+# --- System files ---
+.DS_Store
+Thumbs.db

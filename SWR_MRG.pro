@@ -48,7 +48,7 @@ INCLUDEPATH += \
 
 # Hans
 win32: LIBS += -L$$PWD/lib/hans/x64/Release/ -lHR_Pro
-
+# win32: LIBS += -L$$PWD/lib/hans/x64/Debug/ -lHR_Pro
 INCLUDEPATH += $$PWD/lib/hans/include
 DEPENDPATH += $$PWD/lib/hans/x64/Release
 
@@ -60,6 +60,10 @@ DEPENDPATH += $$PWD/lib/duco/shared/VS2019/win64/release
 
 # Jaka
 win32: LIBS += -L$$PWD/lib/jaka/x64/ -ljakaAPI
+
+win32 {
+    LIBS += -lws2_32
+}
 
 INCLUDEPATH += $$PWD/lib/jaka/inc_of_c++
 DEPENDPATH += $$PWD/lib/jaka/x64
