@@ -61,6 +61,7 @@ class Robot {
     Point MoveRegionArcVerticalRepeat(const Craft &craft);
     Point MoveCylinderHorizontal(const Craft &craft, bool isConvex);
     Point MoveCylinderVertical(const Craft &craft, bool isConvex);
+    Point MoveConicalFrustum(const Craft &craft); // 倒圆台侧面打磨
     void MoveZLine(const Craft &craft);
     void MoveSpiralLine(const Craft &craft);
     void Run(const Craft &craft, bool isAGPRun);

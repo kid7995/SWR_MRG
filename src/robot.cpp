@@ -1972,6 +1972,314 @@ Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
     return pos;
 }
 
+Point Robot::MoveConicalFrustum(const Craft &craft) {
+    /*
+     * 圆台侧面打磨 - 凹面(内侧)
+     * 点位: A(起始点-上界左) B(中间点-上界中) C(结束点-上界右)
+     *       E(起始偏移点-下界左) D(结束偏移点-下界右)
+     * 轨迹: 之字形往复运动,沿圆台侧面外弧
+     *       A→B→C, C1→B1→A1, A2→B2→C2, ...
+     */
+
+    // ========== 1. 构建上界圆弧点列表 ==========
+    QVector<Point> posListUp;
+    posListUp.append(pointSet.beginPoint);      // A
+    posListUp.append(pointSet.midPoints);       // B (可能有多个中间点)
+    posListUp.append(pointSet.endPoint);        // C
+
+    // ========== 2. 计算圆台上界圆弧的几何参数 ==========
+    QVector<QVector3D> centerListUp;    // 圆心列表
+    QVector<double> radiusListUp;       // 半径列表
+    QVector<double> lengthListUp;       // 弧长列表
+    double totalArcLengthUp = 0.0;      // 总弧长
+
+    // 每3个点确定一段圆弧 (i指向中间点)
+    for (int i = 1; i < posListUp.size() - 1; i += 2) {
+        // 计算圆心
+        QVector3D center = Point::calculateCircumcenter(
+            posListUp.at(i - 1).pos,  // 前一点
+            posListUp.at(i).pos,      // 中间点
+            posListUp.at(i + 1).pos   // 后一点
+            );
+        centerListUp.append(center);
+
+        // 计算半径
+        double radius = (posListUp.at(i).pos - center).length();
+        radiusListUp.append(radius);
+
+        // 计算弧长 (通过圆心角)
+        QVector3D OA = posListUp.at(i - 1).pos - center;
+        QVector3D OM = posListUp.at(i).pos - center;
+        QVector3D OB = posListUp.at(i + 1).pos - center;
+
+        double length =
+            (qAcos(QVector3D::dotProduct(OA, OM) / (OA.length() * OM.length())) +
+             qAcos(QVector3D::dotProduct(OM, OB) / (OM.length() * OB.length())))
+            * radius;
+
+        lengthListUp.append(length);
+        totalArcLengthUp += length;
+    }
+
+    // ========== 3. 计算圆台侧面偏移向量 ==========
+    // 从上界到下界的偏移向量 (E-A 表示左侧母线方向)
+    QVector3D offsetLeft = pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
+    // D-C 表示右侧母线方向
+    QVector3D offsetRight = pointSet.endOffsetPoint.pos - pointSet.endPoint.pos;
+
+    // ========== 4. 生成分层路径点 ==========
+    int count = craft.offsetCount;  // 偏移次数(层数-1)
+    double discRadius = craft.discRadius;   // 打磨片半径
+    double grindAngle = craft.grindAngle;   // 打磨角度
+
+    // 最终路径点列表 (每层的ABC点)
+    QVector<QVector<QVector3D>> layerPosLists;  // [层][点索引]
+    // 每个点对应的姿态和平移补偿
+    QVector<QVector<QVector3D>> layerRotLists;
+    QVector<QVector<QVector3D>> layerTransLists;
+
+    if (count > 0) {
+        // 沿弧长方向的单位步长 (除以2是为了MoveC的辅助点)
+        double unitArcLengthUp = totalArcLengthUp / count / 2;
+
+        // 为每一层生成路径点
+        for (int layer = 0; layer <= count; ++layer) {
+            QVector<QVector3D> currentLayerPos;
+            QVector<QVector3D> currentLayerRot;
+            QVector<QVector3D> currentLayerTrans;
+
+            double arcLengthUp = 0.0;
+
+            // 遍历每段圆弧
+            for (int i = 0; i < centerListUp.size(); ++i) {
+                // 在当前圆弧段内插补
+                while (arcLengthUp <= lengthListUp.at(i)) {
+                    // ===== 4.1 计算当前层圆弧上的点位置 =====
+                    // 旋转轴(圆弧平面法向)
+                    QVector3D axis =
+                        QVector3D::crossProduct(
+                            posListUp.at(2 * i).pos - centerListUp.at(i),
+                            posListUp.at(2 * i + 1).pos - centerListUp.at(i)
+                            ).normalized();
+
+                    // 计算旋转角度
+                    double angle = qRadiansToDegrees(arcLengthUp / radiusListUp.at(i));
+                    QMatrix3x3 R = Point::toRotationMatrix(axis, angle);
+
+                    // 旋转半径向量得到当前点
+                    QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
+                    QVector3D newTrans = QVector3D(
+                        R(0, 0) * trans.x() + R(0, 1) * trans.y() + R(0, 2) * trans.z(),
+                        R(1, 0) * trans.x() + R(1, 1) * trans.y() + R(1, 2) * trans.z(),
+                        R(2, 0) * trans.x() + R(2, 1) * trans.y() + R(2, 2) * trans.z()
+                        );
+
+                    // 上界点位置
+                    QVector3D posUp = centerListUp.at(i) + newTrans;
+
+                    // ===== 4.2 计算对应的下界点 (圆台特征) =====
+                    // 在左右偏移向量之间线性插值
+                    double t = arcLengthUp / totalArcLengthUp;  // 当前点在弧长上的位置比例
+                    QVector3D offsetInterp = offsetLeft * (1 - t) + offsetRight * t;
+
+                    // 当前层的偏移比例
+                    double layerRatio = static_cast<double>(layer) / count;
+                    QVector3D posDown = posUp + offsetInterp * layerRatio;
+
+                    currentLayerPos.append(posDown);
+
+                    // ===== 4.3 计算打磨姿态 (凹面内侧) =====
+                    // 圆台侧面母线方向(作为参考辅助向量)
+                    QVector3D aux = offsetInterp.normalized();
+
+                    // 表面法向量(指向内侧,凹面)
+                    // 使用双叉乘确定局部法向
+                    QVector3D normal =
+                        QVector3D::crossProduct(
+                            QVector3D::crossProduct(aux, -newTrans),
+                            aux
+                            ).normalized();
+
+                    // 凹面调整: 法向指向内侧(圆心方向)
+                    normal = -normal;  // 内凹面
+
+                    // 镜像处理
+                    if (craft.isMirror) {
+                        axis = -axis;
+                    }
+
+                    // 根据几何法向计算机器人姿态
+                    QVector3D rotation = Point::getNormalRotation(normal, axis);
+                    QVector3D moveDirection = aux;  // 沿母线方向
+
+                    // 计算带打磨角度的最终姿态
+                    QVector3D newRot = Point::getNewRotation(
+                        rotation, moveDirection, grindAngle
+                        );
+                    currentLayerRot.append(newRot);
+
+                    // 计算姿态补偿的平移量
+                    QVector3D translation = Point::getTranslation(
+                        rotation, moveDirection, discRadius, grindAngle
+                        );
+                    currentLayerTrans.append(translation);
+
+                    arcLengthUp += unitArcLengthUp;
+                }
+                arcLengthUp -= lengthListUp.at(i);
+            }
+
+            layerPosLists.append(currentLayerPos);
+            layerRotLists.append(currentLayerRot);
+            layerTransLists.append(currentLayerTrans);
+        }
+    } else {
+        // 不偏移的特殊情况(仅上界)
+        QVector<QVector3D> singleLayerPos;
+        QVector<QVector3D> singleLayerRot;
+        QVector<QVector3D> singleLayerTrans;
+
+        singleLayerPos.append(pointSet.beginPoint.pos);
+
+        // 计算姿态...
+        QVector3D axis =
+            QVector3D::crossProduct(
+                posListUp.at(0).pos - centerListUp.at(0),
+                posListUp.at(1).pos - centerListUp.at(0)
+                ).normalized();
+        QVector3D trans = posListUp.at(0).pos - centerListUp.at(0);
+        QVector3D aux = offsetLeft.normalized();
+        QVector3D normal =
+            QVector3D::crossProduct(
+                QVector3D::crossProduct(aux, -trans),
+                aux
+                ).normalized();
+        normal = -normal;  // 凹面
+
+        if (craft.isMirror) {
+            axis = -axis;
+        }
+
+        QVector3D rotation = Point::getNormalRotation(normal, axis);
+        QVector3D newRot = Point::getNewRotation(rotation, aux, grindAngle);
+        singleLayerRot.append(newRot);
+
+        QVector3D translation = Point::getTranslation(
+            rotation, aux, discRadius, grindAngle
+            );
+        singleLayerTrans.append(translation);
+
+        layerPosLists.append(singleLayerPos);
+        layerRotLists.append(singleLayerRot);
+        layerTransLists.append(singleLayerTrans);
+    }
+
+    // ========== 5. 执行往复打磨运动 ==========
+    double dVelocity = defaultVelocity;
+    double dAcc = 2000;
+    double dRadius = craft.transitionRadius;
+
+    Point pos, posAux, posEnd;
+
+    // 移动到第一层第一点的辅助位置(抬起)
+    pos.pos = layerPosLists[0][0] + layerTransLists[0][0];
+    pos.rot = layerRotLists[0][0];
+    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    // 下压到第一点
+    dVelocity = craft.cutinSpeed;
+    pos.pos = layerPosLists[0][0] + layerTransLists[0][0];
+    pos.rot = layerRotLists[0][0];
+    MoveL(pos, dVelocity, dAcc, dRadius);
+
+    // 主打磨循环 - 之字形往复
+    dVelocity = craft.moveSpeed;
+    dAcc = 100;
+
+    for (int layer = 0; layer <= count; ++layer) {
+        int numPoints = layerPosLists[layer].size();
+
+        if (layer % 2 == 0) {
+            // ===== 正向: 从左到右 (A → B → C) =====
+            for (int j = 1; j < numPoints - 1; j += 2) {
+                // 使用MoveC进行圆弧运动
+                posAux.pos = layerPosLists[layer][j] + layerTransLists[layer][j];
+                posAux.rot = layerRotLists[layer][j];
+
+                posEnd.pos = layerPosLists[layer][j + 1] + layerTransLists[layer][j + 1];
+                posEnd.rot = layerRotLists[layer][j + 1];
+
+                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            }
+
+            // 层间过渡
+            if (layer < count) {
+                // 抬起
+                pos.pos = layerPosLists[layer][numPoints - 1] +
+                          layerTransLists[layer][numPoints - 1];
+                pos.rot = layerRotLists[layer][numPoints - 1];
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+
+                // 移动到下一层最后一点
+                pos.pos = layerPosLists[layer + 1][layerPosLists[layer + 1].size() - 1] +
+                          layerTransLists[layer + 1][layerTransLists[layer + 1].size() - 1];
+                pos.rot = layerRotLists[layer + 1][layerRotLists[layer + 1].size() - 1];
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+
+                // 下压
+                pos.pos = layerPosLists[layer + 1][layerPosLists[layer + 1].size() - 1] +
+                          layerTransLists[layer + 1][layerTransLists[layer + 1].size() - 1];
+                pos.rot = layerRotLists[layer + 1][layerRotLists[layer + 1].size() - 1];
+                MoveL(pos, dVelocity, dAcc, dRadius);
+            }
+        } else {
+            // ===== 反向: 从右到左 (C → B → A) =====
+            for (int j = numPoints - 2; j > 0; j -= 2) {
+                posAux.pos = layerPosLists[layer][j] + layerTransLists[layer][j];
+                posAux.rot = layerRotLists[layer][j];
+
+                posEnd.pos = layerPosLists[layer][j - 1] + layerTransLists[layer][j - 1];
+                posEnd.rot = layerRotLists[layer][j - 1];
+
+                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+            }
+
+            // 层间过渡
+            if (layer < count) {
+                // 抬起
+                pos.pos = layerPosLists[layer][0] + layerTransLists[layer][0];
+                pos.rot = layerRotLists[layer][0];
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+
+                // 移动到下一层第一点
+                pos.pos = layerPosLists[layer + 1][0] + layerTransLists[layer + 1][0];
+                pos.rot = layerRotLists[layer + 1][0];
+                pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+                MoveL(pos, dVelocity, dAcc, dRadius);
+
+                // 下压
+                pos.pos = layerPosLists[layer + 1][0] + layerTransLists[layer + 1][0];
+                pos.rot = layerRotLists[layer + 1][0];
+                MoveL(pos, dVelocity, dAcc, dRadius);
+            }
+        }
+    }
+
+    // 最后抬起
+    int lastLayer = count;
+    int lastIdx = (lastLayer % 2 == 0) ?
+                      (layerPosLists[lastLayer].size() - 1) : 0;
+
+    pos.pos = layerPosLists[lastLayer][lastIdx] + layerTransLists[lastLayer][lastIdx];
+    pos.rot = layerRotLists[lastLayer][lastIdx];
+
+    return pos;
+}
+
 void Robot::MoveZLine(const Craft &craft) {
     // 定义运动速度
     double dVelocity = craft.moveSpeed;
@@ -2121,6 +2429,9 @@ void Robot::Run(const Craft &craft, bool isAGPRun) {
         break;
     case PolishWay::CylinderWay_Vertical_Concave:
         point = MoveCylinderVertical(craft, false);
+        break;
+    case PolishWay::ConicalFrustum_Concave: // 倒圆台侧面打磨
+        point = MoveConicalFrustum(craft);
         break;
     case PolishWay::ZLineWay:
         MoveZLine(craft);

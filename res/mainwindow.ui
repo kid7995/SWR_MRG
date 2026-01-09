@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1280</width>
+    <width>1282</width>
     <height>800</height>
    </rect>
   </property>
@@ -20,9 +20,20 @@
    <string/>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="1,10">
+   <property name="styleSheet">
+    <string notr="true">background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                                     stop:0 rgba(255, 230, 230, 255), 
+                                     stop:1 rgba(255, 255, 255, 255));</string>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0">
     <item>
      <widget class="QFrame" name="frame">
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>80</height>
+       </size>
+      </property>
       <property name="styleSheet">
        <string notr="true">background-color: rgb(173, 49, 34);</string>
       </property>
@@ -223,7 +234,23 @@ border: none;</string>
        <bool>false</bool>
       </property>
       <property name="styleSheet">
-       <string notr="true">background-color: rgb(255, 255, 255);</string>
+       <string notr="true">QWidget { border: 1px solid red; }
+QPushButton {
+    /* 核心：固定高度 */
+    min-height: 60px;
+    max-height: 60px;
+    
+    /* 允许长度随动：设置内边距确保文字不贴边 */
+    padding-left: 30px;
+    padding-right: 30px;
+    
+    /* 圆角矩形设置 */
+    border-radius: 20px; 
+    background-color: rgb(173, 49, 34); /* 您之前使用的红色 */
+    color: white;
+    font-size: 24px; /* 既然高度有130，建议字体也加大 */
+    border: none;
+}</string>
       </property>
       <property name="currentIndex">
        <number>0</number>
@@ -244,12 +271,12 @@ border: none;</string>
           <x>1100</x>
           <y>550</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -315,12 +342,12 @@ color: rgb(255, 255, 255);</string>
           <x>550</x>
           <y>550</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -344,15 +371,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>150</x>
-          <y>130</y>
+          <x>200</x>
+          <y>110</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -377,14 +404,14 @@ color: rgb(255, 255, 255);</string>
         <property name="geometry">
          <rect>
           <x>330</x>
-          <y>10</y>
+          <y>30</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -411,15 +438,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>150</x>
-          <y>310</y>
+          <x>140</x>
+          <y>330</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -443,15 +470,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>930</x>
-          <y>310</y>
+          <x>950</x>
+          <y>330</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -475,15 +502,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>750</x>
-          <y>10</y>
-          <width>150</width>
-          <height>100</height>
+          <x>710</x>
+          <y>30</y>
+          <width>181</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -529,12 +556,12 @@ color: rgb(255, 255, 255);</string>
           <x>10</x>
           <y>550</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -561,12 +588,12 @@ color: rgb(255, 255, 255);</string>
           <x>550</x>
           <y>110</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -590,15 +617,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>320</x>
-          <y>430</y>
-          <width>150</width>
-          <height>100</height>
+          <x>270</x>
+          <y>420</y>
+          <width>191</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -624,13 +651,13 @@ color: rgb(255, 255, 255);</string>
          <rect>
           <x>770</x>
           <y>430</y>
-          <width>150</width>
-          <height>100</height>
+          <width>181</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -654,15 +681,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>1100</x>
-          <y>10</y>
-          <width>150</width>
-          <height>100</height>
+          <x>1070</x>
+          <y>30</y>
+          <width>181</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -689,15 +716,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>1100</x>
-          <y>120</y>
-          <width>150</width>
-          <height>100</height>
+          <x>1070</x>
+          <y>130</y>
+          <width>181</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -724,15 +751,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>1100</x>
+          <x>1070</x>
           <y>230</y>
-          <width>150</width>
-          <height>100</height>
+          <width>181</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>16</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -1343,6 +1370,11 @@ width: 45px;
             <string>柱面-纵向-凹面</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>圆台-侧面-凹面</string>
+           </property>
+          </item>
          </widget>
         </item>
         <item row="4" column="3">
@@ -1788,10 +1820,10 @@ width: 45px;
           <widget class="QPushButton" name="btnAddNewPara">
            <property name="geometry">
             <rect>
-             <x>0</x>
-             <y>10</y>
+             <x>10</x>
+             <y>30</y>
              <width>180</width>
-             <height>100</height>
+             <height>60</height>
             </rect>
            </property>
            <property name="sizePolicy">
@@ -1803,7 +1835,7 @@ width: 45px;
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>0</height>
+             <height>60</height>
             </size>
            </property>
            <property name="baseSize">
@@ -1814,7 +1846,7 @@ width: 45px;
            </property>
            <property name="font">
             <font>
-             <pointsize>16</pointsize>
+             <pointsize>-1</pointsize>
              <bold>true</bold>
             </font>
            </property>
@@ -1835,16 +1867,16 @@ color: rgb(255, 255, 255);</string>
           <widget class="QPushButton" name="btnDelCurrPara">
            <property name="geometry">
             <rect>
-             <x>210</x>
-             <y>10</y>
-             <width>180</width>
-             <height>100</height>
+             <x>220</x>
+             <y>30</y>
+             <width>211</width>
+             <height>60</height>
             </rect>
            </property>
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>0</height>
+             <height>60</height>
             </size>
            </property>
            <property name="baseSize">
@@ -1855,7 +1887,7 @@ color: rgb(255, 255, 255);</string>
            </property>
            <property name="font">
             <font>
-             <pointsize>16</pointsize>
+             <pointsize>-1</pointsize>
              <bold>true</bold>
             </font>
            </property>
@@ -1876,16 +1908,16 @@ color: rgb(255, 255, 255);</string>
           <widget class="QPushButton" name="btnSaveCurrPara">
            <property name="geometry">
             <rect>
-             <x>420</x>
-             <y>10</y>
-             <width>180</width>
-             <height>100</height>
+             <x>450</x>
+             <y>30</y>
+             <width>201</width>
+             <height>60</height>
             </rect>
            </property>
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>0</height>
+             <height>60</height>
             </size>
            </property>
            <property name="baseSize">
@@ -1896,7 +1928,7 @@ color: rgb(255, 255, 255);</string>
            </property>
            <property name="font">
             <font>
-             <pointsize>16</pointsize>
+             <pointsize>-1</pointsize>
              <bold>true</bold>
             </font>
            </property>
@@ -1928,15 +1960,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>1090</x>
+          <x>1079</x>
           <y>50</y>
-          <width>150</width>
-          <height>100</height>
+          <width>161</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>18</pointsize>
+          <pointsize>-1</pointsize>
          </font>
         </property>
         <property name="autoFillBackground">
@@ -2010,15 +2042,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>1090</x>
+          <x>1079</x>
           <y>500</y>
-          <width>150</width>
-          <height>100</height>
+          <width>161</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>18</pointsize>
+          <pointsize>-1</pointsize>
          </font>
         </property>
         <property name="autoFillBackground">
@@ -2041,15 +2073,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>1090</x>
+          <x>1079</x>
           <y>170</y>
-          <width>150</width>
-          <height>100</height>
+          <width>161</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>18</pointsize>
+          <pointsize>-1</pointsize>
          </font>
         </property>
         <property name="autoFillBackground">
@@ -2072,15 +2104,15 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="geometry">
          <rect>
-          <x>1090</x>
+          <x>1079</x>
           <y>290</y>
-          <width>150</width>
-          <height>100</height>
+          <width>161</width>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>18</pointsize>
+          <pointsize>-1</pointsize>
          </font>
         </property>
         <property name="autoFillBackground">
@@ -2108,12 +2140,12 @@ color: rgb(255, 255, 255);</string>
           <x>1010</x>
           <y>510</y>
           <width>150</width>
-          <height>100</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>18</pointsize>
+          <pointsize>-1</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -2185,12 +2217,12 @@ color: rgb(255, 255, 255);</string>
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>100</height>
+             <height>60</height>
             </size>
            </property>
            <property name="font">
             <font>
-             <pointsize>18</pointsize>
+             <pointsize>-1</pointsize>
              <bold>true</bold>
             </font>
            </property>
@@ -2253,12 +2285,12 @@ color: rgb(255, 255, 255);</string>
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>100</height>
+             <height>60</height>
             </size>
            </property>
            <property name="font">
             <font>
-             <pointsize>18</pointsize>
+             <pointsize>-1</pointsize>
              <bold>true</bold>
             </font>
            </property>
@@ -2291,8 +2323,8 @@ color: rgb(255, 255, 255);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1280</width>
-     <height>17</height>
+     <width>1282</width>
+     <height>25</height>
     </rect>
    </property>
   </widget>

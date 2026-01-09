@@ -18,6 +18,7 @@ enum PolishWay {
     CylinderWay_Vertical_Convex,
     CylinderWay_Horizontal_Concave,
     CylinderWay_Vertical_Concave,
+    ConicalFrustum_Concave,// 倒圆台打磨
     ZLineWay,
     SpiralLineWay
 };

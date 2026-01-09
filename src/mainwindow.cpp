@@ -294,6 +294,7 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
     case PolishWay::RegionArcWay_Horizontal:
     case PolishWay::RegionArcWay_Vertical:
     case PolishWay::RegionArcWay_Vertical_Repeat:
+    case PolishWay::ConicalFrustum_Concave:
         ui->leOffsetCount->setEnabled(true);
         ui->lblBackground->setPixmap(QPixmap(":/pic/region_arc.png"));
         ui->btnAux->setVisible(false);
