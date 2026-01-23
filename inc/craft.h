@@ -47,7 +47,16 @@ class Craft {
     int floatCount;         // 浮动次数
     int transitionRadius;   // 过渡半径，mm
     bool isMirror;          // 圆柱打磨是否采用镜像
-
+    //********************************************//
+    // 新增换刀相关变量
+    int totalPolishCount;      // 累计打磨次数
+    double totalPolishLength;  // 累计打磨长度 (建议用double存储长度)
+    double toolChangeThreshold=30000; // 换刀阈值长度
+    bool startToolChange;      // 启动换刀
+    bool toolChangeDone;       // 换刀完毕
+    int toolMagStatus;         // 刀库状态 (如: 0-正常, 1-空, 2-故障)
+    int targetToolPos;         // 换刀刀位指定
+    //********************************************//
     friend class MainWindow;
     friend class Robot;
     friend class HansRobot;

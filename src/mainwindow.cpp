@@ -4,6 +4,7 @@
 #include <QSettings>
 #include <QTextStream>
 #include <QThread>
+#include <QFileDialog>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -34,7 +35,16 @@ MainWindow::MainWindow(QWidget *parent)
                 "80\n1\\TransitionTime=1500\n1\\TransitionRadius="
                 "0\n1\\DiscRadius=50\n1\\DiscThickness=8\n1\\GrindAngle="
                 "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
-                "0\n1\\FloatCount=0\n1\\IsMirror=false\n");
+                "0\n1\\FloatCount=0\n1\\IsMirror=false\n"
+                "1\\IsMirror=false\n"
+                "1\\TotalPolishCount=0\n"
+                "1\\TotalPolishLength=0\n"
+                "1\\toolChangeThreshold=30000\n"
+                "1\\StartToolChange=false\n"
+                "1\\ToolChangeDone=false\n"
+                "1\\ToolMagStatus=0\n"
+                "1\\TargetToolPos=0\n"
+                );
             file.close();
         } else {
             setEnabled(false);
@@ -43,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
     QSettings settings(fileName, QSettings::IniFormat);
+    settings.setIniCodec("UTF-8");
     int size = settings.beginReadArray("CraftParameter");
     if (size == 0) {
         return;
@@ -70,6 +81,15 @@ MainWindow::MainWindow(QWidget *parent)
         craft.raiseCount = settings.value("RaiseCount").toInt();
         craft.floatCount = settings.value("FloatCount").toInt();
         craft.isMirror = settings.value("IsMirror").toBool();
+        //*********************************************************************//
+        //新增换刀逻辑
+        craft.totalPolishCount = settings.value("TotalPolishCount", 0).toInt();
+        craft.totalPolishLength = settings.value("TotalPolishLength", 0.0).toDouble();
+        craft.startToolChange = settings.value("StartToolChange", false).toBool();
+        craft.toolChangeDone = settings.value("ToolChangeDone", false).toBool();
+        craft.toolMagStatus = settings.value("ToolMagStatus", 0).toInt();
+        craft.targetToolPos = settings.value("TargetToolPos", 1).toInt();
+        //*********************************************************************//
         crafts.append(craft);
     }
     settings.endArray();
@@ -80,21 +100,41 @@ MainWindow::MainWindow(QWidget *parent)
     SetValidator();
     ConnectRobot();
     ConnectAGP();
+    InitStatusMonitor();
 }
 
-MainWindow::~MainWindow() { delete ui; }
+MainWindow::~MainWindow() {
+    // 停止状态监控线程
+    if (m_statusThread && m_statusThread->isRunning()) {
+        m_statusThread->stop();
+        m_statusThread->wait(100);
+        if (m_statusThread->isRunning()) {
+            m_statusThread->terminate();
+            m_statusThread->wait();
+        }
+    }
+
+    delete ui;
+}
 
 void MainWindow::SavePara(int index) {
     QString fileName = QCoreApplication::applicationDirPath();
     fileName += "/config.ini";
     QSettings settings(fileName, QSettings::IniFormat);
+
+    // 设置编码，防止中文工艺名乱码（建议加上）
+    settings.setIniCodec("UTF-8");
+
     settings.beginWriteArray("CraftParameter");
+
+    // 统一使用传入的 index
     settings.setArrayIndex(index);
+
+    // 1. 原有参数保存
     settings.setValue("CraftName", crafts.at(index).craftID);
     settings.setValue("PolishMode", crafts.at(index).mode);
     settings.setValue("PolishWay", crafts.at(index).way);
-    settings.setValue("TeachingPointReferencePosition",
-                      crafts.at(index).teachPointReferPos);
+    settings.setValue("TeachingPointReferencePosition", crafts.at(index).teachPointReferPos);
     settings.setValue("CutinSpeed", crafts.at(index).cutinSpeed);
     settings.setValue("MovingSpeed", crafts.at(index).moveSpeed);
     settings.setValue("RotationSpeed", crafts.at(index).rotateSpeed);
@@ -110,7 +150,16 @@ void MainWindow::SavePara(int index) {
     settings.setValue("RaiseCount", crafts.at(index).raiseCount);
     settings.setValue("FloatCount", crafts.at(index).floatCount);
     settings.setValue("IsMirror", crafts.at(index).isMirror);
-    settings.setArrayIndex(crafts.size() - 1);
+
+    // 2. 新增换刀逻辑 (依然在同一个 index 下)
+    settings.setValue("TotalPolishCount", crafts.at(index).totalPolishCount);
+    settings.setValue("TotalPolishLength", crafts.at(index).totalPolishLength);
+    settings.setValue("toolChangeThreshold", crafts.at(index).toolChangeThreshold);
+    settings.setValue("StartToolChange", crafts.at(index).startToolChange);
+    settings.setValue("ToolChangeDone", crafts.at(index).toolChangeDone);
+    settings.setValue("ToolMagStatus", crafts.at(index).toolMagStatus);
+    settings.setValue("TargetToolPos", crafts.at(index).targetToolPos);
+
     settings.endArray();
 }
 
@@ -201,6 +250,12 @@ void MainWindow::InitButtons() {
     SetBackgroundColor(ui->btnRobotConnect, defaultColor);
     ui->btnAGPConnect->setVisible(true);
     SetBackgroundColor(ui->btnAGPConnect, defaultColor);
+
+    ui->btnInputPoint->setEnabled(true);
+    SetBackgroundColor(ui->btnInputPoint, defaultColor);
+    ui->ToolMagazineReset->setEnabled(true);
+    SetBackgroundColor(ui->ToolMagazineReset, defaultColor);
+    // connect(ui->btnInputPoint, &QPushButton::clicked, this, &MainWindow::on_btnInputPoint_clicked);
 }
 
 void MainWindow::EnableButtons() {
@@ -405,10 +460,26 @@ void MainWindow::SetPolishWay(const PolishWay &way) {
 }
 
 void MainWindow::SetBackgroundColor(QPushButton *btn, const QColor &color) {
-    QPalette pal = btn->palette();
-    pal.setColor(QPalette::Button, color);
-    btn->setPalette(pal);
-    btn->setAutoFillBackground(true);
+    // 1. 禁用 AutoFillBackground，它是导致矩形底色的罪魁祸首
+    btn->setAutoFillBackground(false);
+
+    // 2. 动态构建样式表字符串，继承您已有的圆角和尺寸设置
+    // 使用 color.name() 将 QColor 转换为 #RRGGBB 格式
+    QString style = QString(
+                        "QPushButton {"
+                        "    background-color: %1;"
+                        "    min-height: 60px;"
+                        "    max-height: 60px;"
+                        "    padding-left: 30px;"
+                        "    padding-right: 30px;"
+                        "    border-radius: 20px;"
+                        "    color: white;"
+                        "    font-size: 24px;"
+                        "    border: none;"
+                        "}"
+                        ).arg(color.name());
+
+    btn->setStyleSheet(style);
 }
 
 void MainWindow::ConnectRobot() {
@@ -492,7 +563,8 @@ void MainWindow::on_btnSafe_clicked() {
 }
 
 void MainWindow::on_btnPrev_clicked() {
-    int size = ui->stackedWidget->count() - 1;
+    // int size = ui->stackedWidget->count() - 1;
+    int size = ui->stackedWidget->count();
     int i = ui->stackedWidget->currentIndex();
     ui->stackedWidget->setCurrentIndex((i - 1 + size) % size);
     ui->lblPageName->setText(
@@ -500,7 +572,8 @@ void MainWindow::on_btnPrev_clicked() {
 }
 
 void MainWindow::on_btnNext_clicked() {
-    int size = ui->stackedWidget->count() - 1;
+    // int size = ui->stackedWidget->count() - 1;
+    int size = ui->stackedWidget->count();
     int i = ui->stackedWidget->currentIndex();
     ui->stackedWidget->setCurrentIndex((i + 1) % size);
     ui->lblPageName->setText(
@@ -540,7 +613,7 @@ void MainWindow::on_btnTryRun_clicked() {
         SetBackgroundColor(ui->btnDrag, defaultColor);
     }
     std::thread t([this] {
-        robot.Run(crafts.at(currCraftIdx), false);
+        robot.Run(crafts[currCraftIdx], false);
         QMetaObject::invokeMethod(this, [this] {
             ui->btnRun->setEnabled(true);
             ui->btnTryRun->setEnabled(true);
@@ -565,7 +638,7 @@ void MainWindow::on_btnRun_clicked() {
         SetBackgroundColor(ui->btnDrag, defaultColor);
     }
     std::thread t([this] {
-        robot.Run(crafts.at(currCraftIdx), true);
+        robot.Run(crafts[currCraftIdx], true);
         robot.AGPStop();
         QMetaObject::invokeMethod(this, [this] {
             ui->btnRun->setEnabled(true);
@@ -842,6 +915,32 @@ void MainWindow::on_btnStop2_clicked() {
     t.detach();
 }
 
+void MainWindow::on_btnInputPoint_clicked() {
+    QString filePath = QFileDialog::getOpenFileName(this, tr("选择点位文件"), "", tr("文本文件 (*.txt)"));
+    if (filePath.isEmpty()) return;
+
+    QString logInfo;
+    QStringList loadedPoints; // 用于接收点位字符串
+
+    // 调用修改后的函数
+    bool success = robot.ReadInputPoint(filePath, logInfo, loadedPoints);
+
+    if (success) {
+        QMessageBox::information(this, tr("导入成功"), logInfo);
+
+        // 遍历所有返回的点位字符串，更新 Page3 列表
+        for (const QString &str : loadedPoints) {
+            AddHistoryPoint(str); // 这里传入的 str 包含了 "：", 可以被正确处理
+        }
+
+        // 可选：更新按钮颜色（如上一条回答所述）
+        SetBackgroundColor(ui->btnBegin, greenColor); // 简单粗暴设为绿色，或者根据 loadedPoints 内容判断
+        // ...
+    } else {
+        QMessageBox::warning(this, tr("导入失败"), logInfo);
+    }
+}
+
 void MainWindow::on_btnClearHistory_clicked() { ui->lstHistoryPoint->clear(); }
 
 void MainWindow::on_btnCoverPoint_clicked() {
@@ -884,3 +983,182 @@ void MainWindow::on_chkMirror_stateChanged(int arg1) {
     }
     SetPolishWay(crafts.at(currCraftIdx).way);
 }
+
+// 1. 在构造函数或 Init 函数中启动线程
+void MainWindow::InitStatusMonitor() {
+    // 传递robot指针给线程
+    m_statusThread = new StatusThread(&robot, this);
+
+    // 连接信号和槽
+    connect(m_statusThread, &StatusThread::statusUpdated,
+            this, &MainWindow::updateRobotStatusUI);
+
+    // 启动监控线程
+    m_statusThread->start();
+}
+
+// 2. 实现 UI 更新逻辑
+void MainWindow::updateRobotStatusUI(
+    bool robotMoving, bool robotEnable, bool robotError, int robotErrCode,
+    bool robotElectrify, bool robotConnect,
+    bool agpConnect, bool agpEnable, bool agpError, int agpErrCode,
+    bool di1_safeDoor, bool di2_pot1, bool di3_pot2, bool di4_pot3, bool di5_pot4,
+    bool di6_magOpen, bool di7_magClose, bool do5_agpAir
+    ) {
+    // 样式定义
+    QString greenStyle = "background-color: green; border-radius: 24px;";
+    QString greyStyle = "background-color: grey; border-radius: 24px;";
+    QString redStyle = "background-color: red; border-radius: 24px;";
+
+    // ========== 1. 机器人状态更新 ==========
+
+    // 1.1 连接状态
+    ui->RobotConnectStatus->setStyleSheet(robotConnect ? greenStyle : greyStyle);
+
+    // 1.2 使能状态(需要连接后才有意义)
+    if (!robotConnect) {
+        ui->RobotEnableStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->RobotEnableStatus->setStyleSheet(robotEnable ? greenStyle : redStyle);
+    }
+
+    // 1.3 上电信号
+    if (!robotConnect) {
+        ui->RobotPowerStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->RobotPowerStatus->setStyleSheet(robotElectrify ? greenStyle : redStyle);
+    }
+
+    // 1.4 运动状态
+    if (!robotConnect) {
+        ui->RobotMotionStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->RobotMotionStatus->setStyleSheet(robotMoving ? greenStyle : greyStyle);
+    }
+
+    // 1.5 报警状态
+    if (!robotConnect) {
+        ui->RobotAlertStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->RobotAlertStatus->setStyleSheet(robotError ? redStyle : greenStyle);
+    }
+
+    // 1.6 报警代码显示
+    if (robotConnect && robotError) {
+        ui->RobotErrorCodeText->setPlainText(QString("Error: %1").arg(robotErrCode));
+    } else {
+        ui->RobotErrorCodeText->clear();
+    }
+
+    // ========== 2. AGP状态更新 ==========
+
+    // 2.1 AGP连接状态
+    ui->AGPConnectStatus->setStyleSheet(agpConnect ? greenStyle : greyStyle);
+
+    // 2.2 AGP使能状态
+    if (!agpConnect) {
+        ui->AGPEnableStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->AGPEnableStatus->setStyleSheet(agpEnable ? greenStyle : redStyle);
+    }
+
+    // 2.3 AGP报警状态
+    if (!agpConnect) {
+        ui->AGPAlertStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->AGPAlertStatus->setStyleSheet(agpError ? redStyle : greenStyle);
+    }
+
+    // 2.4 AGP错误代码
+    if (agpConnect && agpError) {
+        ui->AGPErrorCodeText->setPlainText(QString("Error: %1").arg(agpErrCode));
+    } else {
+        ui->AGPErrorCodeText->clear();
+    }
+
+    // 2.5 AGP冷却气状态(DO5控制)
+    if (!agpConnect) {
+        ui->AGPAirCoolingStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->AGPAirCoolingStatus->setStyleSheet(do5_agpAir ? greenStyle : greyStyle);
+    }
+
+    // ========== 3. 刀库IO状态更新 ==========
+
+    // 3.1 安全门状态(DI1)
+    // 绿色=门关闭(安全), 红色=门打开(不安全)
+    if (!robotConnect) {
+        ui->SafeDoorStatus->setStyleSheet(greyStyle);
+    } else {
+        ui->SafeDoorStatus->setStyleSheet(di1_safeDoor ? greenStyle : redStyle);
+    }
+
+    // 3.2 刀库各刀位检测状态(DI2-DI5)
+    // 绿色=检测到刀具, 灰色=未检测到刀具
+    if (!robotConnect) {
+        ui->ToolMagazinePot1Status->setStyleSheet(greyStyle);
+        ui->ToolMagazinePot2Status->setStyleSheet(greyStyle);
+        ui->ToolMagazinePot3Status->setStyleSheet(greyStyle);
+        ui->ToolMagazinePot4Status->setStyleSheet(greyStyle);
+    } else {
+        ui->ToolMagazinePot1Status->setStyleSheet(di2_pot1 ? greenStyle : greyStyle);
+        ui->ToolMagazinePot2Status->setStyleSheet(di3_pot2 ? greenStyle : greyStyle);
+        ui->ToolMagazinePot3Status->setStyleSheet(di4_pot3 ? greenStyle : greyStyle);
+        ui->ToolMagazinePot4Status->setStyleSheet(di5_pot4 ? greenStyle : greyStyle);
+    }
+
+    // 3.3 刀库门开关状态(DI6/DI7)
+    if (!robotConnect) {
+        ui->ToolMagzaineOpen->setStyleSheet(greyStyle);
+        ui->ToolMagzaineClose->setStyleSheet(greyStyle);
+    } else {
+        ui->ToolMagzaineOpen->setStyleSheet(di6_magOpen ? greenStyle : greyStyle);
+        ui->ToolMagzaineClose->setStyleSheet(di7_magClose ? greenStyle : greyStyle);
+    }
+
+    // ========== 4. 刀库换刀状态更新(递增红色显示) ==========
+    int targetPos = crafts.at(currCraftIdx).targetToolPos;
+
+    // 默认全部绿色
+    if(!robotConnect) {
+        ui->ToolMagazinePot1Status_changed->setStyleSheet(greyStyle);
+        ui->ToolMagazinePot2Status_changed->setStyleSheet(greyStyle);
+        ui->ToolMagazinePot3Status_changed->setStyleSheet(greyStyle);
+        ui->ToolMagazinePot4Status_changed->setStyleSheet(greyStyle);
+    } else {
+        ui->ToolMagazinePot1Status_changed->setStyleSheet(greenStyle);
+        ui->ToolMagazinePot2Status_changed->setStyleSheet(greenStyle);
+        ui->ToolMagazinePot3Status_changed->setStyleSheet(greenStyle);
+        ui->ToolMagazinePot4Status_changed->setStyleSheet(greenStyle);
+    }
+
+
+    // 根据targetPos递增设置为红色(表示已换刀)
+    if (targetPos >= 1) {
+        ui->ToolMagazinePot1Status_changed->setStyleSheet(redStyle);
+    }
+    if (targetPos >= 2) {
+        ui->ToolMagazinePot2Status_changed->setStyleSheet(redStyle);
+    }
+    if (targetPos >= 3) {
+        ui->ToolMagazinePot3Status_changed->setStyleSheet(redStyle);
+    }
+    if (targetPos >= 4) {
+        ui->ToolMagazinePot4Status_changed->setStyleSheet(redStyle);
+    }
+}
+
+void MainWindow::on_ToolMagazineReset_clicked()
+{
+    // 1. 重置内存中当前工艺的各项换刀相关数据
+    crafts[currCraftIdx].totalPolishCount = 0;
+    crafts[currCraftIdx].totalPolishLength = 0.0;
+    crafts[currCraftIdx].startToolChange = false;
+    crafts[currCraftIdx].toolChangeDone = false;
+    crafts[currCraftIdx].toolMagStatus = 0;
+    crafts[currCraftIdx].targetToolPos = 0;
+
+    // 2. 将修改后的参数同步到本地配置文件 config.ini 中
+    SavePara(currCraftIdx);
+}
+

@@ -4,6 +4,7 @@
 #include "AGP.h"
 #include "DucoCobot.h"
 #include "JAKAZuRobot.h"
+#include "HR_Pro.h"
 #include "point.h"
 
 class Robot {
@@ -15,6 +16,8 @@ class Robot {
     void AGPRun(const Craft &craft, bool isRotated); // 打磨头运行
     void AGPStop();                                  // 打磨头停止
     bool IsAGPEnabled();                             // 打磨头是否使能
+
+    AGP* GetAGP() const { return agp; }  // 获取AGP指针 用于状态监控
 
     virtual bool RobotConnect(QString robotIP) = 0; // 连接机器人
     virtual bool GetTcpPoint(Point &point) = 0;     // 获取TCP点位
@@ -32,6 +35,9 @@ class Robot {
                           double dRadius) = 0; // 圆弧运动
 
     bool GetPoint(Point &point);
+
+    bool ReadInputPoint(const QString &filePath, QString &logInfo, QStringList &loadedPoints); //添加读取点位函数
+
     bool GetSafePoint(QString &strPoint);
     bool GetBeginPoint(QString &strPoint);
     bool GetEndPoint(QString &strPoint);
@@ -56,15 +62,21 @@ class Robot {
     void MoveArc(const Craft &craft);
     Point MoveRegionArc1(const Craft &craft);
     Point MoveRegionArc2(const Craft &craft);
-    Point MoveRegionArcHorizontal(const Craft &craft);
+    // Point MoveRegionArcHorizontal(const Craft &craft);
+    Point MoveRegionArcHorizontal(Craft &craft);
     Point MoveRegionArcVertical(const Craft &craft);
     Point MoveRegionArcVerticalRepeat(const Craft &craft);
     Point MoveCylinderHorizontal(const Craft &craft, bool isConvex);
-    Point MoveCylinderVertical(const Craft &craft, bool isConvex);
-    Point MoveConicalFrustum(const Craft &craft); // 倒圆台侧面打磨
+    Point MoveCylinderVertical(Craft &craft, bool isConvex);
+
+    Point MoveConicalFrustum(Craft &craft); // 倒圆台侧面打磨
+
     void MoveZLine(const Craft &craft);
     void MoveSpiralLine(const Craft &craft);
-    void Run(const Craft &craft, bool isAGPRun);
+
+    void ToolChange(Craft &craft);// 换刀功能
+
+    void Run(Craft &craft, bool isAGPRun);
 
   protected:
     AGP *agp;                 // AGP
