@@ -27,6 +27,12 @@ public:
 private:
     void ReadCurrPara();
     void SavePara(int index);
+
+    // [新增] 保存全局换刀参数的函数
+    void SaveToolConfig();
+    // [新增] 读取全局换刀参数的函数
+    void ReadToolConfig();
+
     void DelCurrPara();
 
     void InitButtons();

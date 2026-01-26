@@ -1294,11 +1294,11 @@ Point Robot::MoveRegionArcHorizontal(Craft &craft) {
         // --- 3. 统计长度与换刀逻辑判断 ---
 
         // 累加已完成的弧长
-        craft.totalPolishLength += baseArcLength;
+        this->toolConfig.totalPolishLength += baseArcLength;
 
         // 判断是否超过阈值并触发换刀
-        if (craft.totalPolishLength >= craft.toolChangeThreshold && i < count) {
-            qDebug() << "Reached threshold, total length:" << craft.totalPolishLength << ". Starting ToolChange...";
+        if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && i < count) {
+            qDebug() << "Reached threshold, total length:" << this->toolConfig.totalPolishLength;
 
             // A. 抬起动作：在当前层结束点 posEnd 基础上，沿工具 Z 轴向上抬起 100mm
             Point liftPoint = posEnd.PosRelByTool(defaultDirection, -100.0);
@@ -1310,7 +1310,7 @@ Point Robot::MoveRegionArcHorizontal(Craft &craft) {
             ToolChange(craft);
 
             // C. 重置长度统计，为下一把刀做准备
-            craft.totalPolishLength = 0;
+            this->toolConfig.totalPolishLength = 0;
 
             qDebug() << "ToolChange finished. Robot returned to lift point. Continuing...";
         }
@@ -2427,12 +2427,11 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
         }
 
         // 累加已完成的弧长
-        craft.totalPolishLength += currentLayerLength;
+        this->toolConfig.totalPolishLength += currentLayerLength;
 
         // 判断是否超过阈值并触发换刀
-        if (craft.totalPolishLength >= craft.toolChangeThreshold && i < count) {
-            qDebug() << "MoveCylinderVertical: Reached threshold, total length:"
-                     << craft.totalPolishLength << ". Starting ToolChange...";
+        if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && i < count) {
+            qDebug() << "Reached threshold, total length:" << this->toolConfig.totalPolishLength;
 
             // A. 抬起动作: 在当前层结束点 posEnd 基础上,沿工具 Z 轴向上抬起 100mm
             Point liftPoint;
@@ -2450,7 +2449,7 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
             ToolChange(craft);
 
             // C. 重置长度统计,为下一把刀做准备
-            craft.totalPolishLength = 0;
+            this->toolConfig.totalPolishLength = 0;
 
             qDebug() << "MoveCylinderVertical: ToolChange finished. Robot returned to lift point. Continuing...";
         }
@@ -2681,11 +2680,11 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
 
         // 换刀逻辑
         double currentLayerLength = totalArcLengthUp / (count + 1);
-        craft.totalPolishLength += currentLayerLength;
+        this->toolConfig.totalPolishLength += currentLayerLength;
 
-        if (craft.totalPolishLength >= craft.toolChangeThreshold && layer < count) {
-            qDebug() << "Reached threshold:" << craft.totalPolishLength << "mm. Starting ToolChange...";
-            qDebug() << "threshold:" << craft.toolChangeThreshold << "mm. Starting ToolChange...";
+        if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && layer < count) {
+            qDebug() << "Reached threshold:" << toolConfig.totalPolishLength << "mm. Starting ToolChange...";
+            qDebug() << "threshold:" << toolConfig.toolChangeThreshold << "mm. Starting ToolChange...";
 
             Point liftPoint = retract_pt.PosRelByTool(defaultDirection, -20.0);
             MoveL(liftPoint, dVelocity, 2000, 0);
@@ -2693,7 +2692,7 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
             while (IsRobotMoved()) { QThread::msleep(50); }
 
             ToolChange(craft);
-            craft.totalPolishLength = 0;
+            toolConfig.totalPolishLength = 0;
 
             qDebug() << "ToolChange finished. Continuing...";
         }
@@ -3146,7 +3145,7 @@ void Robot::ToolChange(Craft &craft) {
     // 移到安全点
     point = pointSet.safePoint;
     // 0. 检测 craft 参数
-    if (craft.targetToolPos >= 3) {
+    if (this->toolConfig.targetToolPos >= 3) {
         QMessageBox::warning(nullptr, "换刀提醒", "当前已是最后一把工具（pos=3），不可继续换刀！");
         return;
     }
@@ -3162,7 +3161,7 @@ void Robot::ToolChange(Craft &craft) {
 
     // 3. 基于 craft 参数设置模拟量 IO 数值 (1.2 - 1.8)
     // 映射逻辑：pos 0->1.2, 1->1.4, 2->1.6, 3->1.8
-    double sendVal = 1.2 + (craft.targetToolPos * 0.2);
+    double sendVal = 1.2 + (this->toolConfig.targetToolPos * 0.2);
     // boxID=0, nBit=0, nMode=1 (通常为电压模式)
     HRIF_SetBoxAOVal(0, 0, sendVal, 1);
     // qDebug() << "发送换刀请求，AO = " << sendVal;
@@ -3202,7 +3201,7 @@ void Robot::ToolChange(Craft &craft) {
     AGPRun(craft, true);
 
     // 7. craft 中的 targetToolPos + 1
-    craft.targetToolPos += 1;
+    this->toolConfig.targetToolPos += 1;
 
     // 重置 AO 信号
     HRIF_SetBoxAOVal(0, 0, 1.0, 0);

@@ -6,6 +6,7 @@
 #include "JAKAZuRobot.h"
 #include "HR_Pro.h"
 #include "point.h"
+#include "craft.h"
 
 class Robot {
   public:
@@ -89,6 +90,7 @@ class Robot {
     std::atomic<bool> isStop; // 是否停止
 
   public:
+    ToolConfig toolConfig;
     int discThickness; // 打磨片厚度，mm
     int teachPos;      // 示教点参考位置，mm
 };

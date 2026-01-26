@@ -19,6 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     currCraftIdx(0) {
     ui->setupUi(this);
     InitButtons();
+    ReadToolConfig();
 
     QString fileName = QCoreApplication::applicationDirPath();
     fileName += "/config.ini";
@@ -81,15 +82,6 @@ MainWindow::MainWindow(QWidget *parent)
         craft.raiseCount = settings.value("RaiseCount").toInt();
         craft.floatCount = settings.value("FloatCount").toInt();
         craft.isMirror = settings.value("IsMirror").toBool();
-        //*********************************************************************//
-        //新增换刀逻辑
-        craft.totalPolishCount = settings.value("TotalPolishCount", 0).toInt();
-        craft.totalPolishLength = settings.value("TotalPolishLength", 0.0).toDouble();
-        craft.startToolChange = settings.value("StartToolChange", false).toBool();
-        craft.toolChangeDone = settings.value("ToolChangeDone", false).toBool();
-        craft.toolMagStatus = settings.value("ToolMagStatus", 0).toInt();
-        craft.targetToolPos = settings.value("TargetToolPos", 1).toInt();
-        //*********************************************************************//
         crafts.append(craft);
     }
     settings.endArray();
@@ -104,6 +96,7 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow() {
+    SaveToolConfig();
     // 停止状态监控线程
     if (m_statusThread && m_statusThread->isRunning()) {
         m_statusThread->stop();
@@ -151,16 +144,8 @@ void MainWindow::SavePara(int index) {
     settings.setValue("FloatCount", crafts.at(index).floatCount);
     settings.setValue("IsMirror", crafts.at(index).isMirror);
 
-    // 2. 新增换刀逻辑 (依然在同一个 index 下)
-    settings.setValue("TotalPolishCount", crafts.at(index).totalPolishCount);
-    settings.setValue("TotalPolishLength", crafts.at(index).totalPolishLength);
-    settings.setValue("toolChangeThreshold", crafts.at(index).toolChangeThreshold);
-    settings.setValue("StartToolChange", crafts.at(index).startToolChange);
-    settings.setValue("ToolChangeDone", crafts.at(index).toolChangeDone);
-    settings.setValue("ToolMagStatus", crafts.at(index).toolMagStatus);
-    settings.setValue("TargetToolPos", crafts.at(index).targetToolPos);
-
     settings.endArray();
+    SaveToolConfig();
 }
 
 void MainWindow::ReadCurrPara() {
@@ -201,6 +186,38 @@ void MainWindow::ReadCurrPara() {
 
     robot.teachPos = crafts.at(currCraftIdx).teachPointReferPos;
     robot.discThickness = crafts.at(currCraftIdx).discThickness;
+}
+
+void MainWindow::SaveToolConfig() {
+    QString fileName = QCoreApplication::applicationDirPath() + "/config.ini";
+    QSettings settings(fileName, QSettings::IniFormat);
+    settings.setIniCodec("UTF-8");
+
+    settings.beginGroup("ToolConfig");
+    settings.setValue("TotalPolishCount", robot.toolConfig.totalPolishCount);
+    settings.setValue("TotalPolishLength", robot.toolConfig.totalPolishLength);
+    settings.setValue("ToolChangeThreshold", robot.toolConfig.toolChangeThreshold);
+    settings.setValue("StartToolChange", robot.toolConfig.startToolChange);
+    settings.setValue("ToolChangeDone", robot.toolConfig.toolChangeDone);
+    settings.setValue("ToolMagStatus", robot.toolConfig.toolMagStatus);
+    settings.setValue("TargetToolPos", robot.toolConfig.targetToolPos);
+    settings.endGroup();
+}
+
+void MainWindow::ReadToolConfig() {
+    QString fileName = QCoreApplication::applicationDirPath() + "/config.ini";
+    QSettings settings(fileName, QSettings::IniFormat);
+    settings.setIniCodec("UTF-8");
+
+    settings.beginGroup("ToolConfig"); // 新的独立节
+    robot.toolConfig.totalPolishCount = settings.value("TotalPolishCount", 0).toInt();
+    robot.toolConfig.totalPolishLength = settings.value("TotalPolishLength", 0.0).toDouble();
+    robot.toolConfig.toolChangeThreshold = settings.value("ToolChangeThreshold", 30000.0).toDouble();
+    robot.toolConfig.startToolChange = settings.value("StartToolChange", false).toBool();
+    robot.toolConfig.toolChangeDone = settings.value("ToolChangeDone", false).toBool();
+    robot.toolConfig.toolMagStatus = settings.value("ToolMagStatus", 0).toInt();
+    robot.toolConfig.targetToolPos = settings.value("TargetToolPos", 0).toInt();
+    settings.endGroup();
 }
 
 void MainWindow::DelCurrPara() {
@@ -1117,7 +1134,7 @@ void MainWindow::updateRobotStatusUI(
     }
 
     // ========== 4. 刀库换刀状态更新(递增红色显示) ==========
-    int targetPos = crafts.at(currCraftIdx).targetToolPos;
+    int targetPos = robot.toolConfig.targetToolPos;
 
     // 默认全部绿色
     if(!robotConnect) {
@@ -1151,14 +1168,12 @@ void MainWindow::updateRobotStatusUI(
 void MainWindow::on_ToolMagazineReset_clicked()
 {
     // 1. 重置内存中当前工艺的各项换刀相关数据
-    crafts[currCraftIdx].totalPolishCount = 0;
-    crafts[currCraftIdx].totalPolishLength = 0.0;
-    crafts[currCraftIdx].startToolChange = false;
-    crafts[currCraftIdx].toolChangeDone = false;
-    crafts[currCraftIdx].toolMagStatus = 0;
-    crafts[currCraftIdx].targetToolPos = 0;
-
-    // 2. 将修改后的参数同步到本地配置文件 config.ini 中
-    SavePara(currCraftIdx);
+    robot.toolConfig.totalPolishCount = 0;
+    robot.toolConfig.totalPolishLength = 0.0;
+    robot.toolConfig.startToolChange = false;
+    robot.toolConfig.toolChangeDone = false;
+    robot.toolConfig.toolMagStatus = 0;
+    robot.toolConfig.targetToolPos = 0;
+    SaveToolConfig();
 }
 
