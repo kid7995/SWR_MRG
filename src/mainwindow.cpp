@@ -20,7 +20,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     InitButtons();
     ReadToolConfig();
-
+    if (robot.toolConfig.targetToolPos == 4) {
+        QMessageBox::information(this, "提示", "刀库刀具已用完，【2】.【3】.【4】号位刀具需要【人工更换】刀具 更换刀具后请【重置】刀库");
+    }
     QString fileName = QCoreApplication::applicationDirPath();
     fileName += "/config.ini";
     if (!QFile::exists(fileName)) {
@@ -93,6 +95,7 @@ MainWindow::MainWindow(QWidget *parent)
     ConnectRobot();
     ConnectAGP();
     InitStatusMonitor();
+
 }
 
 MainWindow::~MainWindow() {
@@ -106,7 +109,7 @@ MainWindow::~MainWindow() {
             m_statusThread->wait();
         }
     }
-
+    HRIF_StopScript(0);
     delete ui;
 }
 
@@ -143,7 +146,6 @@ void MainWindow::SavePara(int index) {
     settings.setValue("RaiseCount", crafts.at(index).raiseCount);
     settings.setValue("FloatCount", crafts.at(index).floatCount);
     settings.setValue("IsMirror", crafts.at(index).isMirror);
-
     settings.endArray();
     SaveToolConfig();
 }
@@ -216,7 +218,7 @@ void MainWindow::ReadToolConfig() {
     robot.toolConfig.startToolChange = settings.value("StartToolChange", false).toBool();
     robot.toolConfig.toolChangeDone = settings.value("ToolChangeDone", false).toBool();
     robot.toolConfig.toolMagStatus = settings.value("ToolMagStatus", 0).toInt();
-    robot.toolConfig.targetToolPos = settings.value("TargetToolPos", 0).toInt();
+    robot.toolConfig.targetToolPos = settings.value("TargetToolPos", 1).toInt();
     settings.endGroup();
 }
 
@@ -646,6 +648,18 @@ void MainWindow::on_btnRun_clicked() {
     if (!robot.CheckAllPoints(crafts.at(currCraftIdx).way)) {
         return;
     }
+
+    // ================= [新增逻辑开始] =================
+    int do0_val = -1;
+    // 读取电箱0的 DO0 状态
+    if (HRIF_ReadBoxDO(0, 0, do0_val) == 0) { // 只有读取成功才判断
+        if (do0_val == 0) {
+            // 当 DO0 为 0 时，设置 DO2 为 1，DO1 为 0
+            HRIF_SetBoxDO(0, 2, 1);
+            HRIF_SetBoxDO(0, 1, 0);
+        }
+    }
+
     ui->btnRun->setEnabled(false);
     ui->btnTryRun->setEnabled(false);
     ui->btnMoveToPoint->setEnabled(false);
@@ -1027,6 +1041,35 @@ void MainWindow::updateRobotStatusUI(
     QString greyStyle = "background-color: grey; border-radius: 24px;";
     QString redStyle = "background-color: red; border-radius: 24px;";
 
+    // ============================================================
+    // 2. 三色灯控制
+    // ============================================================
+    if (robotConnect) {
+        // A. 首先判断异常触发条件 (决定 DO0)
+        bool hasIssue = (!robotEnable) || (robotError) || (!agpEnable) || (agpError) || (!di1_safeDoor);
+        // 设置 DO0
+        int do0_target = hasIssue ? 1 : 0;
+        HRIF_SetBoxDO(0, 0, do0_target);
+
+        // B. 如果没有异常 (DO0 为0)，则检查 DO2 状态以决定 DO1
+        if (do0_target == 0) {
+            int current_do2 = -1;
+            // 读取当前 DO2 的状态
+            if (HRIF_ReadBoxDO(0, 2, current_do2) == 0) {
+                if (current_do2 == 0) {
+                    // 当 DO0 是 0 且 DO2 是 0 时，将 DO1 设置为 1
+                    HRIF_SetBoxDO(0, 1, 1);
+                } else {
+                    // 如果 DO2 是 1，可以根据需求决定是否关闭 DO1，例如：
+                    // HRIF_SetBoxDO(0, 1, 0);
+                }
+            }
+        } else {
+            // 如果有异常 (DO0 为 1)，通常建议关闭工作信号 DO1
+            HRIF_SetBoxDO(0, 1, 0);
+        }
+    }
+
     // ========== 1. 机器人状态更新 ==========
 
     // 1.1 连接状态
@@ -1097,7 +1140,7 @@ void MainWindow::updateRobotStatusUI(
     if (!agpConnect) {
         ui->AGPAirCoolingStatus->setStyleSheet(greyStyle);
     } else {
-        ui->AGPAirCoolingStatus->setStyleSheet(do5_agpAir ? greenStyle : greyStyle);
+        ui->AGPAirCoolingStatus->setStyleSheet(do5_agpAir ? greenStyle : redStyle);
     }
 
     // ========== 3. 刀库IO状态更新 ==========
@@ -1122,6 +1165,20 @@ void MainWindow::updateRobotStatusUI(
         ui->ToolMagazinePot2Status->setStyleSheet(di3_pot2 ? greenStyle : greyStyle);
         ui->ToolMagazinePot3Status->setStyleSheet(di4_pot3 ? greenStyle : greyStyle);
         ui->ToolMagazinePot4Status->setStyleSheet(di5_pot4 ? greenStyle : greyStyle);
+        // ==========================================
+        // [新增] 计算刀库状态并赋值给 ToolConfig
+        // ==========================================
+        int currentStatus = 0;
+        // Bit 0: 刀位1 (di2_pot1)
+        if (di2_pot1) currentStatus |= 0b0001;
+        // Bit 1: 刀位2 (di3_pot2)
+        if (di3_pot2) currentStatus |= 0b0010;
+        // Bit 2: 刀位3 (di4_pot3)
+        if (di4_pot3) currentStatus |= 0b0100;
+        // Bit 3: 刀位4 (di5_pot4)
+        if (di5_pot4) currentStatus |= 0b1000;
+        // 赋值给全局配置
+        robot.toolConfig.toolMagStatus = currentStatus;
     }
 
     // 3.3 刀库门开关状态(DI6/DI7)
@@ -1173,7 +1230,17 @@ void MainWindow::on_ToolMagazineReset_clicked()
     robot.toolConfig.startToolChange = false;
     robot.toolConfig.toolChangeDone = false;
     robot.toolConfig.toolMagStatus = 0;
-    robot.toolConfig.targetToolPos = 0;
+    robot.toolConfig.targetToolPos = 1;
     SaveToolConfig();
+    // QMessageBox::information(this, "提示", "刀库刀具更新状态已重置");
+
+}
+
+
+void MainWindow::on_RobotReconnect_2_clicked()
+{
+    ConnectRobot();
+    ConnectAGP();
+
 }
 

@@ -99,7 +99,9 @@ bool Robot::GetPoint(Point &point) {
     if (agp != nullptr) {
         pos = agp->ReadPos() / 100.0;
     }
-    point = point.PosRelByTool(defaultDirection, pos + discThickness);
+    // point = point.PosRelByTool(defaultDirection, pos + discThickness);
+    // 取消打磨片厚度
+    point = point.PosRelByTool(defaultDirection, pos);
     return true;
 }
 
@@ -1084,113 +1086,7 @@ Point Robot::MoveRegionArc2(const Craft &craft) {
     // return count % 2 == 0 ? posEndRel : posEndRelInv;
     return posEnd;
 }
-// 打磨 扇形环面 原始函数
-// Point Robot::MoveRegionArcHorizontal(const Craft &craft) {
-//     // 定义运动速度
-//     double dVelocity = craft.moveSpeed;
-//     // 定义运动加速度
-//     double dAcc = 100;
-//     // 定义过渡半径
-//     double dRadius = craft.transitionRadius;
-//     // 计算单次偏移量
-//     int count = craft.offsetCount;
 
-//     // 圆弧上界
-//     QVector<Point> posListUp;
-//     posListUp.append(pointSet.beginPoint);
-//     posListUp.append(pointSet.midPoints);
-//     posListUp.append(pointSet.endPoint);
-
-//     // 圆弧上界到下界的偏移距离
-//     double midOffset = 0.0;
-//     QVector<QVector3D> offsetList;
-//     for (int i = 1; i < posListUp.size() - 1; i += 2) {
-//         QVector3D center = Point::calculateCircumcenter(
-//             posListUp.at(i - 1).pos, posListUp.at(i).pos,
-//             posListUp.at(i + 1).pos);
-//         if (i == 1) {
-//             if (count > 0) {
-//                 midOffset =
-//                     ((posListUp.at(i - 1).pos - center).length() -
-//                      (pointSet.beginOffsetPoint.pos - center).length()) /
-//                     count;
-//             }
-//             offsetList.append((center - posListUp.at(i - 1).pos).normalized() *
-//                               midOffset);
-//         }
-//         offsetList.append((center - posListUp.at(i).pos).normalized() *
-//                           midOffset);
-//         offsetList.append((center - posListUp.at(i + 1).pos).normalized() *
-//                           midOffset);
-//     }
-
-//     Point pos, posAux, posEnd;
-
-//     // 3. 开始层循环
-//     for (int i = 0; i < count + 1; ++i) {
-//         if (i % 2 == 0) { // 正向
-//             if (i > 0) {
-//                 // 抬高
-//                 pos.pos = posListUp.constFirst().pos +
-//                           offsetList.constFirst() * (i - 1) + translationInv;
-//                 pos.rot = newRotInv;
-//                 pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-//                 // 改变位姿
-//                 pos.pos = posListUp.constFirst().pos +
-//                           offsetList.constFirst() * i + translation;
-//                 pos.rot = newRot;
-//                 pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-//                 // 压低
-//                 pos.pos = posListUp.constFirst().pos +
-//                           offsetList.constFirst() * i + translation;
-//                 pos.rot = newRot;
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-//             }
-//             // 正向圆弧运动
-//             for (int j = 1; j < posListUp.size() - 1; j += 2) {
-//                 posAux.pos =
-//                     posListUp.at(j).pos + offsetList.at(j) * i + translation;
-//                 posAux.rot = newRot;
-//                 posEnd.pos = posListUp.at(j + 1).pos +
-//                              offsetList.at(j + 1) * i + translation;
-//                 posEnd.rot = newRot;
-//                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-//             }
-//         } else { // 反向
-//             // 抬高
-//             pos.pos = posListUp.constLast().pos +
-//                       offsetList.constLast() * (i - 1) + translation;
-//             pos.rot = newRot;
-//             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//             MoveL(pos, dVelocity, dAcc, dRadius);
-//             // 改变位姿
-//             pos.pos = posListUp.constLast().pos + offsetList.constLast() * i +
-//                       translationInv;
-//             pos.rot = newRotInv;
-//             pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//             MoveL(pos, dVelocity, dAcc, dRadius);
-//             // 压低
-//             pos.pos = posListUp.constLast().pos + offsetList.constLast() * i +
-//                       translationInv;
-//             pos.rot = newRotInv;
-//             MoveL(pos, dVelocity, dAcc, dRadius);
-//             // 反向圆弧运动
-//             for (int j = posListUp.size() - 2; j > 0; j -= 2) {
-//                 posAux.pos =
-//                     posListUp.at(j).pos + offsetList.at(j) * i + translationInv;
-//                 posAux.rot = newRotInv;
-//                 posEnd.pos = posListUp.at(j - 1).pos +
-//                              offsetList.at(j - 1) * i + translationInv;
-//                 posEnd.rot = newRotInv;
-//                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-//             }
-//         }
-//     }
-
-//     return posEnd;
-// }
 
 // 打磨 扇形环面 添加更换工具逻辑
 Point Robot::MoveRegionArcHorizontal(Craft &craft) {
@@ -1309,9 +1205,6 @@ Point Robot::MoveRegionArcHorizontal(Craft &craft) {
             // 您的 ToolChange 会记录此 liftPoint 并在结束后自动 MoveL 回来
             ToolChange(craft);
 
-            // C. 重置长度统计，为下一把刀做准备
-            this->toolConfig.totalPolishLength = 0;
-
             qDebug() << "ToolChange finished. Robot returned to lift point. Continuing...";
         }
 
@@ -1322,190 +1215,6 @@ Point Robot::MoveRegionArcHorizontal(Craft &craft) {
     return posEnd;
 }
 
-/*
-Point Robot::MoveRegionArcVertical(const Craft &craft) {
-    // Position beginOffset = (beginOffsetPoint - beginPoint);
-    // Position endOffset = (endOffsetPoint - endPoint);
-    Point temp1;
-    temp1.pos = pointSet.beginOffsetPoint.pos - pointSet.endPoint.pos;
-    Point temp2;
-    temp2.pos = pointSet.beginPoint.pos - pointSet.endPoint.pos;
-    Point beginOffset;
-    beginOffset.pos =
-        (temp1.pos - temp2.pos * (QVector3D::dotProduct(temp1.pos, temp2.pos) /
-                                  QVector3D::dotProduct(temp2.pos, temp2.pos)));
-
-    Point temp3;
-    temp3.pos = pointSet.endOffsetPoint.pos - pointSet.beginPoint.pos;
-    Point temp4;
-    temp4.pos = pointSet.endPoint.pos - pointSet.beginPoint.pos;
-    Point endOffset;
-    endOffset.pos =
-        (temp3.pos - temp4.pos * (QVector3D::dotProduct(temp3.pos, temp4.pos) /
-                                  QVector3D::dotProduct(temp4.pos, temp4.pos)));
-
-    double lenTotal =
-        (pointSet.endPoint.pos - pointSet.beginPoint.pos).length();
-    QVector<Point> midOffsetList;
-    for (int i = 0; i < pointSet.midPoints.size(); i++) {
-        double len =
-            (pointSet.midPoints.at(i).pos - pointSet.beginPoint.pos).length();
-        Point midOffset;
-        midOffset.pos = beginOffset.pos * (len / lenTotal) +
-                        endOffset.pos * (1 - (len / lenTotal));
-        midOffsetList.append(midOffset);
-    }
-
-    QVector<Point> posListUp, posListDown;
-    // 圆弧上界
-    posListUp.append(pointSet.beginPoint);
-    posListUp.append(pointSet.midPoints);
-    posListUp.append(pointSet.endPoint);
-    // 圆弧下界
-    posListDown.append(pointSet.beginOffsetPoint);
-    for (int i = 0; i < pointSet.midPoints.size(); ++i) {
-        Point point = pointSet.midPoints.at(i);
-        point += midOffsetList.at(i);
-        posListDown.append(point);
-    }
-    posListDown.append(pointSet.endOffsetPoint);
-
-    // 偏移次数
-    int count = craft.offsetCount;
-    // 计算上圆弧组中圆弧圆心、半径和弧长
-    QVector<QVector3D> centerListUp;
-    QVector<double> radiusListUp, lengthListUp;
-    double totalArcLengthUp = 0.0;
-    for (int i = 1; i < posListUp.size() - 1; i += 2) {
-        QVector3D center = Point::calculateCircumcenter(
-            posListUp.at(i - 1).pos, posListUp.at(i).pos,
-            posListUp.at(i + 1).pos);
-        centerListUp.append(center);
-        double radius = (posListUp.at(i).pos - center).length();
-        radiusListUp.append(radius);
-        QVector3D OA = posListUp.at(i - 1).pos - center;
-        QVector3D OM = posListUp.at(i).pos - center;
-        QVector3D OB = posListUp.at(i + 1).pos - center;
-        // 适用OA、OB夹角大于180°的情况
-        double length = (qAcos(QVector3D::dotProduct(OA, OM) /
-                               (OA.length() * OM.length())) +
-                         qAcos(QVector3D::dotProduct(OM, OB) /
-                               (OM.length() * OB.length()))) *
-                        radius;
-        // qDebug() << (QVector3D::dotProduct(OA, OB) /
-        //              (OA.length() * OB.length()));
-        // qDebug() << length;
-        lengthListUp.append(length);
-        totalArcLengthUp += length;
-    }
-    QVector<QVector3D> finalPosListUp;
-    if (count > 0) {
-        double unitArcLengthUp = totalArcLengthUp / count;
-        double arcLengthUp = 0.0;
-        for (int i = 0; i < centerListUp.size(); ++i) {
-            while (arcLengthUp <= lengthListUp.at(i)) {
-                QVector3D axis = QVector3D::crossProduct(
-                    posListUp.at(2 * i).pos - centerListUp.at(i),
-                    posListUp.at(2 * i + 1).pos - centerListUp.at(i));
-                QMatrix3x3 R = Point::toRotationMatrix(
-                    axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
-                qDebug() << (arcLengthUp / radiusListUp.at(i));
-                qDebug() << qRadiansToDegrees(arcLengthUp / radiusListUp.at(i));
-                QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
-                QVector3D newTrans =
-                    QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
-                                  R(0, 2) * trans.z(),
-                              R(1, 0) * trans.x() + R(1, 1) * trans.y() +
-                                  R(1, 2) * trans.z(),
-                              R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-                                  R(2, 2) * trans.z());
-                finalPosListUp.append(centerListUp.at(i) + newTrans);
-                arcLengthUp += unitArcLengthUp;
-            }
-            arcLengthUp -= lengthListUp.at(i);
-        }
-    } else {
-        finalPosListUp.append(pointSet.beginPoint.pos);
-    }
-    qDebug() << finalPosListUp;
-    // 计算下圆弧组中圆弧圆心、半径和弧长
-    QVector<QVector3D> centerListDown;
-    QVector<double> radiusListDown, lengthListDown;
-    double totalArcLengthDown = 0.0;
-    for (int i = 1; i < posListDown.size() - 1; i += 2) {
-        QVector3D center = Point::calculateCircumcenter(
-            posListDown.at(i - 1).pos, posListDown.at(i).pos,
-            posListDown.at(i + 1).pos);
-        centerListDown.append(center);
-        double radius = (posListDown.at(i).pos - center).length();
-        radiusListDown.append(radius);
-        QVector3D OA = posListDown.at(i - 1).pos - center;
-        QVector3D OM = posListDown.at(i).pos - center;
-        QVector3D OB = posListDown.at(i + 1).pos - center;
-        // 适用OA、OB夹角大于180°的情况
-        double length = (qAcos(QVector3D::dotProduct(OA, OM) /
-                               (OA.length() * OM.length())) +
-                         qAcos(QVector3D::dotProduct(OM, OB) /
-                               (OM.length() * OB.length()))) *
-                        radius;
-        lengthListDown.append(length);
-        totalArcLengthDown += length;
-    }
-    QVector<QVector3D> finalPosListDown;
-    if (count > 0) {
-        double unitArcLengthDown = totalArcLengthDown / count;
-        double arcLengthDown = 0.0;
-        for (int i = 0; i < centerListDown.size(); ++i) {
-            while (arcLengthDown <= lengthListDown.at(i)) {
-                QVector3D axis = QVector3D::crossProduct(
-                    posListDown.at(2 * i).pos - centerListDown.at(i),
-                    posListDown.at(2 * i + 1).pos - centerListDown.at(i));
-                QMatrix3x3 R = Point::toRotationMatrix(
-                    axis,
-                    qRadiansToDegrees(arcLengthDown / radiusListDown.at(i)));
-                QVector3D trans =
-                    posListDown.at(2 * i).pos - centerListDown.at(i);
-                QVector3D newTrans =
-                    QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
-                                  R(0, 2) * trans.z(),
-                              R(1, 0) * trans.x() + R(1, 1) * trans.y() +
-                                  R(1, 2) * trans.z(),
-                              R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-                                  R(2, 2) * trans.z());
-                finalPosListDown.append(centerListDown.at(i) + newTrans);
-                arcLengthDown += unitArcLengthDown;
-            }
-            arcLengthDown -= lengthListDown.at(i);
-        }
-    } else {
-        finalPosListDown.append(pointSet.beginOffsetPoint.pos);
-    }
-    qDebug() << finalPosListDown;
-
-    Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
-    // 定义运动速度
-    double dVelocity = craft.moveSpeed;
-    // 定义运动加速度
-    double dAcc = 100;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义空间目标位置
-    Point point;
-    for (int i = 0; i < finalPosListUp.size(); ++i) {
-        point.pos = finalPosListDown.at(i) + translation;
-        point.rot = newRot;
-        MoveL(point, dVelocity, dAcc, dRadius);
-        point.pos = finalPosListUp.at(i) + translation;
-        point.rot = newRot;
-        MoveL(point, dVelocity, dAcc, dRadius);
-        point.pos = finalPosListDown.at(i) + translation;
-        point.rot = newRot;
-        MoveL(point, dVelocity, dAcc, dRadius);
-    }
-
-    return point;
-}
-*/
 
 Point Robot::MoveRegionArcVertical(const Craft &craft) {
     // 圆弧上界
@@ -1771,183 +1480,6 @@ Point Robot::MoveRegionArcVerticalRepeat(const Craft &craft) {
     return point;
 }
 
-/*
-Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
-    // 圆弧上界
-    QVector<Point> posListUp;
-    posListUp.append(pointSet.beginPoint);
-    posListUp.append(pointSet.midPoints);
-    posListUp.append(pointSet.endPoint);
-
-    // 打磨片半径
-    double discRadius = craft.discRadius;
-    // 打磨角度
-    double grindAngle = craft.grindAngle;
-    // 计算各点对应弧长和姿态
-    double totalArcLengthUp = 0.0;
-    QVector<double> lengthListUp;
-    lengthListUp.append(totalArcLengthUp);
-    QVector<QVector3D> newRotList, translationList;
-    QVector3D aux =
-        (pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos).normalized();
-    for (int i = 1; i < posListUp.size() - 1; i += 2) {
-        QVector3D center = Point::calculateCircumcenter(
-            posListUp.at(i - 1).pos, posListUp.at(i).pos,
-            posListUp.at(i + 1).pos);
-        double radius = (posListUp.at(i).pos - center).length();
-        QVector3D OA = posListUp.at(i - 1).pos - center;
-        QVector3D OM = posListUp.at(i).pos - center;
-        QVector3D OB = posListUp.at(i + 1).pos - center;
-        double lengthAM =
-            qAcos(QVector3D::dotProduct(OA, OM) / (OA.length() * OM.length())) *
-            radius;
-        totalArcLengthUp += lengthAM;
-        lengthListUp.append(totalArcLengthUp);
-        double lengthMB =
-            qAcos(QVector3D::dotProduct(OM, OB) / (OM.length() * OB.length())) *
-            radius;
-        totalArcLengthUp += lengthMB;
-        lengthListUp.append(totalArcLengthUp);
-
-        // 计算各点姿态与对应偏移
-        QVector3D axis, normal, rotation, moveDirection;
-        axis = QVector3D::crossProduct(OA, OM).normalized();
-        if (!isConvex) {
-            axis = -axis;
-        }
-        if (craft.isMirror) {
-            axis = -axis;
-        }
-        if (i == 1) {
-            normal =
-                QVector3D::crossProduct(QVector3D::crossProduct(aux, -OA), aux)
-                    .normalized();
-            if (!isConvex) {
-                normal = -normal;
-            }
-            rotation = Point::getNormalRotation(normal, axis);
-            moveDirection = QVector3D::crossProduct(normal, axis).normalized();
-            if (craft.isMirror) {
-                moveDirection = -moveDirection;
-            }
-            // 获取新的姿态
-            newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
-            newRotList.append(newRot);
-            // 获取新姿态需要的平移量
-            translation = Point::getTranslation(rotation, moveDirection,
-                                                discRadius, grindAngle);
-            translationList.append(translation);
-        }
-        normal = QVector3D::crossProduct(QVector3D::crossProduct(aux, -OM), aux)
-                     .normalized();
-        if (!isConvex) {
-            normal = -normal;
-        }
-        rotation = Point::getNormalRotation(normal, axis);
-        moveDirection = QVector3D::crossProduct(normal, axis).normalized();
-        if (craft.isMirror) {
-            moveDirection = -moveDirection;
-        }
-        // 获取新的姿态
-        newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
-        newRotList.append(newRot);
-        // 获取新姿态需要的平移量
-        translation = Point::getTranslation(rotation, moveDirection, discRadius,
-                                            grindAngle);
-        translationList.append(translation);
-
-        normal = QVector3D::crossProduct(QVector3D::crossProduct(aux, -OB), aux)
-                     .normalized();
-        if (!isConvex) {
-            normal = -normal;
-        }
-        rotation = Point::getNormalRotation(normal, axis);
-        moveDirection = QVector3D::crossProduct(normal, axis).normalized();
-        if (craft.isMirror) {
-            moveDirection = -moveDirection;
-        }
-        // 获取新的姿态
-        newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
-        newRotList.append(newRot);
-        // 获取新姿态需要的平移量
-        translation = Point::getTranslation(rotation, moveDirection, discRadius,
-                                            grindAngle);
-        translationList.append(translation);
-    }
-    Q_ASSERT(lengthListUp.size() == posListUp.size());
-    Q_ASSERT(newRotList.size() == posListUp.size());
-    Q_ASSERT(translationList.size() == posListUp.size());
-
-    // 偏移次数
-    int count = craft.offsetCount;
-    // 单次偏移距离
-    QVector3D posOffset;
-    if (count > 0) {
-        posOffset =
-            (pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos) / count;
-    }
-    QVector<QVector3D> offsetList;
-    for (int i = 0; i < posListUp.size(); ++i) {
-        offsetList.append(posOffset * (lengthListUp.at(i) / totalArcLengthUp));
-    }
-
-    // 定义运动速度
-    double dVelocity = defaultVelocity;
-    // 定义运动加速度
-    double dAcc = 2000;
-    // 定义过渡半径
-    double dRadius = craft.transitionRadius;
-
-    Point pos, posAux, posEnd;
-    pos.pos = posListUp.constLast().pos + translationList.constLast();
-    pos.rot = newRotList.constLast();
-    pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-    MoveL(pos, dVelocity, dAcc, dRadius);
-
-    dVelocity = craft.cutinSpeed;
-    pos.pos = posListUp.constLast().pos + translationList.constLast();
-    pos.rot = newRotList.constLast();
-    MoveL(pos, dVelocity, dAcc, dRadius);
-
-    dVelocity = craft.moveSpeed;
-    dAcc = 100;
-    for (int i = 0; i < count + 1; ++i) {
-        // 圆弧运动
-        for (int j = posListUp.size() - 2; j > 0; j -= 2) {
-            posAux.pos =
-                posListUp.at(j).pos + posOffset * i + translationList.at(j);
-            posAux.rot = newRotList.at(j);
-            posEnd.pos = posListUp.at(j - 1).pos + posOffset * i +
-                         translationList.at(j - 1);
-            posEnd.rot = newRotList.at(j - 1);
-            MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-        }
-        if (i != count) {
-            for (int j = 1; j < posListUp.size() - 1; j += 2) {
-                posAux.pos = posListUp.at(j).pos + posOffset * i +
-                             offsetList.at(j) + translationList.at(j);
-                posAux.rot = newRotList.at(j);
-                posEnd.pos = posListUp.at(j + 1).pos + posOffset * i +
-                             offsetList.at(j + 1) + translationList.at(j + 1);
-                posEnd.rot = newRotList.at(j + 1);
-                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-            }
-        } else {
-            for (int j = 1; j < posListUp.size() - 1; j += 2) {
-                posAux.pos =
-                    posListUp.at(j).pos + posOffset * i + translationList.at(j);
-                posAux.rot = newRotList.at(j);
-                posEnd.pos = posListUp.at(j + 1).pos + posOffset * i +
-                             translationList.at(j + 1);
-                posEnd.rot = newRotList.at(j + 1);
-                MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-            }
-        }
-    }
-
-    return posEnd;
-}
-*/
 
 Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
     // 打磨片半径
@@ -2009,198 +1541,31 @@ Point Robot::MoveCylinderHorizontal(const Craft &craft, bool isConvex) {
 
     return pos;
 }
-// 打磨柱体侧面
-// Point Robot::MoveCylinderVertical(const Craft &craft, bool isConvex) {
-//     // 圆弧上界
-//     // posListUp 包含起点、中间路径点（可能多个）和终点，用于拟合圆弧段
-//     QVector<Point> posListUp;
-//     posListUp.append(pointSet.beginPoint);
-//     posListUp.append(pointSet.midPoints);
-//     posListUp.append(pointSet.endPoint);
 
-//     // 计算上圆弧组中圆弧圆心、半径和弧长
-//     QVector<QVector3D> centerListUp;
-//     QVector<double> radiusListUp, lengthListUp;
-//     double totalArcLengthUp = 0.0;
-//     // 每3个点定一段圆弧，i 指向每段的中间点
-//     for (int i = 1; i < posListUp.size() - 1; i += 2) {
-//         // 计算当前段 ABC 的外心坐标
-//         QVector3D center = Point::calculateCircumcenter(
-//             posListUp.at(i - 1).pos, posListUp.at(i).pos,
-//             posListUp.at(i + 1).pos);
-//         centerListUp.append(center);
-//         // 计算外心圆到各个点的距离作为半径
-//         double radius = (posListUp.at(i).pos - center).length();
-//         radiusListUp.append(radius);
-//         // 构建圆心指向各样点的向量，用于计算圆心角
-//         QVector3D OA = posListUp.at(i - 1).pos - center;
-//         QVector3D OM = posListUp.at(i).pos - center;
-//         QVector3D OB = posListUp.at(i + 1).pos - center;
-//         // 适用OA、OB夹角大于180°的情况
-//         // 弧长 L = (∠AOM + ∠MOB) * Radius
-//         double length = (qAcos(QVector3D::dotProduct(OA, OM) /
-//                                (OA.length() * OM.length())) +
-//                          qAcos(QVector3D::dotProduct(OM, OB) /
-//                                (OM.length() * OB.length()))) *
-//                         radius;
-//         lengthListUp.append(length);
-//         totalArcLengthUp += length;
-//     }
-//     // 圆弧上界到下界的偏移距离
-//     // 计算上界点到下界点的固定偏移向量，用于生成平行的加工面
-//     QVector3D posOffset =
-//         pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
-//     // 最终圆弧上界与下界
-//     double discRadius = craft.discRadius;
-//     double grindAngle = craft.grindAngle;
-//     int count = craft.offsetCount; // 偏移次数
-//     QVector<QVector3D> finalPosListUp, finalPosListDown;
-//     QVector<QVector3D> newRotList, translationList;
-//     if (count > 0) {
-//         // 根据偏移次数计算每个插补点的单位弧长步长（除以2通常是为了MoveC的中间点储备）
-//         double unitArcLengthUp = totalArcLengthUp / count / 2;
-//         double arcLengthUp = 0.0;
-//         for (int i = 0; i < centerListUp.size(); ++i) {
-//             // 在当前圆弧段长度范围内循环进行步进插值
-//             while (arcLengthUp <= lengthListUp.at(i)) {
-//                 // [旋转轴提取] 计算起点向量与中间点向量的叉乘，得到圆弧平面的法向量轴 axis
-//                 QVector3D axis =
-//                     QVector3D::crossProduct(
-//                         posListUp.at(2 * i).pos - centerListUp.at(i),
-//                         posListUp.at(2 * i + 1).pos - centerListUp.at(i))
-//                         .normalized();
-//                 // [Rodrigues旋转] 将当前走过的弧长转换为对应的角度，生成3D旋转矩阵 R
-//                 QMatrix3x3 R = Point::toRotationMatrix(
-//                     axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
-//                 // [坐标旋转变换] 将半径向量 trans 绕轴 axis 旋转R角度，得到当前插值点位置
-//                 QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
-//                 QVector3D newTrans =
-//                     QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
-//                                   R(0, 2) * trans.z(),
-//                               R(1, 0) * trans.x() + R(1, 1) * trans.y() +
-//                                   R(1, 2) * trans.z(),
-//                               R(2, 0) * trans.x() + R(2, 1) * trans.y() +
-//                                   R(2, 2) * trans.z());
-//                 finalPosListUp.append(centerListUp.at(i) + newTrans);
-//                 finalPosListDown.append(centerListUp.at(i) + newTrans +
-//                                         posOffset);
-//                 // 计算姿态和对应偏移
-//                 QVector3D aux = posOffset.normalized();// 表面偏移方向参考
-//                 // [表面法线推导] 通过双叉乘确定当前加工点的局部法向方向 normal
-//                 QVector3D normal =
-//                     QVector3D::crossProduct(
-//                         QVector3D::crossProduct(aux, -newTrans), aux)
-//                         .normalized();
-//                 // 根据工件的凹凸属性及镜像设置调整法向和旋转轴方向
-//                 if (!isConvex) {
-//                     normal = -normal;
-//                     axis = -axis;
-//                 }
-//                 if (craft.isMirror) {
-//                     axis = -axis;
-//                 }
-//                 // [姿态映射] 将几何法向转化为机器人的 Euler 角/四元数姿态
-//                 QVector3D rotation = Point::getNormalRotation(normal, axis);
-//                 QVector3D moveDirection = posOffset.normalized();
-//                 // 获取新的姿态
-//                 newRot =
-//                     Point::getNewRotation(rotation, moveDirection, grindAngle);
-//                 newRotList.append(newRot);
-//                 // 获取新姿态需要的平移量
-//                 translation = Point::getTranslation(rotation, moveDirection,
-//                                                     discRadius, grindAngle);
-//                 translationList.append(translation);
-//                 arcLengthUp += unitArcLengthUp;
-//             }
-//             arcLengthUp -= lengthListUp.at(i);
-//         }
-//     } else {
-//         // 处理不偏移的特殊情况（仅执行起点逻辑）
-//         finalPosListUp.append(pointSet.beginPoint.pos);
-//         finalPosListDown.append(pointSet.beginOffsetPoint.pos);
-//         // 计算姿态和对应偏移
-//         QVector3D axis =
-//             QVector3D::crossProduct(posListUp.at(0).pos - centerListUp.at(0),
-//                                     posListUp.at(1).pos - centerListUp.at(0))
-//                 .normalized();
-//         QVector3D trans = posListUp.at(0).pos - centerListUp.at(0);
-//         QVector3D aux = posOffset.normalized();
-//         QVector3D normal =
-//             QVector3D::crossProduct(QVector3D::crossProduct(aux, -trans), aux)
-//                 .normalized();
-//         if (!isConvex) {
-//             normal = -normal;
-//             axis = -axis;
-//         }
-//         if (craft.isMirror) {
-//             axis = -axis;
-//         }
-//         QVector3D rotation = Point::getNormalRotation(normal, axis);
-//         QVector3D moveDirection = posOffset.normalized();
-//         // 获取新的姿态
-//         newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
-//         newRotList.append(newRot);
-//         // 获取新姿态需要的平移量
-//         translation = Point::getTranslation(rotation, moveDirection, discRadius,
-//                                             grindAngle);
-//         translationList.append(translation);
-//     }
-//     // 安全校验
-//     Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
-//     Q_ASSERT(finalPosListUp.size() == newRotList.size());
-//     Q_ASSERT(finalPosListUp.size() == translationList.size());
+// ============================================================================
+// 改进版本: MoveCylinderVertical - 基于示教点位姿态的柱面打磨
+// ============================================================================
+//
+// 【改进说明】
+// 1. 原版本问题:
+//    - 通过纯几何计算姿态,使用 getNormalRotation(normal, axis) 生成理想姿态
+//    - 假设工具坐标系严格对齐(Y轴平行柱体轴线,X轴向左)
+//    - 实际上工具安装存在偏差,导致计算姿态与实际需求不匹配
+//
+// 2. 改进方案:
+//    - 以示教点(beginPoint)的姿态为参考基准
+//    - 计算示教点姿态对应的工具坐标系
+//    - 在后续点位上,基于示教点的工具坐标系进行增量调整
+//    - 保持与示教点相同的工具安装偏差特性
+//
+// 3. 核心改进:
+//    - 新增函数: getAdjustedRotation() - 基于参考姿态的增量调整
+//    - 替换原来的: Point::getNormalRotation(normal, axis)
+//    - 保留打磨角度补偿逻辑
+// ============================================================================
 
-//     // 定义运动速度
-//     double dVelocity = defaultVelocity;
-//     // 定义运动加速度
-//     double dAcc = 2000;
-//     // 定义过渡半径
-//     double dRadius = craft.transitionRadius;
-
-//     // 定义空间目标位置
-//     Point pos, posAux, posEnd;
-//     // 下界轨迹第一个点 带姿态补偿
-//     pos.pos = finalPosListDown.constFirst() + translationList.constFirst();
-//     pos.rot = newRotList.constFirst();
-//     pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//     MoveL(pos, dVelocity, dAcc, dRadius);
-
-//     dVelocity = craft.cutinSpeed;
-//     pos.pos = finalPosListDown.constFirst() + translationList.constFirst();
-//     pos.rot = newRotList.constFirst();
-//     MoveL(pos, dVelocity, dAcc, dRadius);
-
-//     dVelocity = craft.moveSpeed;
-//     dAcc = 100;
-//     for (int i = 0; i < count + 1; ++i) {
-//         pos.pos = finalPosListUp.at(2 * i) + translationList.at(2 * i);
-//         pos.rot = newRotList.at(2 * i);
-//         MoveL(pos, dVelocity, dAcc, dRadius);
-//         if (i != count) {
-//             posAux.pos = (finalPosListUp.at(2 * i + 1) +
-//                           finalPosListDown.at(2 * i + 1)) /
-//                              2 +
-//                          translationList.at(2 * i + 1);
-//             posAux.rot = newRotList.at(2 * i + 1);
-//             posEnd.pos =
-//                 finalPosListDown.at(2 * i + 2) + translationList.at(2 * i + 2);
-//             posEnd.rot = newRotList.at(2 * i + 2);
-//             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-//         } else {
-//             pos.pos = finalPosListDown.at(2 * i) + translationList.at(2 * i);
-//             pos.rot = newRotList.at(2 * i);
-//             MoveL(pos, dVelocity, dAcc, dRadius);
-//         }
-//     }
-
-//     return pos;
-// }
-
-// 打磨柱面侧面 添加换刀逻辑
 Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
     // ========== 1. 基础参数定义 ==========
-    // 圆弧上界
-    // posListUp 包含起点、中间路径点(可能多个)和终点,用于拟合圆弧段
     QVector<Point> posListUp;
     posListUp.append(pointSet.beginPoint);
     posListUp.append(pointSet.midPoints);
@@ -2211,25 +1576,19 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
     QVector<double> radiusListUp, lengthListUp;
     double totalArcLengthUp = 0.0;
 
-    // 每3个点定一段圆弧, i 指向每段的中间点
     for (int i = 1; i < posListUp.size() - 1; i += 2) {
-        // 计算当前段 ABC 的外心坐标
         QVector3D center = Point::calculateCircumcenter(
             posListUp.at(i - 1).pos, posListUp.at(i).pos,
             posListUp.at(i + 1).pos);
         centerListUp.append(center);
 
-        // 计算外心圆到各个点的距离作为半径
         double radius = (posListUp.at(i).pos - center).length();
         radiusListUp.append(radius);
 
-        // 构建圆心指向各样点的向量,用于计算圆心角
         QVector3D OA = posListUp.at(i - 1).pos - center;
         QVector3D OM = posListUp.at(i).pos - center;
         QVector3D OB = posListUp.at(i + 1).pos - center;
 
-        // 适用OA、OB夹角大于180°的情况
-        // 弧长 L = (∠AOM + ∠MOB) * Radius
         double length = (qAcos(QVector3D::dotProduct(OA, OM) /
                                (OA.length() * OM.length())) +
                          qAcos(QVector3D::dotProduct(OM, OB) /
@@ -2240,38 +1599,69 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
     }
 
     // ========== 3. 圆弧上界到下界的偏移距离 ==========
-    // 计算上界点到下界点的固定偏移向量,用于生成平行的加工面
     QVector3D posOffset =
         pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
 
-    // ========== 4. 生成最终圆弧上界与下界点集 ==========
+    // ========== 4. 【关键改进】提取示教点的参考坐标系 ==========
+    // 4.1 获取示教点(beginPoint)的姿态旋转矩阵
+    QVector3D referenceRotation = pointSet.beginPoint.rot;
+    QMatrix3x3 R_reference = Point::toRotationMatrix(referenceRotation);
+
+    // 4.2 提取示教点工具坐标系的三个轴向量(实际安装状态)
+    // X轴: R的第一列
+    QVector3D referenceX(R_reference(0, 0), R_reference(1, 0), R_reference(2, 0));
+    // Y轴: R的第二列
+    QVector3D referenceY(R_reference(0, 1), R_reference(1, 1), R_reference(2, 1));
+    // Z轴: R的第三列 (工具方向)
+    QVector3D referenceZ(R_reference(0, 2), R_reference(1, 2), R_reference(2, 2));
+
+    // 4.3 计算示教点处的几何法向量(用于确定调整方向)
+    QVector3D trans_reference = posListUp.at(0).pos - centerListUp.at(0);
+    QVector3D aux_reference = posOffset.normalized();
+    QVector3D axis_reference =
+        QVector3D::crossProduct(
+            posListUp.at(0).pos - centerListUp.at(0),
+            posListUp.at(1).pos - centerListUp.at(0))
+            .normalized();
+
+    QVector3D normal_reference =
+        QVector3D::crossProduct(
+            QVector3D::crossProduct(aux_reference, -trans_reference),
+            aux_reference)
+            .normalized();
+
+    if (!isConvex) {
+        normal_reference = -normal_reference;
+        axis_reference = -axis_reference;
+    }
+    if (craft.isMirror) {
+        axis_reference = -axis_reference;
+    }
+
+    // ========== 5. 生成最终圆弧上界与下界点集 ==========
     double discRadius = craft.discRadius;
     double grindAngle = craft.grindAngle;
-    int count = craft.offsetCount; // 偏移次数
+    int count = craft.offsetCount;
 
     QVector<QVector3D> finalPosListUp, finalPosListDown;
     QVector<QVector3D> newRotList, translationList;
 
     if (count > 0) {
-        // 根据偏移次数计算每个插补点的单位弧长步长(除以2通常是为了MoveC的中间点储备)
         double unitArcLengthUp = totalArcLengthUp / count / 2;
         double arcLengthUp = 0.0;
 
         for (int i = 0; i < centerListUp.size(); ++i) {
-            // 在当前圆弧段长度范围内循环进行步进插值
             while (arcLengthUp <= lengthListUp.at(i)) {
-                // [旋转轴提取] 计算起点向量与中间点向量的叉乘,得到圆弧平面的法向量轴 axis
+                // 5.1 计算当前点的几何参数
                 QVector3D axis =
                     QVector3D::crossProduct(
                         posListUp.at(2 * i).pos - centerListUp.at(i),
                         posListUp.at(2 * i + 1).pos - centerListUp.at(i))
                         .normalized();
 
-                // [Rodrigues旋转] 将当前走过的弧长转换为对应的角度,生成3D旋转矩阵 R
                 QMatrix3x3 R = Point::toRotationMatrix(
                     axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
 
-                // [坐标旋转变换] 将半径向量 trans 绕轴 axis 旋转R角度,得到当前插值点位置
                 QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
                 QVector3D newTrans =
                     QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
@@ -2284,16 +1674,13 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
                 finalPosListUp.append(centerListUp.at(i) + newTrans);
                 finalPosListDown.append(centerListUp.at(i) + newTrans + posOffset);
 
-                // ========== 计算姿态和对应偏移 ==========
-                QVector3D aux = posOffset.normalized(); // 表面偏移方向参考
-
-                // [表面法线推导] 通过双叉乘确定当前加工点的局部法向方向 normal
+                // 5.2 计算当前点的几何法向量
+                QVector3D aux = posOffset.normalized();
                 QVector3D normal =
                     QVector3D::crossProduct(
                         QVector3D::crossProduct(aux, -newTrans), aux)
                         .normalized();
 
-                // 根据工件的凹凸属性及镜像设置调整法向和旋转轴方向
                 if (!isConvex) {
                     normal = -normal;
                     axis = -axis;
@@ -2302,16 +1689,45 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
                     axis = -axis;
                 }
 
-                // [姿态映射] 将几何法向转化为机器人的 Euler 角/四元数姿态
-                QVector3D rotation = Point::getNormalRotation(normal, axis);
-                QVector3D moveDirection = posOffset.normalized();
+                // ========== 【核心改进】基于示教点姿态计算调整后的姿态 ==========
+                // 5.3 计算当前法向与参考法向之间的旋转
+                // 方法: 使用旋转轴和旋转角度来调整参考坐标系
 
-                // 获取新的姿态
-                newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
+                // 计算从参考法向到当前法向的旋转轴
+                QVector3D rotationAxis = QVector3D::crossProduct(normal_reference, normal);
+                float rotationAxisLength = rotationAxis.length();
+
+                QVector3D adjustedRotation;
+
+                if (rotationAxisLength > 1e-6) {
+                    // 存在旋转
+                    rotationAxis.normalize();
+
+                    // 计算旋转角度
+                    float dotProduct = QVector3D::dotProduct(normal_reference, normal);
+                    dotProduct = qBound(-1.0f, dotProduct, 1.0f); // 限制范围
+                    float rotationAngle = qRadiansToDegrees(qAcos(dotProduct));
+
+                    // 构建从参考姿态到当前姿态的增量旋转矩阵
+                    QMatrix3x3 R_adjustment = Point::toRotationMatrix(rotationAxis, rotationAngle);
+
+                    // 应用增量旋转到参考姿态
+                    QMatrix3x3 R_adjusted = R_adjustment * R_reference;
+
+                    // 转换回欧拉角
+                    adjustedRotation = Point::toEulerAngles(R_adjusted);
+                } else {
+                    // 法向基本相同,直接使用参考姿态
+                    adjustedRotation = referenceRotation;
+                }
+
+                // 5.4 应用打磨角度补偿(在调整后的姿态基础上)
+                QVector3D moveDirection = posOffset.normalized();
+                newRot = Point::getNewRotation(adjustedRotation, moveDirection, grindAngle);
                 newRotList.append(newRot);
 
-                // 获取新姿态需要的平移量
-                translation = Point::getTranslation(rotation, moveDirection,
+                // 5.5 计算姿态补偿的平移量
+                translation = Point::getTranslation(adjustedRotation, moveDirection,
                                                     discRadius, grindAngle);
                 translationList.append(translation);
 
@@ -2320,39 +1736,17 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
             arcLengthUp -= lengthListUp.at(i);
         }
     } else {
-        // 处理不偏移的特殊情况(仅执行起点逻辑)
+        // 处理不偏移的特殊情况
         finalPosListUp.append(pointSet.beginPoint.pos);
         finalPosListDown.append(pointSet.beginOffsetPoint.pos);
 
-        // 计算姿态和对应偏移
-        QVector3D axis =
-            QVector3D::crossProduct(posListUp.at(0).pos - centerListUp.at(0),
-                                    posListUp.at(1).pos - centerListUp.at(0))
-                .normalized();
-        QVector3D trans = posListUp.at(0).pos - centerListUp.at(0);
-        QVector3D aux = posOffset.normalized();
-        QVector3D normal =
-            QVector3D::crossProduct(QVector3D::crossProduct(aux, -trans), aux)
-                .normalized();
-
-        if (!isConvex) {
-            normal = -normal;
-            axis = -axis;
-        }
-        if (craft.isMirror) {
-            axis = -axis;
-        }
-
-        QVector3D rotation = Point::getNormalRotation(normal, axis);
+        // 直接使用示教点姿态
         QVector3D moveDirection = posOffset.normalized();
-
-        // 获取新的姿态
-        newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
+        newRot = Point::getNewRotation(referenceRotation, moveDirection, grindAngle);
         newRotList.append(newRot);
 
-        // 获取新姿态需要的平移量
-        translation = Point::getTranslation(rotation, moveDirection, discRadius,
-                                            grindAngle);
+        translation = Point::getTranslation(referenceRotation, moveDirection,
+                                            discRadius, grindAngle);
         translationList.append(translation);
     }
 
@@ -2361,15 +1755,14 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
     Q_ASSERT(finalPosListUp.size() == newRotList.size());
     Q_ASSERT(finalPosListUp.size() == translationList.size());
 
-    // ========== 5. 定义运动参数 ==========
+    // ========== 6. 定义运动参数 ==========
     double dVelocity = defaultVelocity;
     double dAcc = 2000;
     double dRadius = craft.transitionRadius;
 
-    // 定义空间目标位置
     Point pos, posAux, posEnd;
 
-    // ========== 6. 移动到下界轨迹第一个点(带姿态补偿) ==========
+    // ========== 7. 移动到下界轨迹第一个点(带姿态补偿) ==========
     pos.pos = finalPosListDown.constFirst() + translationList.constFirst();
     pos.rot = newRotList.constFirst();
     pos = pos.PosRelByTool(defaultDirection, defaultOffset);
@@ -2383,15 +1776,15 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
     dVelocity = craft.moveSpeed;
     dAcc = 100;
 
-    // ========== 7. 主打磨循环(含换刀逻辑) ==========
+    // ========== 8. 主打磨循环(含换刀逻辑) ==========
     for (int i = 0; i < count + 1; ++i) {
-        // 7.1 移动到上界点
+        // 8.1 移动到上界点
         pos.pos = finalPosListUp.at(2 * i) + translationList.at(2 * i);
         pos.rot = newRotList.at(2 * i);
         MoveL(pos, dVelocity, dAcc, dRadius);
 
         if (i != count) {
-            // 7.2 圆弧运动到下一层下界点
+            // 8.2 圆弧运动到下一层下界点
             posAux.pos = (finalPosListUp.at(2 * i + 1) +
                           finalPosListDown.at(2 * i + 1)) / 2 +
                          translationList.at(2 * i + 1);
@@ -2402,59 +1795,46 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
 
             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
         } else {
-            // 7.3 最后一层直接下压到下界
+            // 8.3 最后一层直接下压到下界
             pos.pos = finalPosListDown.at(2 * i) + translationList.at(2 * i);
             pos.rot = newRotList.at(2 * i);
             MoveL(pos, dVelocity, dAcc, dRadius);
         }
 
-        // ========== 7.4 等待当前层轨迹结束 ==========
+        // ========== 8.4 等待当前层轨迹结束 ==========
         while (IsRobotMoved()) {
             QThread::msleep(50);
         }
 
-        // ========== 7.5 统计长度与换刀逻辑判断 ==========
-        // 计算当前层完成的弧长(基于单层弧长)
+        // ========== 8.5 统计长度与换刀逻辑判断 ==========
         double currentLayerLength = 0.0;
         if (i != count) {
-            // 非最后一层: 计算从上界到下界的完整弧长
-            // 这里简化为使用 totalArcLengthUp / (count + 1) 作为单层估算
             currentLayerLength = totalArcLengthUp / (count + 1);
         } else {
-            // 最后一层可能只是直线下压,长度较小
             currentLayerLength = (finalPosListUp.at(2 * i).distanceToPoint(
-                                      finalPosListDown.at(2 * i)));
+                finalPosListDown.at(2 * i)));
         }
 
-        // 累加已完成的弧长
         this->toolConfig.totalPolishLength += currentLayerLength;
 
-        // 判断是否超过阈值并触发换刀
         if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && i < count) {
             qDebug() << "Reached threshold, total length:" << this->toolConfig.totalPolishLength;
 
-            // A. 抬起动作: 在当前层结束点 posEnd 基础上,沿工具 Z 轴向上抬起 100mm
             Point liftPoint;
             if (i != count) {
-                liftPoint = posEnd; // 使用圆弧运动的结束点
+                liftPoint = posEnd;
             } else {
-                liftPoint = pos; // 使用直线下压的结束点
+                liftPoint = pos;
             }
             liftPoint = liftPoint.PosRelByTool(defaultDirection, -100.0);
-            MoveL(liftPoint, dVelocity, 2000, 0); // 快速移动到抬起点
+            MoveL(liftPoint, dVelocity, 2000, 0);
             while (IsRobotMoved()) { QThread::msleep(50); }
 
-            // B. 执行换刀逻辑
-            // 您的 ToolChange 会记录此 liftPoint 并在结束后自动 MoveL 回来
             ToolChange(craft);
 
-            // C. 重置长度统计,为下一把刀做准备
-            this->toolConfig.totalPolishLength = 0;
-
-            qDebug() << "MoveCylinderVertical: ToolChange finished. Robot returned to lift point. Continuing...";
+            qDebug() << "MoveCylinderVertical: ToolChange finished. Continuing...";
         }
 
-        // 如果在运行过程中点击停止
         if (isStop) {
             if (i != count) {
                 return posEnd;
@@ -2464,9 +1844,277 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
         }
     }
 
-    // ========== 8. 返回最终位置 ==========
+    // ========== 9. 返回最终位置 ==========
     return pos;
 }
+
+// 打磨柱面侧面 添加换刀逻辑 26.02.10版本
+// Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
+//     // ========== 1. 基础参数定义 ==========
+//     // 圆弧上界
+//     QVector<Point> posListUp;
+//     posListUp.append(pointSet.beginPoint);
+//     posListUp.append(pointSet.midPoints);
+//     posListUp.append(pointSet.endPoint);
+
+//     // ========== 2. 计算上圆弧组中圆弧圆心、半径和弧长 ==========
+//     QVector<QVector3D> centerListUp;
+//     QVector<double> radiusListUp, lengthListUp;
+//     double totalArcLengthUp = 0.0;
+
+//     // 每3个点定一段圆弧, i 指向每段的中间点
+//     for (int i = 1; i < posListUp.size() - 1; i += 2) {
+//         // 计算当前段 ABC 的外心坐标
+//         QVector3D center = Point::calculateCircumcenter(
+//             posListUp.at(i - 1).pos, posListUp.at(i).pos,
+//             posListUp.at(i + 1).pos);
+//         centerListUp.append(center);
+
+//         // 计算外心圆到各个点的距离作为半径
+//         double radius = (posListUp.at(i).pos - center).length();
+//         radiusListUp.append(radius);
+
+//         // 构建圆心指向各样点的向量,用于计算圆心角
+//         QVector3D OA = posListUp.at(i - 1).pos - center;
+//         QVector3D OM = posListUp.at(i).pos - center;
+//         QVector3D OB = posListUp.at(i + 1).pos - center;
+
+//         // 适用OA、OB夹角大于180°的情况
+//         // 弧长 L = (∠AOM + ∠MOB) * Radius
+//         double length = (qAcos(QVector3D::dotProduct(OA, OM) /
+//                                (OA.length() * OM.length())) +
+//                          qAcos(QVector3D::dotProduct(OM, OB) /
+//                                (OM.length() * OB.length()))) *
+//                         radius;
+//         lengthListUp.append(length);
+//         totalArcLengthUp += length;
+//     }
+
+//     // ========== 3. 圆弧上界到下界的偏移距离 ==========
+//     // 计算上界点到下界点的固定偏移向量,用于生成平行的加工面
+//     QVector3D posOffset =
+//         pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
+
+//     // ========== 4. 生成最终圆弧上界与下界点集 ==========
+//     double discRadius = craft.discRadius;
+//     double grindAngle = craft.grindAngle;
+//     int count = craft.offsetCount; // 偏移次数
+
+//     QVector<QVector3D> finalPosListUp, finalPosListDown;
+//     QVector<QVector3D> newRotList, translationList;
+
+//     if (count > 0) {
+//         // 根据偏移次数计算每个插补点的单位弧长步长(除以2通常是为了MoveC的中间点储备)
+//         double unitArcLengthUp = totalArcLengthUp / count / 2;
+//         double arcLengthUp = 0.0;
+
+//         for (int i = 0; i < centerListUp.size(); ++i) {
+//             // 在当前圆弧段长度范围内循环进行步进插值
+//             while (arcLengthUp <= lengthListUp.at(i)) {
+//                 // [旋转轴提取] 计算起点向量与中间点向量的叉乘,得到圆弧平面的法向量轴 axis
+//                 QVector3D axis =
+//                     QVector3D::crossProduct(
+//                         posListUp.at(2 * i).pos - centerListUp.at(i),
+//                         posListUp.at(2 * i + 1).pos - centerListUp.at(i))
+//                         .normalized();
+
+//                 // [Rodrigues旋转] 将当前走过的弧长转换为对应的角度,生成3D旋转矩阵 R
+//                 QMatrix3x3 R = Point::toRotationMatrix(
+//                     axis, qRadiansToDegrees(arcLengthUp / radiusListUp.at(i)));
+
+//                 // [坐标旋转变换] 将半径向量 trans 绕轴 axis 旋转R角度,得到当前插值点位置
+//                 QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
+//                 QVector3D newTrans =
+//                     QVector3D(R(0, 0) * trans.x() + R(0, 1) * trans.y() +
+//                                   R(0, 2) * trans.z(),
+//                               R(1, 0) * trans.x() + R(1, 1) * trans.y() +
+//                                   R(1, 2) * trans.z(),
+//                               R(2, 0) * trans.x() + R(2, 1) * trans.y() +
+//                                   R(2, 2) * trans.z());
+
+//                 finalPosListUp.append(centerListUp.at(i) + newTrans);
+//                 finalPosListDown.append(centerListUp.at(i) + newTrans + posOffset);
+
+//                 // ========== 计算姿态和对应偏移 ==========
+//                 QVector3D aux = posOffset.normalized(); // 表面偏移方向参考
+
+//                 // [表面法线推导] 通过双叉乘确定当前加工点的局部法向方向 normal
+//                 QVector3D normal =
+//                     QVector3D::crossProduct(
+//                         QVector3D::crossProduct(aux, -newTrans), aux)
+//                         .normalized();
+
+//                 // 根据工件的凹凸属性及镜像设置调整法向和旋转轴方向
+//                 if (!isConvex) {
+//                     normal = -normal;
+//                     axis = -axis;
+//                 }
+//                 if (craft.isMirror) {
+//                     axis = -axis;
+//                 }
+
+//                 // [姿态映射] 将几何法向转化为机器人的 Euler 角/四元数姿态
+//                 QVector3D rotation = Point::getNormalRotation(normal, axis);
+//                 QVector3D moveDirection = posOffset.normalized();
+
+//                 // 获取新的姿态
+//                 newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
+//                 newRotList.append(newRot);
+
+//                 // 获取新姿态需要的平移量
+//                 translation = Point::getTranslation(rotation, moveDirection,
+//                                                     discRadius, grindAngle);
+//                 translationList.append(translation);
+
+//                 arcLengthUp += unitArcLengthUp;
+//             }
+//             arcLengthUp -= lengthListUp.at(i);
+//         }
+//     } else {
+//         // 处理不偏移的特殊情况(仅执行起点逻辑)
+//         finalPosListUp.append(pointSet.beginPoint.pos);
+//         finalPosListDown.append(pointSet.beginOffsetPoint.pos);
+
+//         // 计算姿态和对应偏移
+//         QVector3D axis =
+//             QVector3D::crossProduct(posListUp.at(0).pos - centerListUp.at(0),
+//                                     posListUp.at(1).pos - centerListUp.at(0))
+//                 .normalized();
+//         QVector3D trans = posListUp.at(0).pos - centerListUp.at(0);
+//         QVector3D aux = posOffset.normalized();
+//         QVector3D normal =
+//             QVector3D::crossProduct(QVector3D::crossProduct(aux, -trans), aux)
+//                 .normalized();
+
+//         if (!isConvex) {
+//             normal = -normal;
+//             axis = -axis;
+//         }
+//         if (craft.isMirror) {
+//             axis = -axis;
+//         }
+
+//         QVector3D rotation = Point::getNormalRotation(normal, axis);
+//         QVector3D moveDirection = posOffset.normalized();
+
+//         // 获取新的姿态
+//         newRot = Point::getNewRotation(rotation, moveDirection, grindAngle);
+//         newRotList.append(newRot);
+
+//         // 获取新姿态需要的平移量
+//         translation = Point::getTranslation(rotation, moveDirection, discRadius,
+//                                             grindAngle);
+//         translationList.append(translation);
+//     }
+
+//     // 安全校验
+//     Q_ASSERT(finalPosListUp.size() == finalPosListDown.size());
+//     Q_ASSERT(finalPosListUp.size() == newRotList.size());
+//     Q_ASSERT(finalPosListUp.size() == translationList.size());
+
+//     // ========== 5. 定义运动参数 ==========
+//     double dVelocity = defaultVelocity;
+//     double dAcc = 2000;
+//     double dRadius = craft.transitionRadius;
+
+//     // 定义空间目标位置
+//     Point pos, posAux, posEnd;
+
+//     // ========== 6. 移动到下界轨迹第一个点(带姿态补偿) ==========
+//     pos.pos = finalPosListDown.constFirst() + translationList.constFirst();
+//     pos.rot = newRotList.constFirst();
+//     pos = pos.PosRelByTool(defaultDirection, defaultOffset);
+//     MoveL(pos, dVelocity, dAcc, dRadius);
+
+//     dVelocity = craft.cutinSpeed;
+//     pos.pos = finalPosListDown.constFirst() + translationList.constFirst();
+//     pos.rot = newRotList.constFirst();
+//     MoveL(pos, dVelocity, dAcc, dRadius);
+
+//     dVelocity = craft.moveSpeed;
+//     dAcc = 100;
+
+//     // ========== 7. 主打磨循环(含换刀逻辑) ==========
+//     for (int i = 0; i < count + 1; ++i) {
+//         // 7.1 移动到上界点
+//         pos.pos = finalPosListUp.at(2 * i) + translationList.at(2 * i);
+//         pos.rot = newRotList.at(2 * i);
+//         MoveL(pos, dVelocity, dAcc, dRadius);
+
+//         if (i != count) {
+//             // 7.2 圆弧运动到下一层下界点
+//             posAux.pos = (finalPosListUp.at(2 * i + 1) +
+//                           finalPosListDown.at(2 * i + 1)) / 2 +
+//                          translationList.at(2 * i + 1);
+//             posAux.rot = newRotList.at(2 * i + 1);
+
+//             posEnd.pos = finalPosListDown.at(2 * i + 2) + translationList.at(2 * i + 2);
+//             posEnd.rot = newRotList.at(2 * i + 2);
+
+//             MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
+//         } else {
+//             // 7.3 最后一层直接下压到下界
+//             pos.pos = finalPosListDown.at(2 * i) + translationList.at(2 * i);
+//             pos.rot = newRotList.at(2 * i);
+//             MoveL(pos, dVelocity, dAcc, dRadius);
+//         }
+
+//         // ========== 7.4 等待当前层轨迹结束 ==========
+//         while (IsRobotMoved()) {
+//             QThread::msleep(50);
+//         }
+
+//         // ========== 7.5 统计长度与换刀逻辑判断 ==========
+//         // 计算当前层完成的弧长(基于单层弧长)
+//         double currentLayerLength = 0.0;
+//         if (i != count) {
+//             // 非最后一层: 计算从上界到下界的完整弧长
+//             // 这里简化为使用 totalArcLengthUp / (count + 1) 作为单层估算
+//             currentLayerLength = totalArcLengthUp / (count + 1);
+//         } else {
+//             // 最后一层可能只是直线下压,长度较小
+//             currentLayerLength = (finalPosListUp.at(2 * i).distanceToPoint(
+//                                       finalPosListDown.at(2 * i)));
+//         }
+
+//         // 累加已完成的弧长
+//         this->toolConfig.totalPolishLength += currentLayerLength;
+
+//         // 判断是否超过阈值并触发换刀
+//         if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && i < count) {
+//             qDebug() << "Reached threshold, total length:" << this->toolConfig.totalPolishLength;
+
+//             // A. 抬起动作: 在当前层结束点 posEnd 基础上,沿工具 Z 轴向上抬起 100mm
+//             Point liftPoint;
+//             if (i != count) {
+//                 liftPoint = posEnd; // 使用圆弧运动的结束点
+//             } else {
+//                 liftPoint = pos; // 使用直线下压的结束点
+//             }
+//             liftPoint = liftPoint.PosRelByTool(defaultDirection, -100.0);
+//             MoveL(liftPoint, dVelocity, 2000, 0); // 快速移动到抬起点
+//             while (IsRobotMoved()) { QThread::msleep(50); }
+
+//             // B. 执行换刀逻辑
+//             // 您的 ToolChange 会记录此 liftPoint 并在结束后自动 MoveL 回来
+//             ToolChange(craft);
+
+//             qDebug() << "MoveCylinderVertical: ToolChange finished. Robot returned to lift point. Continuing...";
+//         }
+
+//         // 如果在运行过程中点击停止
+//         if (isStop) {
+//             if (i != count) {
+//                 return posEnd;
+//             } else {
+//                 return pos;
+//             }
+//         }
+//     }
+
+//     // ========== 8. 返回最终位置 ==========
+//     return pos;
+// }
 
 
 Point Robot::MoveConicalFrustum(Craft &craft) {
@@ -2714,334 +2362,6 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
     return pos;
 }
 
-// Point Robot::MoveConicalFrustum(const Craft &craft) {
-//     /*
-//      * 圆台侧面打磨 - 凹面(内侧)
-//      * 点位: A(起始点-上界左) B(中间点-上界中) C(结束点-上界右)
-//      *       E(起始偏移点-下界左) D(结束偏移点-下界右)
-//      * 轨迹: 之字形往复运动,沿圆台侧面外弧
-//      *       A→B→C, C1→B1→A1, A2→B2→C2, ...
-//      */
-
-//     // ========== 1. 构建上界圆弧点列表 ==========
-//     QVector<Point> posListUp;
-//     posListUp.append(pointSet.beginPoint);      // A
-//     posListUp.append(pointSet.midPoints);       // B (可能有多个中间点)
-//     posListUp.append(pointSet.endPoint);        // C
-
-//     // ========== 2. 计算圆台上界圆弧的几何参数 ==========
-//     QVector<QVector3D> centerListUp;    // 圆心列表
-//     QVector<double> radiusListUp;       // 半径列表
-//     QVector<double> lengthListUp;       // 弧长列表
-//     double totalArcLengthUp = 0.0;      // 总弧长
-
-//     // 每3个点确定一段圆弧 (i指向中间点)
-//     for (int i = 1; i < posListUp.size() - 1; i += 2) {
-//         // 计算圆心
-//         QVector3D center = Point::calculateCircumcenter(
-//             posListUp.at(i - 1).pos,  // 前一点
-//             posListUp.at(i).pos,      // 中间点
-//             posListUp.at(i + 1).pos   // 后一点
-//             );
-//         centerListUp.append(center);
-
-//         // 计算半径
-//         double radius = (posListUp.at(i).pos - center).length();
-//         radiusListUp.append(radius);
-
-//         // 计算弧长 (通过圆心角)
-//         QVector3D OA = posListUp.at(i - 1).pos - center;
-//         QVector3D OM = posListUp.at(i).pos - center;
-//         QVector3D OB = posListUp.at(i + 1).pos - center;
-
-//         double length =
-//             (qAcos(QVector3D::dotProduct(OA, OM) / (OA.length() * OM.length())) +
-//              qAcos(QVector3D::dotProduct(OM, OB) / (OM.length() * OB.length())))
-//             * radius;
-
-//         lengthListUp.append(length);
-//         totalArcLengthUp += length;
-//     }
-
-//     // ========== 3. 计算圆台侧面偏移向量 ==========
-//     // 从上界到下界的偏移向量 (E-A 表示左侧母线方向)
-//     QVector3D offsetLeft = pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos;
-//     // D-C 表示右侧母线方向
-//     QVector3D offsetRight = pointSet.endOffsetPoint.pos - pointSet.endPoint.pos;
-
-//     // ========== 4. 生成分层路径点 ==========
-//     int count = craft.offsetCount;  // 偏移次数(层数-1)
-//     double discRadius = craft.discRadius;   // 打磨片半径
-//     double grindAngle = craft.grindAngle;   // 打磨角度
-
-//     // 最终路径点列表 (每层的ABC点)
-//     QVector<QVector<QVector3D>> layerPosLists;  // [层][点索引]
-//     // 每个点对应的姿态和平移补偿
-//     QVector<QVector<QVector3D>> layerRotLists;
-//     QVector<QVector<QVector3D>> layerTransLists;
-
-//     if (count > 0) {
-//         // 沿弧长方向的单位步长 (除以2是为了MoveC的辅助点)
-//         double unitArcLengthUp = totalArcLengthUp / count / 2;
-
-//         // 为每一层生成路径点
-//         for (int layer = 0; layer <= count; ++layer) {
-//             QVector<QVector3D> currentLayerPos;
-//             QVector<QVector3D> currentLayerRot;
-//             QVector<QVector3D> currentLayerTrans;
-
-//             double arcLengthUp = 0.0;
-
-//             // 遍历每段圆弧
-//             for (int i = 0; i < centerListUp.size(); ++i) {
-//                 // 在当前圆弧段内插补
-//                 while (arcLengthUp <= lengthListUp.at(i)) {
-//                     // ===== 4.1 计算当前层圆弧上的点位置 =====
-//                     // 旋转轴(圆弧平面法向)
-//                     QVector3D axis =
-//                         QVector3D::crossProduct(
-//                             posListUp.at(2 * i).pos - centerListUp.at(i),
-//                             posListUp.at(2 * i + 1).pos - centerListUp.at(i)
-//                             ).normalized();
-
-//                     // 计算旋转角度
-//                     double angle = qRadiansToDegrees(arcLengthUp / radiusListUp.at(i));
-//                     QMatrix3x3 R = Point::toRotationMatrix(axis, angle);
-
-//                     // 旋转半径向量得到当前点
-//                     QVector3D trans = posListUp.at(2 * i).pos - centerListUp.at(i);
-//                     QVector3D newTrans = QVector3D(
-//                         R(0, 0) * trans.x() + R(0, 1) * trans.y() + R(0, 2) * trans.z(),
-//                         R(1, 0) * trans.x() + R(1, 1) * trans.y() + R(1, 2) * trans.z(),
-//                         R(2, 0) * trans.x() + R(2, 1) * trans.y() + R(2, 2) * trans.z()
-//                         );
-
-//                     // 上界点位置
-//                     QVector3D posUp = centerListUp.at(i) + newTrans;
-
-//                     // ===== 4.2 计算对应的下界点 (圆台特征) =====
-//                     // 在左右偏移向量之间线性插值
-//                     double t = arcLengthUp / totalArcLengthUp;  // 当前点在弧长上的位置比例
-//                     QVector3D offsetInterp = offsetLeft * (1 - t) + offsetRight * t;
-
-//                     // 当前层的偏移比例
-//                     double layerRatio = static_cast<double>(layer) / count;
-//                     QVector3D posDown = posUp + offsetInterp * layerRatio;
-
-//                     currentLayerPos.append(posDown);
-
-//                     // ===== 4.3 计算打磨姿态 (凹面内侧) =====
-//                     // 圆台侧面母线方向(作为参考辅助向量)
-//                     QVector3D aux = offsetInterp.normalized();
-
-//                     // 表面法向量(指向内侧,凹面)
-//                     // 使用双叉乘确定局部法向
-//                     QVector3D normal =
-//                         QVector3D::crossProduct(
-//                             QVector3D::crossProduct(aux, -newTrans),
-//                             aux
-//                             ).normalized();
-
-//                     // 凹面调整: 法向指向内侧(圆心方向)
-//                     normal = -normal;  // 内凹面
-
-//                     // 镜像处理
-//                     if (craft.isMirror) {
-//                         axis = -axis;
-//                     }
-
-//                     // 根据几何法向计算机器人姿态
-//                     QVector3D rotation = Point::getNormalRotation(normal, axis);
-//                     QVector3D moveDirection = aux;  // 沿母线方向
-
-//                     // 计算带打磨角度的最终姿态
-//                     QVector3D newRot = Point::getNewRotation(
-//                         rotation, moveDirection, grindAngle
-//                         );
-//                     currentLayerRot.append(newRot);
-
-//                     // 计算姿态补偿的平移量
-//                     QVector3D translation = Point::getTranslation(
-//                         rotation, moveDirection, discRadius, grindAngle
-//                         );
-//                     currentLayerTrans.append(translation);
-
-//                     arcLengthUp += unitArcLengthUp;
-//                 }
-//                 arcLengthUp -= lengthListUp.at(i);
-//             }
-
-//             layerPosLists.append(currentLayerPos);
-//             layerRotLists.append(currentLayerRot);
-//             layerTransLists.append(currentLayerTrans);
-//         }
-//     } else {
-//         // 不偏移的特殊情况(仅上界)
-//         QVector<QVector3D> singleLayerPos;
-//         QVector<QVector3D> singleLayerRot;
-//         QVector<QVector3D> singleLayerTrans;
-
-//         singleLayerPos.append(pointSet.beginPoint.pos);
-
-//         // 计算姿态...
-//         QVector3D axis =
-//             QVector3D::crossProduct(
-//                 posListUp.at(0).pos - centerListUp.at(0),
-//                 posListUp.at(1).pos - centerListUp.at(0)
-//                 ).normalized();
-//         QVector3D trans = posListUp.at(0).pos - centerListUp.at(0);
-//         QVector3D aux = offsetLeft.normalized();
-//         QVector3D normal =
-//             QVector3D::crossProduct(
-//                 QVector3D::crossProduct(aux, -trans),
-//                 aux
-//                 ).normalized();
-//         normal = -normal;  // 凹面
-
-//         if (craft.isMirror) {
-//             axis = -axis;
-//         }
-
-//         QVector3D rotation = Point::getNormalRotation(normal, axis);
-//         QVector3D newRot = Point::getNewRotation(rotation, aux, grindAngle);
-//         singleLayerRot.append(newRot);
-
-//         QVector3D translation = Point::getTranslation(
-//             rotation, aux, discRadius, grindAngle
-//             );
-//         singleLayerTrans.append(translation);
-
-//         layerPosLists.append(singleLayerPos);
-//         layerRotLists.append(singleLayerRot);
-//         layerTransLists.append(singleLayerTrans);
-//     }
-
-//     // =========================================================================
-//     //  保存生成的点位到 TXT 文件用于调试
-//     // =========================================================================
-//     QString timeStr = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
-//     QString logPath = QCoreApplication::applicationDirPath() + "/DebugPath_" + timeStr + ".txt";
-//     QFile file(logPath);
-//     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-//         QTextStream out(&file);
-//         out << "Layer\tIndex\tX\tY\tZ\tRx\tRy\tRz\n";
-//         for (int i = 0; i < layerPosLists.size(); ++i) {
-//             for (int j = 0; j < layerPosLists[i].size(); ++j) {
-//                 QVector3D p = layerPosLists[i][j];
-//                 QVector3D r = layerRotLists[i][j];
-//                 out << i << "\t" << j << "\t" << p.x() << "\t" << p.y() << "\t" << p.z()
-//                     << "\t" << r.x() << "\t" << r.y() << "\t" << r.z() << "\n";
-//             }
-//         }
-//         file.close();
-//         qDebug() << "Debug file saved to:" << logPath;
-//     }
-
-//     // ========== 5. 执行往复打磨运动 ==========
-//     double dVelocity = defaultVelocity;
-//     double dAcc = 2000;
-//     double dRadius = craft.transitionRadius;
-
-//     Point pos, posAux, posEnd;
-
-//     // 移动到第一层第一点的辅助位置(抬起)
-//     pos.pos = layerPosLists[0][0] + layerTransLists[0][0];
-//     pos.rot = layerRotLists[0][0];
-//     pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//     MoveL(pos, dVelocity, dAcc, dRadius);
-
-//     // 下压到第一点
-//     dVelocity = craft.cutinSpeed;
-//     pos.pos = layerPosLists[0][0] + layerTransLists[0][0];
-//     pos.rot = layerRotLists[0][0];
-//     MoveL(pos, dVelocity, dAcc, dRadius);
-
-//     // 主打磨循环 - 之字形往复
-//     dVelocity = craft.moveSpeed;
-//     dAcc = 100;
-
-//     for (int layer = 0; layer <= count; ++layer) {
-//         int numPoints = layerPosLists[layer].size();
-
-//         if (layer % 2 == 0) {
-//             // ===== 正向: 从左到右 (A → B → C) =====
-//             for (int j = 1; j < numPoints - 1; j += 2) {
-//                 // 使用MoveC进行圆弧运动
-//                 posAux.pos = layerPosLists[layer][j] + layerTransLists[layer][j];
-//                 posAux.rot = layerRotLists[layer][j];
-
-//                 posEnd.pos = layerPosLists[layer][j + 1] + layerTransLists[layer][j + 1];
-//                 posEnd.rot = layerRotLists[layer][j + 1];
-
-//                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-//             }
-
-//             // 层间过渡
-//             if (layer < count) {
-//                 // 抬起
-//                 pos.pos = layerPosLists[layer][numPoints - 1] +
-//                           layerTransLists[layer][numPoints - 1];
-//                 pos.rot = layerRotLists[layer][numPoints - 1];
-//                 pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-
-//                 // 移动到下一层最后一点
-//                 pos.pos = layerPosLists[layer + 1][layerPosLists[layer + 1].size() - 1] +
-//                           layerTransLists[layer + 1][layerTransLists[layer + 1].size() - 1];
-//                 pos.rot = layerRotLists[layer + 1][layerRotLists[layer + 1].size() - 1];
-//                 pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-
-//                 // 下压
-//                 pos.pos = layerPosLists[layer + 1][layerPosLists[layer + 1].size() - 1] +
-//                           layerTransLists[layer + 1][layerTransLists[layer + 1].size() - 1];
-//                 pos.rot = layerRotLists[layer + 1][layerRotLists[layer + 1].size() - 1];
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-//             }
-//         } else {
-//             // ===== 反向: 从右到左 (C → B → A) =====
-//             for (int j = numPoints - 2; j > 0; j -= 2) {
-//                 posAux.pos = layerPosLists[layer][j] + layerTransLists[layer][j];
-//                 posAux.rot = layerRotLists[layer][j];
-
-//                 posEnd.pos = layerPosLists[layer][j - 1] + layerTransLists[layer][j - 1];
-//                 posEnd.rot = layerRotLists[layer][j - 1];
-
-//                 MoveC(posAux, posEnd, dVelocity, dAcc, dRadius);
-//             }
-
-//             // 层间过渡
-//             if (layer < count) {
-//                 // 抬起
-//                 pos.pos = layerPosLists[layer][0] + layerTransLists[layer][0];
-//                 pos.rot = layerRotLists[layer][0];
-//                 pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-
-//                 // 移动到下一层第一点
-//                 pos.pos = layerPosLists[layer + 1][0] + layerTransLists[layer + 1][0];
-//                 pos.rot = layerRotLists[layer + 1][0];
-//                 pos = pos.PosRelByTool(defaultDirection, defaultOffset);
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-
-//                 // 下压
-//                 pos.pos = layerPosLists[layer + 1][0] + layerTransLists[layer + 1][0];
-//                 pos.rot = layerRotLists[layer + 1][0];
-//                 MoveL(pos, dVelocity, dAcc, dRadius);
-//             }
-//         }
-//     }
-
-//     // 最后抬起
-//     int lastLayer = count;
-//     int lastIdx = (lastLayer % 2 == 0) ?
-//                       (layerPosLists[lastLayer].size() - 1) : 0;
-
-//     pos.pos = layerPosLists[lastLayer][lastIdx] + layerTransLists[lastLayer][lastIdx];
-//     pos.rot = layerRotLists[lastLayer][lastIdx];
-
-//     return pos;
-// }
 
 void Robot::MoveZLine(const Craft &craft) {
     // 定义运动速度
@@ -3128,50 +2448,126 @@ void Robot::MoveSpiralLine(const Craft &craft) {
 }
 
 /**
+ * @brief 校验换刀安全性
+ * @param errorCode 错误码返回 (1:当前位有刀, 2:高一位无刀, 3:已是最后一把)
+ * @return true 允许换刀 / false 拦截
+ */
+bool Robot::CanPerformToolChange(int &errorCode) {
+    int status = this->toolConfig.toolMagStatus;
+    int currentIdx = this->toolConfig.targetToolPos; // 0-3
+    int nextIdx = currentIdx + 1;
+
+    // 1. 检查当前位置 (必须为空，才能放回旧刀)
+    int currentMask = (1 << currentIdx);
+    if ((status & currentMask) != 0) {
+        errorCode = 1; // 当前位有刀，会碰撞
+        return false;
+    }
+
+    // 2. 检查是否有下一把刀
+    if (nextIdx > 3) {
+        errorCode = 3; // 已经是4号位，没法再往高处换了
+        return false;
+    }
+
+    // 3. 检查高一位 (必须有刀，才能取出新刀)
+    int nextMask = (1 << nextIdx);
+    if ((status & nextMask) == 0) {
+        errorCode = 2; // 高一位是空的，没刀可拿
+        return false;
+    }
+
+    errorCode = 0; // 校验通过
+    return true;
+}
+
+/**
  * @brief 执行换刀流程
  * @param craft 传入工艺引用以更新 targetToolPos
  */
 void Robot::ToolChange(Craft &craft) {
-    // 打磨头停转
-    AGPStop();
-    // 定义空间目标位置
-    Point point;
-    // 定义运动速度
-    double dVelocity = defaultVelocity;
-    // 定义运动加速度
-    double dAcc = 2000;
-    // 定义过渡半径
-    double dRadius = craft.transitionRadius;
-    // 移到安全点
-    point = pointSet.safePoint;
+    Point point;    // 定义空间目标位置
+    double dVelocity = defaultVelocity;    // 定义运动速度
+    double dAcc = 2000;    // 定义运动加速度
+    double dRadius = craft.transitionRadius;    // 定义过渡半径
+    point = pointSet.safePoint;    // 移到安全点
+
     // 0. 检测 craft 参数
-    if (this->toolConfig.targetToolPos >= 3) {
-        QMessageBox::warning(nullptr, "换刀提醒", "当前已是最后一把工具（pos=3），不可继续换刀！");
+    if (this->toolConfig.targetToolPos >= 4) {
+        QMessageBox::warning(nullptr, "换刀提醒", "当前已是最后一把工具（pos=4），不可继续换刀！");
         return;
     }
+
     // 1. 获取当前机器人位置（用于后续第6步复位）
     Point currentPos;
     if (!GetTcpPoint(currentPos)) {
         qDebug() << "获取当前位置失败，无法执行换刀";
         return;
     }
+
+    // 刀库状态检测 罩壳是否打开
+    int di6 = 0; // DI6 - 刀库门打开信号
+    HRIF_ReadBoxDI(0, 6, di6);
+    if (di6 != 1) {
+        HRIF_SetBoxDO(0, 6, 1);
+    }
+    // 刀库刀具状态与更换参数是否对应
+    // 检测更换参数是否是4 如果是 则弹窗提醒 并且不触发换刀 直接回到安全点 继续打磨
+    int err = 0;
+    if (!CanPerformToolChange(err)) {
+        QString msg;
+        if (err == 1) msg = QString("错误：当前刀位 %1 已有刀，无法放回！").arg(this->toolConfig.targetToolPos + 1);
+        else if (err == 2) msg = QString("错误：预备刀位 %1 是空的，无刀可换！").arg(this->toolConfig.targetToolPos + 2);
+        else if (err == 3) msg = "提示：当前已是 4 号刀位，换刀流程已结束。";
+
+        QMessageBox::critical(nullptr, "换刀校验未通过", msg +
+            QString("\n(当前状态码: %1)").arg(this->toolConfig.toolMagStatus));
+
+        // 机器人移动到安全点 (确保姿态安全)
+        MoveL(point, dVelocity, dAcc, dRadius);
+        while (IsRobotMoved()) { QThread::msleep(50); }
+        // 机器人移动到之前记录的位置（复位）
+        MoveL(currentPos, dVelocity, dAcc, dRadius);
+        while (IsRobotMoved()) { QThread::msleep(50); }
+        // 启动打磨头
+        // AGPRun(craft, true);
+        return;
+    }
+    // 打磨头停转 调整到位置模式
+    AGPStop();
+    if (agp != nullptr) {
+
+            // 设置AGP默认参数
+            agp->Control(FUNC::RESET);
+            agp->Control(FUNC::ENABLE);
+            agp->SetMode(MODE::PosMode);
+
+            agp->SetPos(1000);
+            agp->SetForce(200);
+            agp->SetTouchForce(0);
+            agp->SetRampTime(0);
+            // 检查并确保使能状态
+            if (!IsAGPEnabled()) {
+                agp->Control(FUNC::ENABLE);
+            }
+        }
+
     // 2. 机器人移动到安全点位 (采用 craft 中的运动参数)
     MoveL(point, dVelocity, dAcc, dRadius);
     while (IsRobotMoved()) { QThread::msleep(50); }
 
     // 3. 基于 craft 参数设置模拟量 IO 数值 (1.2 - 1.8)
     // 映射逻辑：pos 0->1.2, 1->1.4, 2->1.6, 3->1.8
+    // 更新逻辑: 只能退1换2 退2换3 退3换4
     double sendVal = 1.2 + (this->toolConfig.targetToolPos * 0.2);
     // boxID=0, nBit=0, nMode=1 (通常为电压模式)
     HRIF_SetBoxAOVal(0, 0, sendVal, 1);
-    // qDebug() << "发送换刀请求，AO = " << sendVal;
 
     // 4. 等待并读取 IO，当机器人 IO 变为 2.0 时继续
     int currentMode = 0;
     double readBackVal = 0.0;
     bool isDone = false;
 
-    // qDebug() << "等待机器人换刀完成信号 (AO=2.0)...";
     while (!isDone) {
         // 使用您提供的 HRIF_ReadBoxAO 接口
         int nRet = HRIF_ReadBoxAO(0, 0, currentMode, readBackVal);
@@ -3182,34 +2578,31 @@ void Robot::ToolChange(Craft &craft) {
                 qDebug() << "检测到 2.0，换刀已完成";
             }
         }
-
         // 如果点击了停止按钮或发生急停，应退出循环
         if (isStop) return;
 
         QThread::msleep(100); // 轮询间隔
     }
-
     // 5. 换刀完毕后，机器人再次移动到安全点 (确保姿态安全)
     MoveL(point, dVelocity, dAcc, dRadius);
     while (IsRobotMoved()) { QThread::msleep(50); }
-
     // 6. 机器人移动到之前第 1 步中记录的位置（复位）
     MoveL(currentPos, dVelocity, dAcc, dRadius);
     while (IsRobotMoved()) { QThread::msleep(50); }
-
     //换刀结束 启动打磨头
     AGPRun(craft, true);
-
     // 7. craft 中的 targetToolPos + 1
     this->toolConfig.targetToolPos += 1;
-
+    // 重置累计数据
+    this->toolConfig.totalPolishLength = 0;
     // 重置 AO 信号
     HRIF_SetBoxAOVal(0, 0, 1.0, 0);
-
     // qDebug() << "换刀流程圆满结束，当前工具位已更新为:" << craft.targetToolPos;
 }
 
 void Robot::Run(Craft &craft, bool isAGPRun) {
+    //机器人控制脚本启动
+
     // QThread::msleep(100);
     double radius = craft.discRadius;
     double angle = craft.grindAngle;
@@ -3240,6 +2633,8 @@ void Robot::Run(Craft &craft, bool isAGPRun) {
     Point point;
     point.pos = pointSet.endPoint.pos + translation;
     point.rot = newRot;
+    //打开AGP冷却气
+    HRIF_SetBoxDO(0, 5, 1);
     // 选择打磨方式
     switch (craft.way) {
     case PolishWay::ArcWay:
@@ -3297,6 +2692,8 @@ void Robot::Run(Craft &craft, bool isAGPRun) {
         }
         QThread::msleep(100);
     }
+    //关闭AGP冷却气
+    HRIF_SetBoxDO(0, 5, 0);
 }
 
 HansRobot::HansRobot() {}
@@ -3308,10 +2705,12 @@ HansRobot::~HansRobot() {
 
 bool HansRobot::RobotConnect(QString robotIP) {
     int nRet = -1;
+    int nRet2 = -1;
     std::string ip = robotIP.toStdString();
     const char *hostname = ip.c_str();
     unsigned short nPort = 10003;
     nRet = HRIF_Connect(0, hostname, nPort);
+    qDebug() << "start"<<nRet;
     if (nRet == 0) {
         // 机器人上电
         HRIF_Electrify(0);
@@ -3319,6 +2718,12 @@ bool HansRobot::RobotConnect(QString robotIP) {
         HRIF_GrpEnable(0, 0);
         // 设置速度比
         HRIF_SetOverride(0, 0, 1.0);
+        // 重置AO换刀信号
+        HRIF_SetBoxAOVal(0, 0, 1.0, 0);//重置换刀AO信号
+        // 启动机器人预设脚本
+        QThread::msleep(1000);
+        nRet2=HRIF_StartScript(0);
+        qDebug() << "HRIF_StartScript return:" << nRet2;
         return true;
     }
     return false;
@@ -3421,8 +2826,8 @@ bool HansRobot::RobotTeach(int pos) {
     } else {
         // 关闭自由拖拽
         int nRet = HRIF_GrpCloseFreeDriver(0, 0);
-        if (nRet == 0) {
-            isTeach = false;
+       if (nRet == 0) {
+           isTeach = false;
         }
     }
     return isTeach;
@@ -3456,1017 +2861,16 @@ bool HansRobot::GetTcpPoint(Point &point) {
         point.rot.setX(rx);
         point.rot.setY(ry);
         point.rot.setZ(rz);
+
+        qDebug() << "HansRobot TCP Pos [X, Y, Z]:" << x << "," << y << "," << z;
+        qDebug() << "HansRobot TCP Rot [RX, RY, RZ]:" << rx << "," << ry << "," << rz;
+
         return true;
     } else {
         return false;
     }
 }
-/*
-void HansRobot::MoveBefore(const Craft &craft, bool isAGPRun) {
-    // 定义运动类型
-    int nMoveType = 1;
-    // 定义空间目标位置
-    Point point;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = defaultVelocity;
-    // 定义运动加速度
-    double dAcc = 2000;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    // 移到安全点
-    point = pointSet.safePoint;
-    HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
-                  point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
-                  dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                  nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-    // AGP运行
-    AGPRun(craft, isAGPRun);
-    // 移到起始辅助点
-    point = pointSet.auxBeginPoint.PosRelByTool(direction, offset);
-    HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
-                  point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
-                  dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                  nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-    // 移到起始点
-    point = pointSet.beginPoint.PosRelByTool(direction, offset);
-    dVelocity = craft.cutinSpeed;
-    HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
-                  point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
-                  dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                  nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-}
 
-void HansRobot::MoveAfter(const Craft &craft, Point point) {
-    // 定义运动类型
-    int nMoveType = 1;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = craft.cutinSpeed;
-    // 定义运动加速度
-    double dAcc = 2000;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-    // 移到结束辅助点
-    HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
-                  point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
-                  dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                  nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-    // 移到安全点
-    point = pointSet.safePoint;
-    // 定义运动速度
-    dVelocity = defaultVelocity;
-    HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
-                  point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
-                  dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                  nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-}
-
-void HansRobot::MoveLine(const Craft &craft) {
-    // 定义运动类型
-    int nMoveType = 1;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = craft.moveSpeed;
-    // 定义运动加速度
-    double dAcc = 100;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-
-    Point point;
-    for (int i = 0; i < pointSet.midPoints.size(); ++i) {
-        // 定义空间目标位置
-        point = pointSet.midPoints[i].PosRelByTool(direction, offset);
-        // 执行路点运动
-        HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                      point.pos.z(), point.rot.x(), point.rot.y(),
-                      point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                      sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                      nIOBit, nIOState, strCmdID);
-    }
-    // 移到结束点
-    point = pointSet.endPoint.PosRelByTool(direction, offset);
-    HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
-                  point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
-                  dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                  nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-}
-
-void HansRobot::MoveArc(const Craft &craft) {
-    // 定义运动类型
-    int nMoveType = 2;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = craft.moveSpeed;
-    // 定义运动加速度
-    double dAcc = 100;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    // 定义空间目标位置
-    Point posMidRel = pointSet.auxPoint.PosRelByTool(direction, offset);
-    Point posEndRel = pointSet.endPoint.PosRelByTool(direction, offset);
-    // 执行路点运动
-    HRIF_WayPoint2(0, 0, nMoveType, posEndRel.pos.x(), posEndRel.pos.y(),
-                   posEndRel.pos.z(), posEndRel.rot.x(), posEndRel.rot.y(),
-                   posEndRel.rot.z(), posMidRel.pos.x(), posMidRel.pos.y(),
-                   posMidRel.pos.z(), posMidRel.rot.x(), posMidRel.rot.y(),
-                   posMidRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                   sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                   nIOBit, nIOState, strCmdID);
-}
-
-// 平面圆弧
-// Position HansRobot::MoveRegionArc(double offset, OffsetDirection direction)
-// {
-//     // 定义运动类型
-//     int nMoveType = 2;
-//     // 定义关节目标位置
-//     double dJ1 = 0;
-//     double dJ2 = 0;
-//     double dJ3 = 0;
-//     double dJ4 = 0;
-//     double dJ5 = 0;
-//     double dJ6 = 0;
-//     // 定义工具坐标变量
-//     string sTcpName = "TCP_AGP";
-//     // 定义用户坐标变量
-//     string sUcsName = "Base";
-//     // 定义运动速度
-//     double dVelocity = crafts.at(currCraftIdx).moveSpeed;
-//     // 定义运动加速度
-//     double dAcc = 100;
-//     // 定义过渡半径
-//     double dRadius = 1;
-//     // 定义是否使用关节角度
-//     int nIsUseJoint = 1;
-//     // 定义是否使用检测 DI 停止
-//     int nIsSeek = 0;
-//     // 定义检测的 DI 索引
-//     int nIOBit = 0;
-//     // 定义检测的 DI 状态
-//     int nIOState = 0;
-//     // 定义路点 ID
-//     string strCmdID = "0";
-//     // 计算单次偏移量
-//     int count = crafts.at(currCraftIdx).offsetCount;
-//     Position beginOffset = (beginOffsetPoint - beginPoint) / count;
-//     Position endOffset = (endOffsetPoint - endPoint) / count;
-//     Position midOffset = (beginOffset + endOffset) / 2;
-//     // 定义空间目标位置
-//     Position posBeginRel = PosRelByTool(beginPoint, offset, direction);
-//     Position posEndRel = PosRelByTool(endPoint, offset, direction);
-//     Position posMidRel = PosRelByTool(auxPoint, offset, direction);
-//     // 正向圆弧运动
-//     HRIF_WayPoint2(0, 0, nMoveType, posEndRel.x, posEndRel.y, posEndRel.z,
-//                    posBeginRel.rx, posBeginRel.ry, posBeginRel.rz,
-//                    posMidRel.x, posMidRel.y, posMidRel.z, posBeginRel.rx,
-//                    posBeginRel.ry, posBeginRel.rz, dJ1, dJ2, dJ3, dJ4, dJ5,
-//                    dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-//                    nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-//     Position pos;
-//     for (int i = 0; i < count; ++i) {
-//         if (i % 2 == 0) {
-//             // 抬高
-//             pos = posEndRel;
-//             pos.rx = posBeginRel.rx;
-//             pos.ry = posBeginRel.ry;
-//             pos.rz = posBeginRel.rz;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             nMoveType = 1;
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 改变位姿
-//             posBeginRel += beginOffset;
-//             posEndRel += endOffset;
-//             posMidRel += midOffset;
-//             pos = posEndRel;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 压低
-//             HRIF_WayPoint(0, 0, nMoveType, posEndRel.x, posEndRel.y,
-//                           posEndRel.z, posEndRel.rx, posEndRel.ry,
-//                           posEndRel.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6,
-//                           sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-//                           nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 反向圆弧运动
-//             nMoveType = 2;
-//             HRIF_WayPoint2(0, 0, nMoveType, posBeginRel.x, posBeginRel.y,
-//                            posBeginRel.z, posEndRel.rx, posEndRel.ry,
-//                            posEndRel.rz, posMidRel.x, posMidRel.y,
-//                            posMidRel.z, posEndRel.rx, posEndRel.ry,
-//                            posEndRel.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6,
-//                            sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-//                            nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-//         } else {
-//             // 抬高
-//             pos = posBeginRel;
-//             pos.rx = posEndRel.rx;
-//             pos.ry = posEndRel.ry;
-//             pos.rz = posEndRel.rz;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             nMoveType = 1;
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 改变位姿
-//             posBeginRel += beginOffset;
-//             posEndRel += endOffset;
-//             posMidRel += midOffset;
-//             pos = posBeginRel;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 压低
-//             HRIF_WayPoint(0, 0, nMoveType, posBeginRel.x, posBeginRel.y,
-//                           posBeginRel.z, posBeginRel.rx, posBeginRel.ry,
-//                           posBeginRel.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6,
-//                           sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-//                           nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 正向圆弧运动
-//             nMoveType = 2;
-//             HRIF_WayPoint2(0, 0, nMoveType, posEndRel.x, posEndRel.y,
-//                            posEndRel.z, posBeginRel.rx, posBeginRel.ry,
-//                            posBeginRel.rz, posMidRel.x, posMidRel.y,
-//                            posMidRel.z, posBeginRel.rx, posBeginRel.ry,
-//                            posBeginRel.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6,
-//                            sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-//                            nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-//         }
-//     }
-//     return count % 2 == 0
-//                ? Position{posEndRel.x,    posEndRel.y,    posEndRel.z,
-//                           posBeginRel.rx, posBeginRel.ry, posBeginRel.rz}
-//                : Position{posBeginRel.x, posBeginRel.y, posBeginRel.z,
-//                           posEndRel.rx,  posEndRel.ry,  posEndRel.rz};
-// }
-
-// 柱面圆弧，辅助点姿态取平均
-// Position HansRobot::MoveRegionArc(double offset, OffsetDirection direction)
-// {
-//     // 定义运动类型
-//     int nMoveType = 2;
-//     // 定义关节目标位置
-//     double dJ1 = 0;
-//     double dJ2 = 0;
-//     double dJ3 = 0;
-//     double dJ4 = 0;
-//     double dJ5 = 0;
-//     double dJ6 = 0;
-//     // 定义工具坐标变量
-//     string sTcpName = "TCP_AGP";
-//     // 定义用户坐标变量
-//     string sUcsName = "Base";
-//     // 定义运动速度
-//     double dVelocity = crafts.at(currCraftIdx).moveSpeed;
-//     // 定义运动加速度
-//     double dAcc = 100;
-//     // 定义过渡半径
-//     double dRadius = 1;
-//     // 定义是否使用关节角度
-//     int nIsUseJoint = 1;
-//     // 定义是否使用检测 DI 停止
-//     int nIsSeek = 0;
-//     // 定义检测的 DI 索引
-//     int nIOBit = 0;
-//     // 定义检测的 DI 状态
-//     int nIOState = 0;
-//     // 定义路点 ID
-//     string strCmdID = "0";
-//     // 计算单次偏移量
-//     int count = crafts.at(currCraftIdx).offsetCount;
-//     Position beginOffset = (beginOffsetPoint - beginPoint) / count;
-//     Position endOffset = (endOffsetPoint - endPoint) / count;
-//     Position midOffset = (beginOffset + endOffset) / 2;
-//     // 定义空间目标位置
-//     Position posBeginRel = PosRelByTool(beginPoint, offset, direction);
-//     Position posEndRel = PosRelByTool(endPoint, offset, direction);
-//     Position posMidRel = PosRelByTool(auxPoint, offset, direction);
-//     // 正向圆弧运动，辅助点姿态取起始和结束点姿态的平均值
-//     HRIF_WayPoint2(0, 0, nMoveType, posEndRel.x, posEndRel.y, posEndRel.z,
-//                    posEndRel.rx, posEndRel.ry, posEndRel.rz, posMidRel.x,
-//                    posMidRel.y, posMidRel.z,
-//                    (posBeginRel.rx + posEndRel.rx) / 2,
-//                    (posBeginRel.ry + posEndRel.ry) / 2,
-//                    (posBeginRel.rz + posEndRel.rz) / 2, dJ1, dJ2, dJ3, dJ4,
-//                    dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-//                    nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-//     Position pos;
-//     for (int i = 0; i < count; ++i) {
-//         if (i % 2 == 0) { // 反向
-//             // 抬高
-//             pos = posEndRel;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             nMoveType = 1;
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 改变位姿
-//             posBeginRel += beginOffset;
-//             posEndRel += endOffset;
-//             posMidRel += midOffset;
-//             pos = posEndRel;
-//             pos.rx = endOffsetPoint.rx;
-//             pos.ry = endOffsetPoint.ry;
-//             pos.rz = endOffsetPoint.rz;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 压低
-//             pos = posEndRel;
-//             pos.rx = endOffsetPoint.rx;
-//             pos.ry = endOffsetPoint.ry;
-//             pos.rz = endOffsetPoint.rz;
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 反向圆弧运动
-//             nMoveType = 2;
-//             HRIF_WayPoint2(
-//                 0, 0, nMoveType, posBeginRel.x, posBeginRel.y, posBeginRel.z,
-//                 beginOffsetPoint.rx, beginOffsetPoint.ry,
-//                 beginOffsetPoint.rz, posMidRel.x, posMidRel.y, posMidRel.z,
-//                 (beginOffsetPoint.rx + endOffsetPoint.rx) / 2,
-//                 (beginOffsetPoint.ry + endOffsetPoint.ry) / 2,
-//                 (beginOffsetPoint.rz + endOffsetPoint.rz) / 2, dJ1, dJ2, dJ3,
-//                 dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-//                 nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-//         } else { // 正向
-//             // 抬高
-//             pos = posBeginRel;
-//             pos.rx = beginOffsetPoint.rx;
-//             pos.ry = beginOffsetPoint.ry;
-//             pos.rz = beginOffsetPoint.rz;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             nMoveType = 1;
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 改变位姿
-//             posBeginRel += beginOffset;
-//             posEndRel += endOffset;
-//             posMidRel += midOffset;
-//             pos = posBeginRel;
-//             pos = PosRelByTool(pos, defaultOffset, defaultDirection);
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 压低
-//             pos = posBeginRel;
-//             HRIF_WayPoint(0, 0, nMoveType, pos.x, pos.y, pos.z, pos.rx,
-//             pos.ry,
-//                           pos.rz, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                           sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-//                           nIsSeek, nIOBit, nIOState, strCmdID);
-//             // 正向圆弧运动
-//             nMoveType = 2;
-//             HRIF_WayPoint2(
-//                 0, 0, nMoveType, posEndRel.x, posEndRel.y, posEndRel.z,
-//                 posEndRel.rx, posEndRel.ry, posEndRel.rz, posMidRel.x,
-//                 posMidRel.y, posMidRel.z, (posBeginRel.rx + posEndRel.rx) /
-//                 2, (posBeginRel.ry + posEndRel.ry) / 2, (posBeginRel.rz +
-//                 posEndRel.rz) / 2, dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-//                 sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-//                 nIOBit, nIOState, strCmdID);
-//         }
-//     }
-//     return count % 2 == 0 ? Position{posEndRel.x,  posEndRel.y,  posEndRel.z,
-//                                      posEndRel.rx, posEndRel.ry,
-//                                      posEndRel.rz}
-//                           : Position{posBeginRel.x,       posBeginRel.y,
-//                                      posBeginRel.z, beginOffsetPoint.rx,
-//                                      beginOffsetPoint.ry,
-//                                      beginOffsetPoint.rz};
-// }
-
-// 柱面圆弧，辅助点姿态不取平均
-Point HansRobot::MoveRegionArc1(const Craft &craft) {
-    // 定义运动类型
-    int nMoveType = 2;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = craft.moveSpeed;
-    // 定义运动加速度
-    double dAcc = 100;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    // 计算单次偏移量
-    int count = craft.offsetCount;
-    Point beginOffset;
-    beginOffset.pos =
-        (pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos) / count;
-    Point endOffset;
-    endOffset.pos =
-        (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos) / count;
-    Point midOffset;
-    midOffset.pos = (beginOffset.pos + endOffset.pos) / 2;
-    // 定义空间目标位置
-    Point posBeginRel = pointSet.beginPoint.PosRelByTool(direction, offset);
-    Point posEndRel = pointSet.endPoint.PosRelByTool(direction, offset);
-    Point posMidRel = pointSet.auxPoint.PosRelByTool(direction, offset);
-    // 正向圆弧运动
-    HRIF_WayPoint2(0, 0, nMoveType, posEndRel.pos.x(), posEndRel.pos.y(),
-                   posEndRel.pos.z(), posEndRel.rot.x(), posEndRel.rot.y(),
-                   posEndRel.rot.z(), posMidRel.pos.x(), posMidRel.pos.y(),
-                   posMidRel.pos.z(), posMidRel.rot.x(), posMidRel.rot.y(),
-                   posMidRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                   sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                   nIOBit, nIOState, strCmdID);
-    Point point;
-    for (int i = 0; i < count; ++i) {
-        if (i % 2 == 0) { // 反向
-            // 抬高
-            point = posEndRel;
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            nMoveType = 1;
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 改变位姿
-            posBeginRel += beginOffset;
-            posEndRel += endOffset;
-            posMidRel += midOffset;
-            point = posEndRel;
-            point.rot.setX(pointSet.endOffsetPoint.rot.x());
-            point.rot.setY(pointSet.endOffsetPoint.rot.y());
-            point.rot.setZ(pointSet.endOffsetPoint.rot.z());
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 压低
-            point = posEndRel;
-            point.rot.setX(pointSet.endOffsetPoint.rot.x());
-            point.rot.setY(pointSet.endOffsetPoint.rot.y());
-            point.rot.setZ(pointSet.endOffsetPoint.rot.z());
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 反向圆弧运动
-            nMoveType = 2;
-            HRIF_WayPoint2(0, 0, nMoveType, posBeginRel.pos.x(),
-                           posBeginRel.pos.y(), posBeginRel.pos.z(),
-                           pointSet.beginOffsetPoint.rot.x(),
-                           pointSet.beginOffsetPoint.rot.y(),
-                           pointSet.beginOffsetPoint.rot.z(), posMidRel.pos.x(),
-                           posMidRel.pos.y(), posMidRel.pos.z(),
-                           (posMidRel.rot.x() - posBeginRel.rot.x() +
-                            pointSet.beginOffsetPoint.rot.x()),
-                           (posMidRel.rot.y() - posBeginRel.rot.y() +
-                            pointSet.beginOffsetPoint.rot.y()),
-                           (posMidRel.rot.z() - posBeginRel.rot.z() +
-                            pointSet.beginOffsetPoint.rot.z()),
-                           dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName, sUcsName,
-                           dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                           nIOBit, nIOState, strCmdID);
-        } else { // 正向
-            // 抬高
-            point = posBeginRel;
-            point.rot.setX(pointSet.beginOffsetPoint.rot.x());
-            point.rot.setY(pointSet.beginOffsetPoint.rot.y());
-            point.rot.setZ(pointSet.beginOffsetPoint.rot.z());
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            nMoveType = 1;
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 改变位姿
-            posBeginRel += beginOffset;
-            posEndRel += endOffset;
-            posMidRel += midOffset;
-            point = posBeginRel;
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 压低
-            point = posBeginRel;
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 正向圆弧运动
-            nMoveType = 2;
-            HRIF_WayPoint2(
-                0, 0, nMoveType, posEndRel.pos.x(), posEndRel.pos.y(),
-                posEndRel.pos.z(), posEndRel.rot.x(), posEndRel.rot.y(),
-                posEndRel.rot.z(), posMidRel.pos.x(), posMidRel.pos.y(),
-                posMidRel.pos.z(), posMidRel.rot.x(), posMidRel.rot.y(),
-                posMidRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                nIOBit, nIOState, strCmdID);
-        }
-    }
-    return count % 2 == 0
-               ? Point{posEndRel.pos.x(), posEndRel.pos.y(), posEndRel.pos.z(),
-                       posEndRel.rot.x(), posEndRel.rot.y(), posEndRel.rot.z()}
-               : Point{posBeginRel.pos.x(),
-                       posBeginRel.pos.y(),
-                       posBeginRel.pos.z(),
-                       pointSet.beginOffsetPoint.rot.x(),
-                       pointSet.beginOffsetPoint.rot.y(),
-                       pointSet.beginOffsetPoint.rot.z()};
-}
-
-Point HansRobot::MoveRegionArc2(const Craft &craft) {
-    // 定义运动类型
-    int nMoveType = 2;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = craft.moveSpeed;
-    // 定义运动加速度
-    double dAcc = 100;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    // 计算单次偏移量
-    int count = craft.offsetCount;
-    Point beginOffset;
-    beginOffset.pos =
-        (pointSet.beginOffsetPoint.pos - pointSet.beginPoint.pos) / count;
-    Point endOffset;
-    endOffset.pos =
-        (pointSet.endOffsetPoint.pos - pointSet.endPoint.pos) / count;
-    Point midOffset;
-    midOffset.pos = (beginOffset.pos + endOffset.pos) / 2;
-    // 定义空间目标位置
-    Point posBeginRel = pointSet.beginPoint.PosRelByTool(direction, offset);
-    Point posEndRel = pointSet.endPoint.PosRelByTool(direction, offset);
-    Point posMidRel = pointSet.auxPoint.PosRelByTool(direction, offset);
-    // 正向圆弧运动
-    HRIF_WayPoint2(0, 0, nMoveType, posEndRel.pos.x(), posEndRel.pos.y(),
-                   posEndRel.pos.z(), posEndRel.rot.x(), posEndRel.rot.y(),
-                   posEndRel.rot.z(), posMidRel.pos.x(), posMidRel.pos.y(),
-                   posMidRel.pos.z(), posMidRel.rot.x(), posMidRel.rot.y(),
-                   posMidRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                   sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                   nIOBit, nIOState, strCmdID);
-    Point point;
-    for (int i = 0; i < count; ++i) {
-        if (i % 2 == 0) { // 反向
-            // 抬高
-            point = posEndRel;
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            nMoveType = 1;
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 改变位姿
-            posBeginRel += beginOffset;
-            posEndRel += endOffset;
-            posMidRel += midOffset;
-            point = posEndRel;
-            point.rot.setX(pointSet.endOffsetPoint.rot.x());
-            point.rot.setY(pointSet.endOffsetPoint.rot.y());
-            point.rot.setZ(pointSet.endOffsetPoint.rot.z());
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 压低
-            point = posEndRel;
-            point.rot.setX(pointSet.endOffsetPoint.rot.x());
-            point.rot.setY(pointSet.endOffsetPoint.rot.y());
-            point.rot.setZ(pointSet.endOffsetPoint.rot.z());
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 反向圆弧运动
-            nMoveType = 2;
-            HRIF_WayPoint2(0, 0, nMoveType, posBeginRel.pos.x(),
-                           posBeginRel.pos.y(), posBeginRel.pos.z(),
-                           pointSet.beginOffsetPoint.rot.x(),
-                           pointSet.beginOffsetPoint.rot.y(),
-                           pointSet.beginOffsetPoint.rot.z(), posMidRel.pos.x(),
-                           posMidRel.pos.y(), posMidRel.pos.z(),
-                           (posMidRel.rot.x() - posBeginRel.rot.x() +
-                            pointSet.beginOffsetPoint.rot.x()),
-                           (posMidRel.rot.y() - posBeginRel.rot.y() +
-                            pointSet.beginOffsetPoint.rot.y()),
-                           (posMidRel.rot.z() - posBeginRel.rot.z() +
-                            pointSet.beginOffsetPoint.rot.z()),
-                           dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName, sUcsName,
-                           dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                           nIOBit, nIOState, strCmdID);
-        } else { // 正向
-            // 抬高
-            point = posBeginRel;
-            point.rot.setX(pointSet.beginOffsetPoint.rot.x());
-            point.rot.setY(pointSet.beginOffsetPoint.rot.y());
-            point.rot.setZ(pointSet.beginOffsetPoint.rot.z());
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            nMoveType = 1;
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 改变位姿
-            posBeginRel += beginOffset;
-            posEndRel += endOffset;
-            posMidRel += midOffset;
-            point = posBeginRel;
-            point = point.PosRelByTool(defaultDirection, defaultOffset);
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 压低
-            point = posBeginRel;
-            HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(),
-                          point.pos.z(), point.rot.x(), point.rot.y(),
-                          point.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                          sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint,
-                          nIsSeek, nIOBit, nIOState, strCmdID);
-            // 正向圆弧运动
-            nMoveType = 2;
-            HRIF_WayPoint2(
-                0, 0, nMoveType, posEndRel.pos.x(), posEndRel.pos.y(),
-                posEndRel.pos.z(), posEndRel.rot.x(), posEndRel.rot.y(),
-                posEndRel.rot.z(), posMidRel.pos.x(), posMidRel.pos.y(),
-                posMidRel.pos.z(), posMidRel.rot.x(), posMidRel.rot.y(),
-                posMidRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                nIOBit, nIOState, strCmdID);
-        }
-    }
-    return count % 2 == 0
-               ? Point{posEndRel.pos.x(), posEndRel.pos.y(), posEndRel.pos.z(),
-                       posEndRel.rot.x(), posEndRel.rot.y(), posEndRel.rot.z()}
-               : Point{posBeginRel.pos.x(),
-                       posBeginRel.pos.y(),
-                       posBeginRel.pos.z(),
-                       pointSet.beginOffsetPoint.rot.x(),
-                       pointSet.beginOffsetPoint.rot.y(),
-                       pointSet.beginOffsetPoint.rot.z()};
-}
-
-void HansRobot::MoveZLine(const Craft &craft) {
-    // 定义运动类型
-    int nMoveType = 1;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = craft.moveSpeed;
-    // 定义运动加速度
-    double dAcc = 100;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    int size = craft.offsetCount + 1;
-    float factor = 1.0 / size;
-
-    Point point = pointSet.beginPoint;
-    Point pointRel;
-    Point pointOffset;
-    pointOffset.pos = pointSet.auxPoint.pos - pointSet.beginPoint.pos;
-    pointOffset.rot = pointSet.auxPoint.rot - pointSet.beginPoint.rot;
-    for (int i = 1; i <= size; ++i) {
-        point += pointOffset;
-        pointRel = point.PosRelByTool(direction, offset);
-        HRIF_WayPoint(0, 0, nMoveType, pointRel.pos.x(), pointRel.pos.y(),
-                      pointRel.pos.z(), pointRel.rot.x(), pointRel.rot.y(),
-                      pointRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                      sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                      nIOBit, nIOState, strCmdID);
-        point =
-            Point::scale(pointSet.beginPoint, pointSet.endPoint, factor * i);
-        pointRel = point.PosRelByTool(direction, offset);
-        HRIF_WayPoint(0, 0, nMoveType, pointRel.pos.x(), pointRel.pos.y(),
-                      pointRel.pos.z(), pointRel.rot.x(), pointRel.rot.y(),
-                      pointRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-                      sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
-                      nIOBit, nIOState, strCmdID);
-    }
-}
-
-void HansRobot::MoveSpiralLine(const Craft &craft) {
-    // 定义运动类型
-    int nMoveType = 2;
-    // 定义关节目标位置
-    double dJ1 = 0;
-    double dJ2 = 0;
-    double dJ3 = 0;
-    double dJ4 = 0;
-    double dJ5 = 0;
-    double dJ6 = 0;
-    // 定义工具坐标变量
-    string sTcpName = "TCP_AGP";
-    // 定义用户坐标变量
-    string sUcsName = "Base";
-    // 定义运动速度
-    double dVelocity = craft.moveSpeed;
-    // 定义运动加速度
-    double dAcc = 100;
-    // 定义过渡半径
-    double dRadius = 1;
-    // 定义是否使用关节角度
-    int nIsUseJoint = 1;
-    // 定义是否使用检测 DI 停止
-    int nIsSeek = 0;
-    // 定义检测的 DI 索引
-    int nIOBit = 0;
-    // 定义检测的 DI 状态
-    int nIOState = 0;
-    // 定义路点 ID
-    string strCmdID = "0";
-
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    int size = craft.offsetCount + 1;
-    float factor = 1.0 / (2 * size + 2);
-
-    // 定义空间目标位置
-    Point pointEnd =
-        Point::scale(pointSet.beginPoint, pointSet.endPoint, factor * 4);
-    QVector3D O = Point::calculateCircumcenter(
-        pointSet.beginPoint.pos, pointSet.auxPoint.pos, pointEnd.pos);
-    Point pointAux =
-        Point::scale(pointSet.beginPoint, pointSet.endPoint, factor * 2);
-    QVector3D temp = (pointAux.pos - O);
-    QVector3D upOffset =
-        temp.normalized() * pointSet.beginPoint.pos.distanceToPoint(O) - temp;
-    QVector3D downOffset = temp * (-0.5);
-    pointAux.pos += upOffset;
-    Point pointEndRel = pointEnd.PosRelByTool(direction, offset);
-    Point pointAuxRel = pointAux.PosRelByTool(direction, offset);
-    // 执行路点运动
-    HRIF_WayPoint2(0, 0, nMoveType, pointEndRel.pos.x(), pointEndRel.pos.y(),
-                   pointEndRel.pos.z(), pointEndRel.rot.x(),
-                   pointEndRel.rot.y(), pointEndRel.rot.z(),
-                   pointAuxRel.pos.x(), pointAuxRel.pos.y(),
-                   pointAuxRel.pos.z(), pointAuxRel.rot.x(),
-                   pointAuxRel.rot.y(), pointAuxRel.rot.z(), dJ1, dJ2, dJ3, dJ4,
-                   dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                   nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-    for (int i = 1; i < size; ++i) {
-        // 小圆弧
-        pointEnd = Point::scale(pointSet.beginPoint, pointSet.endPoint,
-                                factor * (2 * i));
-        pointAux = Point::scale(pointSet.beginPoint, pointSet.endPoint,
-                                factor * (2 * i + 1));
-        pointAux.pos += downOffset;
-        pointEndRel = pointEnd.PosRelByTool(direction, offset);
-        pointAuxRel = pointAux.PosRelByTool(direction, offset);
-        HRIF_WayPoint2(
-            0, 0, nMoveType, pointEndRel.pos.x(), pointEndRel.pos.y(),
-            pointEndRel.pos.z(), pointEndRel.rot.x(), pointEndRel.rot.y(),
-            pointEndRel.rot.z(), pointAuxRel.pos.x(), pointAuxRel.pos.y(),
-            pointAuxRel.pos.z(), pointAuxRel.rot.x(), pointAuxRel.rot.y(),
-            pointAuxRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-            sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek, nIOBit,
-            nIOState, strCmdID);
-        // 大圆弧
-        pointEnd = Point::scale(pointSet.beginPoint, pointSet.endPoint,
-                                factor * (2 * i + 4));
-        pointAux = Point::scale(pointSet.beginPoint, pointSet.endPoint,
-                                factor * (2 * i + 2));
-        pointAux.pos += upOffset;
-        pointEndRel = pointEnd.PosRelByTool(direction, offset);
-        pointAuxRel = pointAux.PosRelByTool(direction, offset);
-        HRIF_WayPoint2(
-            0, 0, nMoveType, pointEndRel.pos.x(), pointEndRel.pos.y(),
-            pointEndRel.pos.z(), pointEndRel.rot.x(), pointEndRel.rot.y(),
-            pointEndRel.rot.z(), pointAuxRel.pos.x(), pointAuxRel.pos.y(),
-            pointAuxRel.pos.z(), pointAuxRel.rot.x(), pointAuxRel.rot.y(),
-            pointAuxRel.rot.z(), dJ1, dJ2, dJ3, dJ4, dJ5, dJ6, sTcpName,
-            sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek, nIOBit,
-            nIOState, strCmdID);
-    }
-}
-
-void HansRobot::Run(const Craft &craft, bool isAGPRun) {
-    // QThread::msleep(100);
-    MoveBefore(craft, isAGPRun);
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    Point point = pointSet.auxEndPoint.PosRelByTool(direction, offset);
-    // 选择打磨方式
-    switch (craft.way) {
-    case PolishWay::ArcWay:
-        MoveArc(craft);
-        break;
-    case PolishWay::LineWay:
-        MoveLine(craft);
-        break;
-    case PolishWay::RegionArcWay1:
-        point = MoveRegionArc1(craft);
-        point = point.PosRelByTool(defaultDirection, defaultOffset);
-        break;
-    case PolishWay::RegionArcWay2:
-        point = MoveRegionArc2(craft);
-        point = point.PosRelByTool(defaultDirection, defaultOffset);
-        break;
-    case PolishWay::ZLineWay:
-        MoveZLine(craft);
-        break;
-    case PolishWay::SpiralLineWay:
-        MoveSpiralLine(craft);
-        break;
-    default:
-        break;
-    }
-    MoveAfter(craft, point);
-}
-*/
 bool HansRobot::Stop() {
     // 机器人停止
     isStop.store(true);
@@ -4515,6 +2919,7 @@ void HansRobot::MoveTcpL(const Point &point, double velocity, double acc,
     double dRadius = radius;
     // 定义是否使用关节角度
     int nIsUseJoint = 1;
+    // int nIsUseJoint = 0;
     // 定义是否使用检测 DI 停止
     int nIsSeek = 0;
     // 定义检测的 DI 索引
@@ -4524,10 +2929,12 @@ void HansRobot::MoveTcpL(const Point &point, double velocity, double acc,
     // 定义路点 ID
     string strCmdID = "0";
     // 直线运动
-    HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
+    qDebug()<<"moveL:4575";
+   int ret= HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
                   point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
                   dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
                   nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
+     qDebug()<<"moveL:"<<ret;
 }
 
 void HansRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
@@ -4570,584 +2977,3 @@ void HansRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
                    sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
                    nIOBit, nIOState, strCmdID);
 }
-/*
-DucoRobot::DucoRobot() : ducoCobot(nullptr) {}
-
-DucoRobot::~DucoRobot() {
-    if (ducoCobot != nullptr) {
-        ducoCobot->end_teach_mode(true);
-        ducoCobot->disable(true);
-        ducoCobot->close();
-        delete ducoCobot;
-        ducoCobot = nullptr;
-    }
-}
-
-bool DucoRobot::RobotConnect(QString robotIP) {
-    robotIPAddr = robotIP.toStdString();
-    if (ducoCobot != nullptr) {
-        delete ducoCobot;
-    }
-    ducoCobot = new DucoRPC::DucoCobot(robotIPAddr, 7003);
-    if (ducoCobot != nullptr && ducoCobot->open() == 0) {
-        // 机器人上电
-        ducoCobot->power_on(true);
-        // 设置速度比
-        ducoCobot->speed(100);
-        return true;
-    }
-    return false;
-}
-
-bool DucoRobot::RobotTeach(int pos) {
-    qDebug() << "start";
-    if (!isTeach) {
-        qDebug() << "if:" << isTeach;
-        if (agp != nullptr) {
-            // 设置AGP默认参数
-            agp->Control(FUNC::RESET);
-            agp->Control(FUNC::ENABLE);
-            agp->SetMode(MODE::PosMode);
-            agp->SetPos(pos * 100);
-            agp->SetForce(200);
-            agp->SetTouchForce(0);
-            agp->SetRampTime(0);
-            if (!IsAGPEnabled()) {
-                agp->Control(FUNC::ENABLE);
-            }
-        }
-        if (!IsRobotEnabled()) {
-            // 机器人使能
-            qDebug() << "robot not enable1";
-            ducoCobot->enable(true);
-            // QThread::msleep(1500);
-            if (!IsRobotEnabled()) {
-                qDebug() << "robot not enable2";
-                return isTeach;
-            }
-        }
-        qDebug() << "open driver";
-        // 启用自由拖拽
-        int nRet = ducoCobot->teach_mode(false);
-        qDebug() << "open teach: " << nRet;
-        // if (nRet == 0) {
-        isTeach = true;
-        // }
-    } else {
-        qDebug() << "else:" << isTeach;
-        // 关闭自由拖拽
-        int nRet = ducoCobot->end_teach_mode(true);
-        qDebug() << "close teach: " << nRet;
-        // if (nRet == 0) {
-        isTeach = false;
-        // }
-    }
-    qDebug() << "end" << isTeach;
-    return isTeach;
-}
-
-bool DucoRobot::GetTcpPoint(Point &point) {
-    // 获取位姿信息
-    std::vector<double> data(6);
-    ducoCobot->get_tcp_pose(data);
-    point.pos.setX(data.at(0));
-    point.pos.setY(data.at(1));
-    point.pos.setZ(data.at(2));
-    point.rot.setX(data.at(3));
-    point.rot.setY(data.at(4));
-    point.rot.setZ(data.at(5));
-    qDebug() << data;
-    return true;
-}
-
-void DucoRobot::MoveBefore(DucoRPC::DucoCobot *robot, const Craft &craft,
-                           bool isAGPRun) {
-    vector<double> p(6);
-    double v = defaultVelocity * 0.001;
-    double a = 2;
-    double rad = 0.001;
-    vector<double> q_near(6);
-    string tool = "TCP_AGP";
-    string wobj = "default";
-    bool block = true;
-    // DucoRPC::OP op;
-    // bool def_acc = true;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-
-    // 移到安全点
-    Point point = pointSet.safePoint;
-    robot->get_tcp_pose(p);
-    qDebug() << " now:" << p;
-    if (std::fabs(p[0] - point.pos.x()) > precision ||
-        std::fabs(p[1] - point.pos.y()) > precision ||
-        std::fabs(p[2] - point.pos.z()) > precision ||
-        std::fabs(p[3] - point.rot.x()) > precision ||
-        std::fabs(p[4] - point.rot.y()) > precision ||
-        std::fabs(p[5] - point.rot.z()) > precision) {
-        p[0] = point.pos.x();
-        p[1] = point.pos.y();
-        p[2] = point.pos.z();
-        p[3] = point.rot.x();
-        p[4] = point.rot.y();
-        p[5] = point.rot.z();
-        qDebug() << "move:" << p;
-        status = robot->movel(p, v, a, rad, q_near, tool, wobj, block);
-        qDebug() << "result:" << status;
-        if (status != DucoRPC::TaskState::ST_Interrupt) {
-            return;
-        }
-    }
-    // AGP运行
-    AGPRun(craft, isAGPRun);
-    // 移到起始辅助点
-    point = pointSet.auxBeginPoint.PosRelByTool(direction, offset);
-    p[0] = point.pos.x();
-    p[1] = point.pos.y();
-    p[2] = point.pos.z();
-    p[3] = point.rot.x();
-    p[4] = point.rot.y();
-    p[5] = point.rot.z();
-    qDebug() << "move:" << p;
-    status = robot->movel(p, v, a, rad, q_near, tool, wobj, block);
-    qDebug() << "result:" << status;
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        return;
-    }
-    // 移到起始点
-    point = pointSet.beginPoint.PosRelByTool(direction, offset);
-    v = craft.cutinSpeed * 0.001;
-    p[0] = point.pos.x();
-    p[1] = point.pos.y();
-    p[2] = point.pos.z();
-    p[3] = point.rot.x();
-    p[4] = point.rot.y();
-    p[5] = point.rot.z();
-    qDebug() << "move:" << p;
-    status = robot->movel(p, v, a, rad, q_near, tool, wobj, block);
-    qDebug() << "result:" << status;
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        return;
-    }
-}
-
-void DucoRobot::MoveAfter(DucoRPC::DucoCobot *robot, const Craft &craft,
-                          Point point) {
-    vector<double> p(6);
-    double v = craft.cutinSpeed * 0.001;
-    double a = 2;
-    double rad = 0.001;
-    vector<double> q_near(6);
-    string tool = "TCP_AGP";
-    string wobj = "default";
-    bool block = true;
-    // DucoRPC::OP op;
-    // bool def_acc = true;
-
-    // 移到结束辅助点
-    p[0] = point.pos.x();
-    p[1] = point.pos.y();
-    p[2] = point.pos.z();
-    p[3] = point.rot.x();
-    p[4] = point.rot.y();
-    p[5] = point.rot.z();
-    qDebug() << "move:" << p;
-    status = robot->movel(p, v, a, rad, q_near, tool, wobj, block);
-    qDebug() << "result:" << status;
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        return;
-    }
-    // 移到安全点
-    point = pointSet.safePoint;
-    // 定义运动速度
-    v = defaultVelocity * 0.001;
-    p[0] = point.pos.x();
-    p[1] = point.pos.y();
-    p[2] = point.pos.z();
-    p[3] = point.rot.x();
-    p[4] = point.rot.y();
-    p[5] = point.rot.z();
-    qDebug() << "move:" << p;
-    status = robot->movel(p, v, a, rad, q_near, tool, wobj, block);
-    qDebug() << "result:" << status;
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        return;
-    }
-}
-
-void DucoRobot::MoveLine(DucoRPC::DucoCobot *robot, const Craft &craft) {
-    vector<double> p(6);
-    double v = craft.moveSpeed * 0.001;
-    double a = 2;
-    double rad = 0.001;
-    vector<double> q_near(6);
-    string tool = "TCP_AGP";
-    string wobj = "default";
-    bool block = true;
-    // DucoRPC::OP op;
-    // bool def_acc = true;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-
-    Point point;
-    for (int i = 0; i < pointSet.midPoints.size(); ++i) {
-        // 定义空间目标位置
-        point = pointSet.midPoints[i].PosRelByTool(direction, offset);
-        // 执行路点运动
-        p[0] = point.pos.x();
-        p[1] = point.pos.y();
-        p[2] = point.pos.z();
-        p[3] = point.rot.x();
-        p[4] = point.rot.y();
-        p[5] = point.rot.z();
-        qDebug() << "move:" << p;
-        status = robot->movel(p, v, a, rad, q_near, tool, wobj, block);
-        qDebug() << "result:" << status;
-        if (status != DucoRPC::TaskState::ST_Interrupt) {
-            return;
-        }
-    }
-    // 移到结束点
-    point = pointSet.endPoint.PosRelByTool(direction, offset);
-    p[0] = point.pos.x();
-    p[1] = point.pos.y();
-    p[2] = point.pos.z();
-    p[3] = point.rot.x();
-    p[4] = point.rot.y();
-    p[5] = point.rot.z();
-    qDebug() << "move:" << p;
-    status = robot->movel(p, v, a, rad, q_near, tool, wobj, block);
-    qDebug() << "result:" << status;
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        return;
-    }
-}
-
-void DucoRobot::MoveArc(DucoRPC::DucoCobot *robot, const Craft &craft) {
-    vector<double> p1(6);
-    vector<double> p2(6);
-    double v = craft.moveSpeed * 0.001;
-    double a = 2;
-    double r = 0.001;
-    int mode = 1;
-    vector<double> q_near(6);
-    string tool = "TCP_AGP";
-    string wobj = "default";
-    bool block = true;
-    // DucoRPC::OP op;
-    // bool def_acc = true;
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-
-    // 定义空间目标位置
-    Point posMidRel = pointSet.auxPoint.PosRelByTool(direction, offset);
-    p1[0] = posMidRel.pos.x();
-    p1[1] = posMidRel.pos.y();
-    p1[2] = posMidRel.pos.z();
-    p1[3] = posMidRel.rot.x();
-    p1[4] = posMidRel.rot.y();
-    p1[5] = posMidRel.rot.z();
-    Point posEndRel = pointSet.endPoint.PosRelByTool(direction, offset);
-    p2[0] = posEndRel.pos.x();
-    p2[1] = posEndRel.pos.y();
-    p2[2] = posEndRel.pos.z();
-    p2[3] = posEndRel.rot.x();
-    p2[4] = posEndRel.rot.y();
-    p2[5] = posEndRel.rot.z();
-    // 执行路点运动
-    status = robot->movec(p1, p2, v, a, r, mode, q_near, tool, wobj, block);
-    qDebug() << "result:" << status;
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        return;
-    }
-}
-
-Point DucoRobot::MoveRegionArc1(const Craft &craft) { return Point(); }
-Point DucoRobot::MoveRegionArc2(const Craft &craft) { return Point(); }
-void DucoRobot::MoveZLine(const Craft &craft) {}
-void DucoRobot::MoveSpiralLine(const Craft &craft) {}
-
-bool DucoRobot::IsRobotEnabled() {
-    // 定义需要读取的机器人状态变量
-    vector<int8_t> data;
-    // 读取状态
-    ducoCobot->get_robot_state(data);
-    qDebug() << data;
-    return data[0] == DucoRPC::StateRobot::SR_Enable ? true : false;
-}
-
-bool DucoRobot::IsRobotMoved() { return ducoCobot->robotmoving(); }
-
-bool DucoRobot::CloseFreeDriver() {
-    // 关闭自由拖拽
-    int nRet = ducoCobot->end_teach_mode(true);
-    qDebug() << "close teach: " << nRet;
-    // if (nRet == 0) {
-    isTeach = false;
-    return true;
-    // }
-    // return false;
-}
-
-void DucoRobot::Run(const Craft &craft, bool isAGPRun) {
-    DucoRPC::DucoCobot *robot = new DucoRPC::DucoCobot(robotIPAddr, 7003);
-    robot->open();
-    MoveBefore(robot, craft, isAGPRun);
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        robot->close();
-        delete robot;
-        return;
-    }
-    // 偏移
-    OffsetDirection direction = craft.offsetDirection;
-    double offset = craft.offsetDistance;
-    Point point = pointSet.auxEndPoint.PosRelByTool(direction, offset);
-    // 选择打磨方式
-    switch (craft.way) {
-    case PolishWay::ArcWay:
-        MoveArc(robot, craft);
-        break;
-    case PolishWay::LineWay:
-        MoveLine(robot, craft);
-        break;
-    case PolishWay::RegionArcWay1:
-        point = MoveRegionArc1(craft);
-        point = point.PosRelByTool(defaultDirection, defaultOffset);
-        break;
-    case PolishWay::RegionArcWay2:
-        point = MoveRegionArc2(craft);
-        point = point.PosRelByTool(defaultDirection, defaultOffset);
-        break;
-    case PolishWay::ZLineWay:
-        MoveZLine(craft);
-        break;
-    case PolishWay::SpiralLineWay:
-        MoveSpiralLine(craft);
-        break;
-    default:
-        break;
-    }
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        robot->close();
-        delete robot;
-        return;
-    }
-    MoveAfter(robot, craft, point);
-    if (status != DucoRPC::TaskState::ST_Interrupt) {
-        robot->close();
-        delete robot;
-        return;
-    }
-    while (true) {
-        if (!IsRobotMoved()) {
-            break;
-        }
-    }
-    robot->close();
-    delete robot;
-}
-
-bool DucoRobot::Stop() {
-    qDebug() << "stop begin";
-    // 机器人停止
-    ducoCobot->stop(true);
-    // AGP停止
-    if (agp != nullptr) {
-        agp->SetSpeed(0);
-    }
-    qDebug() << "stop end";
-    // 机器人复位
-    ducoCobot->disable(true);
-    // AGP复位
-    if (agp != nullptr) {
-        agp->Control(FUNC::RESET);
-    }
-    // 自由拖拽复位
-    isTeach = false;
-    qDebug() << "reset end";
-
-    return true;
-}
-
-void DucoRobot::OpenWeb(QString ip) {
-    QDesktopServices::openUrl(QUrl("http://" + ip + ":7000"));
-}
-
-*/
-
-// JakaRobot::JakaRobot() {}
-
-// JakaRobot::~JakaRobot() {
-//     jakaRobot.drag_mode_enable(FALSE);
-//     // jakaRobot.disable_robot();
-//     // jakaRobot.login_out();
-// }
-
-// bool JakaRobot::RobotConnect(QString robotIP) {
-//     // std::string ip = robotIP.toStdString();
-//     // std::string ip = "192.168.1.20";
-//     std::string ip = "10.5.5.100";
-//     const char *hostname = ip.c_str();
-//     // 连接机器人
-//     errno_t ret = jakaRobot.login_in(hostname);
-//     if (ret != ERR_SUCC) {
-//         return false;
-//     }
-//     // 机器人上电
-//     // jakaRobot.power_on();
-//     // 机器人使能
-//     // jakaRobot.enable_robot();
-//     // 设置速度比
-//     // jakaRobot.set_rapidrate(1.0);
-//     return true;
-// }
-
-// bool JakaRobot::GetTcpPoint(Point &point) {
-//     CartesianPose tcp_pos;
-//     errno_t ret = jakaRobot.get_tcp_position(&tcp_pos);
-//     if (ret != ERR_SUCC) {
-//         return false;
-//     }
-//     point.pos.setX(tcp_pos.tran.x);
-//     point.pos.setY(tcp_pos.tran.y);
-//     point.pos.setZ(tcp_pos.tran.z);
-//     point.rot.setX(qRound(qRadiansToDegrees(tcp_pos.rpy.rx) * 1000.0) / 1000.0);
-//     point.rot.setY(qRound(qRadiansToDegrees(tcp_pos.rpy.ry) * 1000.0) / 1000.0);
-//     point.rot.setZ(qRound(qRadiansToDegrees(tcp_pos.rpy.rz) * 1000.0) / 1000.0);
-//     return true;
-// }
-
-// bool JakaRobot::RobotTeach(int pos) {
-//     if (!isTeach) {
-//         if (agp != nullptr) {
-//             // 设置AGP默认参数
-//             agp->Control(FUNC::RESET);
-//             agp->Control(FUNC::ENABLE);
-//             agp->SetMode(MODE::PosMode);
-//             agp->SetPos(pos * 100);
-//             agp->SetForce(200);
-//             agp->SetTouchForce(0);
-//             agp->SetRampTime(0);
-//             if (!IsAGPEnabled()) {
-//                 agp->Control(FUNC::ENABLE);
-//             }
-//         }
-//         // if (!IsRobotElectrified()) {
-//         //     // 机器人上电
-//         //     jakaRobot.power_on();
-//         //     if (!IsRobotElectrified()) {
-//         //         return isTeach;
-//         //     }
-//         // }
-//         if (!IsRobotEnabled()) {
-//             // 机器人使能
-//             jakaRobot.enable_robot();
-//             // QThread::msleep(1500);
-//             if (!IsRobotEnabled()) {
-//                 return isTeach;
-//             }
-//         }
-//         // 启用自由拖拽
-//         errno_t ret = jakaRobot.drag_mode_enable(TRUE);
-//         if (ret == ERR_SUCC) {
-//             isTeach = true;
-//         }
-//     } else {
-//         // 关闭自由拖拽
-//         errno_t ret = jakaRobot.drag_mode_enable(FALSE);
-//         if (ret == ERR_SUCC) {
-//             isTeach = false;
-//         }
-//     }
-//     return isTeach;
-// }
-
-// bool JakaRobot::CloseFreeDriver() {
-//     // 关闭自由拖拽
-//     errno_t ret = jakaRobot.drag_mode_enable(FALSE);
-//     if (ret == ERR_SUCC) {
-//         isTeach = false;
-//         return true;
-//     }
-//     return false;
-// }
-
-// bool JakaRobot::Stop() {
-//     // 机器人停止
-//     jakaRobot.motion_abort();
-//     // AGP停止
-//     if (agp != nullptr) {
-//         agp->SetSpeed(0);
-//     }
-//     // 机器人复位
-//     // jakaRobot.disable_robot();
-//     // AGP复位
-//     if (agp != nullptr) {
-//         agp->Control(FUNC::RESET);
-//     }
-//     // 自由拖拽复位
-//     isTeach = false;
-
-//     return true;
-// }
-
-// bool JakaRobot::IsRobotElectrified() {
-//     RobotStatus robstatus;
-//     jakaRobot.get_robot_status(&robstatus);
-
-//     return robstatus.powered_on;
-// }
-
-// bool JakaRobot::IsRobotEnabled() {
-//     RobotStatus robstatus;
-//     jakaRobot.get_robot_status(&robstatus);
-
-//     return robstatus.enabled;
-// }
-
-// bool JakaRobot::IsRobotMoved() {
-//     BOOL in_pos;
-//     jakaRobot.is_in_pos(&in_pos);
-
-//     return !in_pos;
-// }
-
-// void JakaRobot::OpenWeb(QString ip) {}
-
-// void JakaRobot::MoveTcpL(const Point &point, double dVelocity, double dAcc,
-//                          double dRadius) {
-//     CartesianPose pos;
-//     pos.tran.x = point.pos.x();
-//     pos.tran.y = point.pos.y();
-//     pos.tran.z = point.pos.z();
-//     pos.rpy.rx = qDegreesToRadians(point.rot.x());
-//     pos.rpy.ry = qDegreesToRadians(point.rot.y());
-//     pos.rpy.rz = qDegreesToRadians(point.rot.z());
-
-//     jakaRobot.linear_move(&pos, MoveMode::ABS, FALSE, dVelocity, dAcc, 0.1,
-//                           NULL, 3.14 / 10, 12.56 / 10);
-// }
-
-// void JakaRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
-//                          double dVelocity, double dAcc, double dRadius) {
-//     CartesianPose midPos, endPos;
-//     midPos.tran.x = auxPoint.pos.x();
-//     midPos.tran.y = auxPoint.pos.y();
-//     midPos.tran.z = auxPoint.pos.z();
-//     midPos.rpy.rx = qDegreesToRadians(auxPoint.rot.x());
-//     midPos.rpy.ry = qDegreesToRadians(auxPoint.rot.y());
-//     midPos.rpy.rz = qDegreesToRadians(auxPoint.rot.z());
-
-//     endPos.tran.x = endPoint.pos.x();
-//     endPos.tran.y = endPoint.pos.y();
-//     endPos.tran.z = endPoint.pos.z();
-//     endPos.rpy.rx = qDegreesToRadians(endPoint.rot.x());
-//     endPos.rpy.ry = qDegreesToRadians(endPoint.rot.y());
-//     endPos.rpy.rz = qDegreesToRadians(endPoint.rot.z());
-
-//     jakaRobot.circular_move(&endPos, &midPos, MoveMode::ABS, FALSE, dVelocity,
-//                             dAcc, 0.1, NULL);
-// }

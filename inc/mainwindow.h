@@ -114,6 +114,8 @@ private slots:
 
     void on_ToolMagazineReset_clicked();
 
+    void on_RobotReconnect_2_clicked();
+
 private:
     Ui::MainWindow *ui;
     HansRobot robot;
@@ -201,7 +203,7 @@ protected:
 
             // 只在机器人连接时读取IO
             if (connect != 0) {
-                HRIF_ReadBoxDI(0, 1, di1);  // DI1 - 安全门
+                HRIF_ReadBoxDI(0, 0, di1);  // DI1 - 安全门
                 HRIF_ReadBoxDI(0, 2, di2);  // DI2 - 刀库1号刀位
                 HRIF_ReadBoxDI(0, 3, di3);  // DI3 - 刀库2号刀位
                 HRIF_ReadBoxDI(0, 4, di4);  // DI4 - 刀库3号刀位

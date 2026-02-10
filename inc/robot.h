@@ -76,6 +76,7 @@ class Robot {
     void MoveSpiralLine(const Craft &craft);
 
     void ToolChange(Craft &craft);// 换刀功能
+    bool CanPerformToolChange(int &errorCode); // 换刀逻辑校验函数：返回 true 表示可以换刀，false 表示不能
 
     void Run(Craft &craft, bool isAGPRun);
 
