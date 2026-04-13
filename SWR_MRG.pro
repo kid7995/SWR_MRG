@@ -47,8 +47,8 @@ INCLUDEPATH += \
     $$PWD/lib/agp/include
 
 # Hans
-# win32: LIBS += -L$$PWD/lib/hans/x64/Release/ -lHR_Pro # release用这一行
-win32: LIBS += -L$$PWD/lib/hans/MSVC/ -lHR_Prod # debug用这一行
+win32: LIBS += -L$$PWD/lib/hans/x64/Release/ -lHR_Pro # release用这一行
+# win32: LIBS += -L$$PWD/lib/hans/MSVC/ -lHR_Prod # debug用这一行
 INCLUDEPATH += $$PWD/lib/hans/include
 #DEPENDPATH += $$PWD/lib/hans/x64/Release
 DEPENDPATH += $$PWD/lib/hans/MSVC

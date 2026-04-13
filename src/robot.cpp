@@ -6,6 +6,9 @@
 #include <QFile>
 #include <QTextStream>
 #include <QStringList>
+#include <QCoreApplication>
+#include <QDateTime> // 建议增加时间戳，便于分析日志
+#include <algorithm>
 
 #include "robot.h"
 
@@ -19,7 +22,7 @@ std::string robotIPAddr;
 
 Robot::Robot()
     : agp(nullptr), isTeach(false), isStop(true), discThickness(0),
-      teachPos(0) {}
+    teachPos(0) {}
 
 Robot::~Robot() {
     if (agp != nullptr) {
@@ -96,12 +99,29 @@ bool Robot::GetPoint(Point &point) {
         return false;
     }
     double pos = teachPos;
-    if (agp != nullptr) {
-        pos = agp->ReadPos() / 100.0;
-    }
+    // getpoint偶发读取到AGP的力控模式下的位移 约164 所以会导致偶尔机器人偶然会深入打磨片内部
+    // 注释掉该部分 让程序默认AGP10mm打磨
+    // if (agp != nullptr) {
+    //     pos = agp->ReadPos() / 100.0;
+    // }
+
     // point = point.PosRelByTool(defaultDirection, pos + discThickness);
     // 取消打磨片厚度
     point = point.PosRelByTool(defaultDirection, pos);
+
+    QString logFilePath = QCoreApplication::applicationDirPath() + "/log.txt";
+    QFile file(logFilePath);
+
+    // 以只写、追加、文本模式打开文件
+    if (file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&file);
+        // 写入当前时间、pos数值以及point的坐标信息
+        out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz ")
+            << " | pos: " << QString::number(pos, 'f', 4)
+            << " | " << point.toString() << "\n";
+        file.close();
+    }
+
     return true;
 }
 
@@ -506,12 +526,14 @@ void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     MoveL(point, dVelocity, dAcc, dRadius);
     // AGP运行
     AGPRun(craft, isAGPRun);
+    //添加 圆台侧面打磨排除逻辑
     if (craft.way != PolishWay::RegionArcWay_Vertical &&
         craft.way != PolishWay::RegionArcWay_Vertical_Repeat &&
         craft.way != PolishWay::CylinderWay_Horizontal_Convex &&
         craft.way != PolishWay::CylinderWay_Vertical_Convex &&
         craft.way != PolishWay::CylinderWay_Horizontal_Concave &&
-        craft.way != PolishWay::CylinderWay_Vertical_Concave) {
+        craft.way != PolishWay::CylinderWay_Vertical_Concave &&
+        craft.way != PolishWay::ConicalFrustum_Concave) {
         // 移到起始辅助点
         // point = pointSet.auxBeginPoint;
         if (craft.way == PolishWay::RegionArcWay1 ||
@@ -1189,8 +1211,11 @@ Point Robot::MoveRegionArcHorizontal(Craft &craft) {
 
         // --- 3. 统计长度与换刀逻辑判断 ---
 
-        // 累加已完成的弧长
-        this->toolConfig.totalPolishLength += baseArcLength;
+        // 累加已完成的弧长 AGP启动时才会累积
+        // this->toolConfig.totalPolishLength += baseArcLength;
+        if (isAGPRunning) {
+            this->toolConfig.totalPolishLength += baseArcLength*0.1;
+        }
 
         // 判断是否超过阈值并触发换刀
         if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && i < count) {
@@ -1815,7 +1840,7 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
                 finalPosListDown.at(2 * i)));
         }
 
-        this->toolConfig.totalPolishLength += currentLayerLength;
+        this->toolConfig.totalPolishLength += currentLayerLength*0.1;
 
         if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && i < count) {
             qDebug() << "Reached threshold, total length:" << this->toolConfig.totalPolishLength;
@@ -2116,6 +2141,21 @@ Point Robot::MoveCylinderVertical(Craft &craft, bool isConvex) {
 //     return pos;
 // }
 
+// 计算从 from 到 to 的最短角度差，结果范围 (-180, 180]
+static float shortestAngleDiff(float from, float to) {
+    float diff = to - from;
+    while (diff >  180.0f) diff -= 360.0f;
+    while (diff < -180.0f) diff += 360.0f;
+    return diff;
+}
+
+// 规范化欧拉角到 [-180, 180]
+static float normalizeAngle(float a) {
+    while (a >  180.0f) a -= 360.0f;
+    while (a < -180.0f) a += 360.0f;
+    return a;
+}
+
 
 Point Robot::MoveConicalFrustum(Craft &craft) {
     /*
@@ -2133,20 +2173,43 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
     // ========== 阶段1: 圆弧几何参数提取 ==========
 
     QVector<Point> posListUp;
-    posListUp.append(pointSet.beginPoint);
-    posListUp.append(pointSet.midPoints);
-    posListUp.append(pointSet.endPoint);
+    posListUp.append(pointSet.beginPoint);    // 加入起始点
+    posListUp.append(pointSet.midPoints);     // 加入所有中间点（奇数个）
+    posListUp.append(pointSet.endPoint);      // 加入结束点
 
-    QVector<QVector3D> centerListUp;
-    QVector<double> radiusListUp, lengthListUp;
-    double totalArcLengthUp = 0.0;
+    // === 将 posListUp 中的点位信息保存到 log.txt ===
+    QString logFilePath = QCoreApplication::applicationDirPath() + "/log.txt";
+    QFile file(logFilePath);
+
+    if (file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&file);
+        QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz");
+
+        out << "---------- Conical Frustum Path Points [" << timestamp << "] ----------\n";
+
+        out << "Begin Point: " << pointSet.beginPoint.toString() << "\n";
+
+        for (int i = 0; i < pointSet.midPoints.size(); ++i) {
+            out << "Mid Point " << (i + 1) << ": " << pointSet.midPoints.at(i).toString() << "\n";
+        }
+
+        out << "End Point: " << pointSet.endPoint.toString() << "\n";
+
+        out << "--------------------------------------------------------------\n\n";
+        file.close();
+    }
+
+    QVector<QVector3D> centerListUp;          // 存储每段圆弧的圆心
+    QVector<double> radiusListUp;             // 存储每段圆弧的半径
+    QVector<double> lengthListUp;             // 存储每段圆弧的弧长
+    double totalArcLengthUp = 0.0;            // 所有圆弧段总长度（单位mm）
 
     for (int i = 1; i < posListUp.size() - 1; i += 2) {
         QVector3D center = Point::calculateCircumcenter(
             posListUp.at(i - 1).pos,
             posListUp.at(i).pos,
             posListUp.at(i + 1).pos
-        );
+            );
         centerListUp.append(center);
 
         double radius = (posListUp.at(i).pos - center).length();
@@ -2171,12 +2234,21 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
 
     QVector3D vec_AB = posListUp.at(1).pos - posListUp.at(0).pos;
     QVector3D vec_AC = posListUp.at(2).pos - posListUp.at(0).pos;
+
     QVector3D axis = QVector3D::crossProduct(vec_AB, vec_AC).normalized();
 
     QVector<QVector<QPair<QVector3D, QVector3D>>> layerTempGeom;
-    int pointsPerLayer = 20;
+
+    double dVelocity_plan = static_cast<double>(craft.moveSpeed);
+    double segLength = (std::max)(10.0, dVelocity_plan * 0.15);
+    int pointsPerLayer = static_cast<int>(totalArcLengthUp / segLength);
+
+    if (pointsPerLayer < 1) {
+        pointsPerLayer = 1;
+    }
 
     for (int layer = 0; layer <= count; ++layer) {
+
         double t_layer = (count > 0) ? static_cast<double>(layer) / count : 0.0;
 
         QVector3D L_i = pointSet.beginPoint.pos * (1 - t_layer) +
@@ -2186,13 +2258,17 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
 
         QVector3D base_rot_start = pointSet.beginPoint.rot;
         QVector3D base_rot_end = pointSet.endPoint.rot;
-        QVector3D center_up = centerListUp.first();
 
-        QVector3D vec_start = L_i - center_up;
-        QVector3D vec_end = R_i - center_up;
+        QVector3D center_layer = QVector3D(
+            centerListUp.first().x(),
+            centerListUp.first().y(),
+            (L_i.z() + R_i.z()) / 2.0
+            );
+
+        QVector3D vec_start = L_i - center_layer;
+        QVector3D vec_end   = R_i - center_layer;
         double r_start = vec_start.length();
-        double r_end = vec_end.length();
-
+        double r_end   = vec_end.length();
         double cos_theta = QVector3D::dotProduct(vec_start, vec_end) / (r_start * r_end + 1e-6);
         double layer_total_angle_rad = qAcos(qBound(-1.0, cos_theta, 1.0));
 
@@ -2202,19 +2278,27 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
             double t_point = static_cast<double>(p) / pointsPerLayer;
             double r_current = r_start * (1 - t_point) + r_end * t_point;
             double current_angle_deg = qRadiansToDegrees(layer_total_angle_rad * t_point);
-
             QMatrix3x3 R = Point::toRotationMatrix(axis, current_angle_deg);
             QVector3D dir_start = vec_start.normalized();
             QVector3D rotated_dir = QVector3D(
                 R(0,0)*dir_start.x() + R(0,1)*dir_start.y() + R(0,2)*dir_start.z(),
                 R(1,0)*dir_start.x() + R(1,1)*dir_start.y() + R(1,2)*dir_start.z(),
                 R(2,0)*dir_start.x() + R(2,1)*dir_start.y() + R(2,2)*dir_start.z()
-            );
-
-            QVector3D pos = center_up + rotated_dir * r_current;
+                );
+            QVector3D pos = center_layer + rotated_dir * r_current;
             if (p == pointsPerLayer) pos = R_i;
-
-            QVector3D rot_interp = base_rot_start * (1 - t_point) + base_rot_end * t_point;
+            //修复 +-180°跳变的问题
+            // QVector3D rot_interp = base_rot_start * (1 - t_point) + base_rot_end * t_point;
+            QVector3D rot_diff(
+                shortestAngleDiff(base_rot_start.x(), base_rot_end.x()),
+                shortestAngleDiff(base_rot_start.y(), base_rot_end.y()),
+                shortestAngleDiff(base_rot_start.z(), base_rot_end.z())
+                );
+            QVector3D rot_interp(
+                normalizeAngle(base_rot_start.x() + rot_diff.x() * static_cast<float>(t_point)),
+                normalizeAngle(base_rot_start.y() + rot_diff.y() * static_cast<float>(t_point)),
+                normalizeAngle(base_rot_start.z() + rot_diff.z() * static_cast<float>(t_point))
+                );
             currentLayerGeom.append(qMakePair(pos, rot_interp));
         }
 
@@ -2238,7 +2322,6 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
         for (int i = 0; i < numPoints; ++i) {
             QVector3D curr_pos = geomList[i].first;
             QVector3D curr_base_rot = geomList[i].second;
-
             QVector3D move_dir;
             if (i < numPoints - 1) {
                 move_dir = geomList[i + 1].first - curr_pos;
@@ -2250,17 +2333,14 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
 
             double norm = move_dir.length();
             if (norm > 1e-6) move_dir = move_dir / norm;
-
             double limited_angle = qBound(-30.0, static_cast<double>(grindAngle), 30.0);
             QVector3D final_rot = Point::getNewRotation(curr_base_rot, move_dir, limited_angle);
 
-            // 打磨片半径补偿
             QVector3D compensated_pos = curr_pos;
 
             if (discRadius > 0.0) {
                 QMatrix3x3 R_tool = Point::toRotationMatrix(final_rot);
                 QVector3D tool_z = QVector3D(R_tool(0,2), R_tool(1,2), R_tool(2,2));
-
                 QVector3D plane_normal = QVector3D::crossProduct(tool_z, move_dir);
                 double norm_pn = plane_normal.length();
 
@@ -2277,88 +2357,186 @@ Point Robot::MoveConicalFrustum(Craft &craft) {
                     compensated_pos = curr_pos + tool_x * discRadius;
                 }
             }
-
             Point finalPoint(compensated_pos.x(), compensated_pos.y(), compensated_pos.z(),
                              final_rot.x(), final_rot.y(), final_rot.z());
             finalPoints.append(finalPoint);
+        }
+        if (layer % 2 != 0 && finalPoints.size() >= 2) {
+            finalPoints[0].rot = finalPoints[1].rot;
         }
 
         layerFinalPoints.append(finalPoints);
     }
 
-    // ========== 阶段4: 简化为5点 + 执行运动 ==========
+
+    // ========== 阶段4: 连续 MoveL 执行运动 ==========
 
     double dVelocity = craft.moveSpeed;
     double dAcc = 2000;
     double dRadius = craft.transitionRadius;
-    double lift_distance = 80.0;
+    double lift_distance = 30.0;
 
-    Point pos;  // ← 用于记录最后一次运动的目标点
+    // tangentialOffset: 斜切入/切出的切向偏移量（mm）
+    // 含义：接近点/离开点在打磨路径起/终点的反向/正向延伸多远
+    // 建议范围：15~30 mm；值越大切入角越钝越平滑，值越小越接近垂直
+    const double tangentialOffset = 20.0;
+
+    Point pos;
 
     for (int layer = 0; layer <= count; ++layer) {
         QVector<Point> &fullPoints = layerFinalPoints[layer];
         int numPoints = fullPoints.size();
 
+        // === 将当前层点位数据记录到 log.txt ===
+        QString logPath = QCoreApplication::applicationDirPath() + "/log.txt";
+        QFile logFile(logPath);
+
+        if (logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+            QTextStream out(&logFile);
+            QString currentTime = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz");
+
+            out << "========== Layer [" << layer << "] Start ==========\n";
+            out << "Timestamp: " << currentTime << "\n";
+            out << "Total points in this layer: " << fullPoints.size() << "\n";
+
+            for (int i = 0; i < fullPoints.size(); ++i) {
+                out << "Layer " << layer << " - Point[" << i << "]: "
+                    << fullPoints[i].toString() << "\n";
+            }
+
+            out << "========== Layer [" << layer << "] End ===========\n\n";
+            logFile.close();
+        }
+
         if (numPoints < 2) continue;
 
-        // 简化为5个关键点
+        // 获取当前层起点和终点
         Point start_pt = fullPoints[0];
         Point end_pt = fullPoints[numPoints - 1];
-        int mid_idx = numPoints / 2;
-        Point mid_pt = fullPoints[mid_idx];
 
-        Point approach_pt = start_pt.PosRelByTool(defaultDirection, -lift_distance);
-        Point retract_pt = end_pt.PosRelByTool(defaultDirection, -lift_distance);
+        // ========== 计算打磨路径切向方向 ==========
+        // entry_dir: 起点→第二点方向，作为切入的基准方向
+        // exit_dir : 倒数第二点→终点方向，作为切出的基准方向
+        QVector3D entry_dir = (fullPoints[1].pos - fullPoints[0].pos).normalized();
+        QVector3D exit_dir  = (fullPoints[numPoints-1].pos - fullPoints[numPoints-2].pos).normalized();
 
-        // 1. 下压到起点
-        // if (layer == 0) {
-        //     MoveL(approach_pt, dVelocity, dAcc, dRadius);
-        // }
+        // ========== 斜切入接近点 ==========
+        // 原逻辑：approach_pt 在 start_pt 正上方（垂直下压），B→A 与 A→C 夹角≈90°，容易过磨
+        // 新逻辑：approach_pt = start_pt 沿打磨路径反方向偏移 tangentialOffset + 法向抬起 lift_distance
+        //         几何：∠(B→A→C) 为钝角，机器人从外侧斜向滑入，消除直角转折冲击
+        //
+        //  B(approach_pt)
+        //    \
+        //     \  斜切入（钝角）
+        //      \
+        //       A(start_pt) ──────────────→ C(fullPoints[1])
+        //                      打磨路径
+        QMatrix3x3 R_start_tool = Point::toRotationMatrix(start_pt.rot);
+        QVector3D  tool_z_start = QVector3D(R_start_tool(0,2), R_start_tool(1,2), R_start_tool(2,2)).normalized();
+        QMatrix3x3 R_end_tool   = Point::toRotationMatrix(end_pt.rot);
+        QVector3D  tool_z_end   = QVector3D(R_end_tool(0,2), R_end_tool(1,2), R_end_tool(2,2)).normalized();
 
+        // 斜切入接近点 B
+        Point approach_pt;
+        approach_pt.pos = start_pt.pos
+                          - entry_dir    * tangentialOffset   // 沿打磨路径反方向偏移（在起点外侧）
+                          - tool_z_start * lift_distance;     // 沿工具Z轴负方向抬起（远离打磨面）
+        approach_pt.rot = start_pt.rot;
+
+        // 斜切出离开点 D
+        //  A(end_pt) ─────────────→ D(retract_pt)
+        //                    打磨路径延伸方向 + 抬起
+        Point retract_pt;
+        retract_pt.pos = end_pt.pos
+                         + exit_dir   * tangentialOffset     // 沿打磨路径正方向延伸（在终点外侧）
+                         - tool_z_end * lift_distance;       // 沿工具Z轴负方向抬起（远离打磨面）
+        retract_pt.rot = end_pt.rot;
+
+        // ===== 渐出抬离：对末尾若干点施加逐步增大的抬离偏移 =====
+        // 末尾 fadeSteps 个点沿工具Z轴负方向逐步抬离，配合降速，消除减速段过磨
+        {
+            const int    fadeSteps     = qMin(5, numPoints - 1);
+            const double fadeMaxOffset = 5.0;  // 末点最大抬离量（mm），建议范围 2~8mm
+
+            for (int fi = 0; fi < fadeSteps; ++fi) {
+                int idx = numPoints - 1 - fi;
+                double t = static_cast<double>(fadeSteps - fi) / static_cast<double>(fadeSteps);
+                double offset = -fadeMaxOffset * t;
+                fullPoints[idx] = fullPoints[idx].PosRelByTool(defaultDirection, offset);
+            }
+        }
+
+        // ===== 渐入抬离：对起始若干点施加逐步减小的抬离偏移 =====
+        // 首点抬离最大，逐步减至0，磨片先轻触再逐渐完全接触，消除切入端过磨
+        {
+            const int    fadeInSteps     = qMin(5, numPoints - 1);
+            const double fadeInMaxOffset = 5.0;  // 首点最大抬离量（mm），建议范围 2~8mm
+
+            for (int fi = 0; fi < fadeInSteps; ++fi) {
+                double t = static_cast<double>(fadeInSteps - fi) / static_cast<double>(fadeInSteps);
+                double offset = -fadeInMaxOffset * t;
+                fullPoints[fi] = fullPoints[fi].PosRelByTool(defaultDirection, offset);
+            }
+
+            // 渐入修改了 fullPoints[0]，同步重算 start_pt 和 approach_pt
+            // 渐入不改变姿态，切向方向不变，仅重新计算抬起后的接近点位置
+            start_pt = fullPoints[0];
+            {
+                QMatrix3x3 R_s2 = Point::toRotationMatrix(start_pt.rot);
+                QVector3D  tz_s2 = QVector3D(R_s2(0,2), R_s2(1,2), R_s2(2,2)).normalized();
+                approach_pt.pos = start_pt.pos
+                                  - entry_dir * tangentialOffset
+                                  - tz_s2     * lift_distance;
+                approach_pt.rot = start_pt.rot;
+            }
+        }
+
+        // ===== 运动执行 =====
+
+        // 1. 斜切入：从接近点（B）以切入速度滑向起点（A）
+        //    第0层用 defaultVelocity 快速到位，后续层用打磨速度平滑过渡
+        if (layer == 0) {
+            MoveL(approach_pt, defaultVelocity, dAcc, dRadius);
+        } else {
+            MoveL(approach_pt, dVelocity, dAcc, dRadius);
+        }
         MoveL(start_pt, craft.cutinSpeed, dAcc, dRadius);
 
-        // 2. 圆弧运动
-        MoveC(mid_pt, end_pt, dVelocity, dAcc, dRadius);
+        // 2. 打磨段：遍历所有插值点
+        //    末尾 fadeSteps 个点降速至正常速度×fadeSpeedRatio，配合渐出抬离减少过磨
+        {
+            const int    fadeSteps      = qMin(5, numPoints - 1);
+            const double fadeSpeedRatio = 0.6;  // 末段速度比例，建议范围 0.5~0.8
+            const int    fadeStartIdx   = numPoints - fadeSteps;
 
-        // 3. 抬起 (这是当前层的最后一次运动)
-        MoveL(retract_pt, craft.cutinSpeed, dAcc, dRadius);
-        pos = retract_pt;  // ← 记录最后一次MoveL的目标点
+            for (int i = 1; i < numPoints; ++i) {
+                double vel = (i >= fadeStartIdx) ? dVelocity * fadeSpeedRatio : dVelocity;
+                MoveL(fullPoints[i], vel, dAcc, dRadius);
+            }
+        }
 
+        // 3. 斜切出：从终点（A）沿路径延伸方向抬离到离开点（D）
+        MoveL(retract_pt, dVelocity, dAcc, dRadius);
+        pos = retract_pt;
+
+        // 等待当前层执行完毕
         while (IsRobotMoved()) { QThread::msleep(50); }
 
-        // 换刀逻辑
+        // --- 换刀逻辑 ---
+        // AGP启动时才会累积打磨长度
         double currentLayerLength = totalArcLengthUp / (count + 1);
-        this->toolConfig.totalPolishLength += currentLayerLength;
-
+        // this->toolConfig.totalPolishLength += currentLayerLength * 10;
+        if (isAGPRunning) {
+            this->toolConfig.totalPolishLength += currentLayerLength * 10;
+        }
         if (this->toolConfig.totalPolishLength >= this->toolConfig.toolChangeThreshold && layer < count) {
-            qDebug() << "Reached threshold:" << toolConfig.totalPolishLength << "mm. Starting ToolChange...";
-            qDebug() << "threshold:" << toolConfig.toolChangeThreshold << "mm. Starting ToolChange...";
-
-            Point liftPoint = retract_pt.PosRelByTool(defaultDirection, -20.0);
-            MoveL(liftPoint, dVelocity, 2000, 0);
-            pos = liftPoint;  // ← 更新pos
-            while (IsRobotMoved()) { QThread::msleep(50); }
-
             ToolChange(craft);
-            toolConfig.totalPolishLength = 0;
-
-            qDebug() << "ToolChange finished. Continuing...";
+            this->toolConfig.totalPolishLength = 0;
         }
 
-        // 层间过渡
-        if (layer < count) {
-            QVector<Point> &nextLayerPoints = layerFinalPoints[layer + 1];
-            Point next_start = nextLayerPoints[0];
-            Point next_approach = next_start.PosRelByTool(defaultDirection, -lift_distance);
-
-            MoveL(next_approach, dVelocity, dAcc, dRadius);
-            pos = next_approach;  // ← 更新pos
-        }
-
-        if (isStop) return pos;  // ← 中途停止时返回当前pos
+        if (isStop) return pos;
     }
 
-    // ← 返回最后一次运动的目标点 (最后一层的retract_pt或next_approach)
     return pos;
 }
 
@@ -2454,30 +2632,31 @@ void Robot::MoveSpiralLine(const Craft &craft) {
  */
 bool Robot::CanPerformToolChange(int &errorCode) {
     int status = this->toolConfig.toolMagStatus;
-    int currentIdx = this->toolConfig.targetToolPos; // 0-3
-    int nextIdx = currentIdx + 1;
+    // *** 修复：targetToolPos 是1-indexed，转为0-indexed再做位运算 ***
+    int currentIdx = this->toolConfig.targetToolPos - 1; // 1号刀位 → index 0
+    int nextIdx    = currentIdx + 1;
 
-    // 1. 检查当前位置 (必须为空，才能放回旧刀)
-    int currentMask = (1 << currentIdx);
+    // 1. 当前刀位槽必须为空（才能放回旧刀）
+    int currentMask = (1 << currentIdx); // 1 << 0 = 0001，检查bit0（1号槽）✓
     if ((status & currentMask) != 0) {
-        errorCode = 1; // 当前位有刀，会碰撞
+        errorCode = 1;
         return false;
     }
 
-    // 2. 检查是否有下一把刀
+    // 2. 是否还有下一把刀（0-indexed不超过3）
     if (nextIdx > 3) {
-        errorCode = 3; // 已经是4号位，没法再往高处换了
+        errorCode = 3;
         return false;
     }
 
-    // 3. 检查高一位 (必须有刀，才能取出新刀)
-    int nextMask = (1 << nextIdx);
+    // 3. 下一刀位槽必须有刀
+    int nextMask = (1 << nextIdx); // 1 << 1 = 0010，检查bit1（2号槽）✓
     if ((status & nextMask) == 0) {
-        errorCode = 2; // 高一位是空的，没刀可拿
+        errorCode = 2;
         return false;
     }
 
-    errorCode = 0; // 校验通过
+    errorCode = 0;
     return true;
 }
 
@@ -2486,123 +2665,140 @@ bool Robot::CanPerformToolChange(int &errorCode) {
  * @param craft 传入工艺引用以更新 targetToolPos
  */
 void Robot::ToolChange(Craft &craft) {
-    Point point;    // 定义空间目标位置
-    double dVelocity = defaultVelocity;    // 定义运动速度
-    double dAcc = 2000;    // 定义运动加速度
-    double dRadius = craft.transitionRadius;    // 定义过渡半径
-    point = pointSet.safePoint;    // 移到安全点
 
-    // 0. 检测 craft 参数
+    auto writeLog = [](const QString &msg) {
+        QString logFilePath = QCoreApplication::applicationDirPath() + "/log.txt";
+        QFile file(logFilePath);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz")
+                << " [ToolChange] " << msg << "\n";
+            file.close();
+        }
+    };
+
+    Point point;
+    double dVelocity = defaultVelocity;
+    double dAcc = 2000;
+    double dRadius = craft.transitionRadius;
+    point = pointSet.safePoint;
+
+    writeLog(QString("进入换刀流程 | targetToolPos=%1 | toolMagStatus=%2 | totalPolishLength=%3")
+                 .arg(this->toolConfig.targetToolPos)
+                 .arg(this->toolConfig.toolMagStatus)
+                 .arg(this->toolConfig.totalPolishLength));
+
+    // 0. 越界检测
     if (this->toolConfig.targetToolPos >= 4) {
-        QMessageBox::warning(nullptr, "换刀提醒", "当前已是最后一把工具（pos=4），不可继续换刀！");
+        writeLog("已是最后一把工具（targetToolPos>=4），跳过换刀");
+        // 已移除 QMessageBox
         return;
     }
 
-    // 1. 获取当前机器人位置（用于后续第6步复位）
+    // 1. 获取当前TCP位置
     Point currentPos;
     if (!GetTcpPoint(currentPos)) {
-        qDebug() << "获取当前位置失败，无法执行换刀";
+        writeLog("GetTcpPoint 失败，中止换刀");
         return;
     }
+    writeLog(QString("当前TCP位置: %1").arg(currentPos.toString()));
 
-    // 刀库状态检测 罩壳是否打开
-    int di6 = 0; // DI6 - 刀库门打开信号
+    // 刀库门状态检测
+    int di6 = 0;
     HRIF_ReadBoxDI(0, 6, di6);
     if (di6 != 1) {
         HRIF_SetBoxDO(0, 6, 1);
+        writeLog("已发送打开刀库门指令（DO6=1）");
     }
-    // 刀库刀具状态与更换参数是否对应
-    // 检测更换参数是否是4 如果是 则弹窗提醒 并且不触发换刀 直接回到安全点 继续打磨
+
+    // 2. 刀库状态校验
     int err = 0;
     if (!CanPerformToolChange(err)) {
-        QString msg;
-        if (err == 1) msg = QString("错误：当前刀位 %1 已有刀，无法放回！").arg(this->toolConfig.targetToolPos + 1);
-        else if (err == 2) msg = QString("错误：预备刀位 %1 是空的，无刀可换！").arg(this->toolConfig.targetToolPos + 2);
-        else if (err == 3) msg = "提示：当前已是 4 号刀位，换刀流程已结束。";
+        QString reason;
+        if (err == 1)
+            reason = QString("当前刀位 %1 已有刀，无法放回！").arg(this->toolConfig.targetToolPos);
+        else if (err == 2)
+            reason = QString("预备刀位 %1 为空，无刀可换！").arg(this->toolConfig.targetToolPos + 1);
+        else if (err == 3)
+            reason = "已是4号刀位，换刀流程结束。";
 
-        QMessageBox::critical(nullptr, "换刀校验未通过", msg +
-            QString("\n(当前状态码: %1)").arg(this->toolConfig.toolMagStatus));
+        writeLog(QString("CanPerformToolChange 校验失败 | errorCode=%1 | 原因：%2").arg(err).arg(reason));
 
-        // 机器人移动到安全点 (确保姿态安全)
+        // 已移除 QMessageBox，直接执行安全复位逻辑
         MoveL(point, dVelocity, dAcc, dRadius);
         while (IsRobotMoved()) { QThread::msleep(50); }
-        // 机器人移动到之前记录的位置（复位）
-        MoveL(currentPos, dVelocity, dAcc, dRadius);
+        MoveTcpL(currentPos, dVelocity, dAcc, dRadius);
         while (IsRobotMoved()) { QThread::msleep(50); }
-        // 启动打磨头
-        // AGPRun(craft, true);
         return;
     }
-    // 打磨头停转 调整到位置模式
+
+    writeLog("校验通过，开始执行换刀");
+
+    // 打磨头停转与模式设置
     AGPStop();
     if (agp != nullptr) {
-
-            // 设置AGP默认参数
-            agp->Control(FUNC::RESET);
+        agp->Control(FUNC::RESET);
+        agp->Control(FUNC::ENABLE);
+        agp->SetMode(MODE::PosMode);
+        agp->SetPos(1000);
+        agp->SetForce(200);
+        agp->SetTouchForce(0);
+        agp->SetRampTime(0);
+        if (!IsAGPEnabled()) {
             agp->Control(FUNC::ENABLE);
-            agp->SetMode(MODE::PosMode);
-
-            agp->SetPos(1000);
-            agp->SetForce(200);
-            agp->SetTouchForce(0);
-            agp->SetRampTime(0);
-            // 检查并确保使能状态
-            if (!IsAGPEnabled()) {
-                agp->Control(FUNC::ENABLE);
-            }
         }
+    }
 
-    // 2. 机器人移动到安全点位 (采用 craft 中的运动参数)
+    // 3. 移到安全点
     MoveL(point, dVelocity, dAcc, dRadius);
     while (IsRobotMoved()) { QThread::msleep(50); }
 
-    // 3. 基于 craft 参数设置模拟量 IO 数值 (1.2 - 1.8)
-    // 映射逻辑：pos 0->1.2, 1->1.4, 2->1.6, 3->1.8
-    // 更新逻辑: 只能退1换2 退2换3 退3换4
+    // 4. 设置模拟量 IO
     double sendVal = 1.2 + (this->toolConfig.targetToolPos * 0.2);
-    // boxID=0, nBit=0, nMode=1 (通常为电压模式)
     HRIF_SetBoxAOVal(0, 0, sendVal, 1);
+    writeLog(QString("发送换刀AO信号: %1V").arg(sendVal));
 
-    // 4. 等待并读取 IO，当机器人 IO 变为 2.0 时继续
+    // 5. 等待换刀完成信号
     int currentMode = 0;
     double readBackVal = 0.0;
     bool isDone = false;
+    int waitCount = 0;
 
     while (!isDone) {
-        // 使用您提供的 HRIF_ReadBoxAO 接口
-        int nRet = HRIF_ReadBoxAO(0, 0, currentMode, readBackVal);
-        if (nRet == 0) {
-            // 判断是否达到 2.0（允许微小浮点误差）
+        if (HRIF_ReadBoxAO(0, 0, currentMode, readBackVal) == 0) {
             if (qAbs(readBackVal - 2.0) < 0.01) {
                 isDone = true;
-                qDebug() << "检测到 2.0，换刀已完成";
+                writeLog("检测到AO=2.0，换刀完成");
             }
         }
-        // 如果点击了停止按钮或发生急停，应退出循环
-        if (isStop) return;
-
-        QThread::msleep(100); // 轮询间隔
+        if (isStop) {
+            writeLog("停止信号，中止等待");
+            return;
+        }
+        QThread::msleep(100);
     }
-    // 5. 换刀完毕后，机器人再次移动到安全点 (确保姿态安全)
+
+    // 6. 路径复位
     MoveL(point, dVelocity, dAcc, dRadius);
     while (IsRobotMoved()) { QThread::msleep(50); }
-    // 6. 机器人移动到之前第 1 步中记录的位置（复位）
-    MoveL(currentPos, dVelocity, dAcc, dRadius);
+    MoveTcpL(currentPos, dVelocity, dAcc, dRadius);
     while (IsRobotMoved()) { QThread::msleep(50); }
-    //换刀结束 启动打磨头
+    writeLog("机器人复位完成");
+
+    // 启动打磨头
     AGPRun(craft, true);
-    // 7. craft 中的 targetToolPos + 1
+
+    // 7. 更新状态
     this->toolConfig.targetToolPos += 1;
-    // 重置累计数据
     this->toolConfig.totalPolishLength = 0;
-    // 重置 AO 信号
     HRIF_SetBoxAOVal(0, 0, 1.0, 0);
-    // qDebug() << "换刀流程圆满结束，当前工具位已更新为:" << craft.targetToolPos;
+
+    writeLog(QString("换刀流程圆满结束 | 新刀位=%1").arg(this->toolConfig.targetToolPos));
 }
 
 void Robot::Run(Craft &craft, bool isAGPRun) {
     //机器人控制脚本启动
-
+    HRIF_StartScript(0);
     // QThread::msleep(100);
     double radius = craft.discRadius;
     double angle = craft.grindAngle;
@@ -2628,6 +2824,7 @@ void Robot::Run(Craft &craft, bool isAGPRun) {
         Point::getTranslation(rotation, moveDirection, radius, angle);
     // 开始运动
     isStop.store(false);
+    isAGPRunning = isAGPRun;
     MoveBefore(craft, isAGPRun);//机器人运动到安全点
     // Point point = pointSet.auxEndPoint;
     Point point;
@@ -2682,7 +2879,11 @@ void Robot::Run(Craft &craft, bool isAGPRun) {
     default:
         break;
     }
-    point = point.PosRelByTool(defaultDirection, defaultOffset);
+    //圆台打磨 跳过额外偏移 内部最后一步就会抬出
+    if (craft.way != PolishWay::ConicalFrustum_Concave) {
+        point = point.PosRelByTool(defaultDirection, defaultOffset);
+    }
+    // point = point.PosRelByTool(defaultDirection, defaultOffset);
     MoveAfter(craft, point); //机器人从终点抬起 运动到安全点
     // 等待运动完成
     while (true) {
@@ -2720,9 +2921,6 @@ bool HansRobot::RobotConnect(QString robotIP) {
         HRIF_SetOverride(0, 0, 1.0);
         // 重置AO换刀信号
         HRIF_SetBoxAOVal(0, 0, 1.0, 0);//重置换刀AO信号
-        // 启动机器人预设脚本
-        QThread::msleep(1000);
-        nRet2=HRIF_StartScript(0);
         qDebug() << "HRIF_StartScript return:" << nRet2;
         return true;
     }
@@ -2826,8 +3024,8 @@ bool HansRobot::RobotTeach(int pos) {
     } else {
         // 关闭自由拖拽
         int nRet = HRIF_GrpCloseFreeDriver(0, 0);
-       if (nRet == 0) {
-           isTeach = false;
+        if (nRet == 0) {
+            isTeach = false;
         }
     }
     return isTeach;
@@ -2930,11 +3128,11 @@ void HansRobot::MoveTcpL(const Point &point, double velocity, double acc,
     string strCmdID = "0";
     // 直线运动
     qDebug()<<"moveL:4575";
-   int ret= HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
-                  point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
-                  dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
-                  nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
-     qDebug()<<"moveL:"<<ret;
+    int ret= HRIF_WayPoint(0, 0, nMoveType, point.pos.x(), point.pos.y(), point.pos.z(),
+                            point.rot.x(), point.rot.y(), point.rot.z(), dJ1, dJ2, dJ3,
+                            dJ4, dJ5, dJ6, sTcpName, sUcsName, dVelocity, dAcc, dRadius,
+                            nIsUseJoint, nIsSeek, nIOBit, nIOState, strCmdID);
+    qDebug()<<"moveL:"<<ret;
 }
 
 void HansRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
@@ -2977,3 +3175,5 @@ void HansRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
                    sUcsName, dVelocity, dAcc, dRadius, nIsUseJoint, nIsSeek,
                    nIOBit, nIOState, strCmdID);
 }
+
+

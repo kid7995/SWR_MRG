@@ -36,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
                 "7\n1\\CutinSpeed=20\n1\\MovingSpeed=80\n1\\RotationSpeed="
                 "4500\n1\\ContactForce=10\n1\\SettingForce="
                 "80\n1\\TransitionTime=1500\n1\\TransitionRadius="
-                "0\n1\\DiscRadius=50\n1\\DiscThickness=8\n1\\GrindAngle="
+                "0\n1\\DiscRadius=50\n1\\DiscThickness=32\n1\\GrindAngle="
                 "0\n1\\OffsetCount=0\n1\\AddOffsetCount=0\n1\\RaiseCount="
                 "0\n1\\FloatCount=0\n1\\IsMirror=false\n"
                 "1\\IsMirror=false\n"
@@ -89,6 +89,10 @@ MainWindow::MainWindow(QWidget *parent)
     settings.endArray();
     for (int i = 0; i < size; ++i) {
         ui->cmbCraftID->addItem(crafts.at(i).craftID);
+    }
+    if (!crafts.isEmpty()) {
+        currCraftIdx = 0;
+        ReadCurrPara();
     }
     SetPolishWay(crafts.at(0).way);
     SetValidator();
@@ -1220,6 +1224,12 @@ void MainWindow::updateRobotStatusUI(
     if (targetPos >= 4) {
         ui->ToolMagazinePot4Status_changed->setStyleSheet(redStyle);
     }
+
+    // ========== 5.更新刀具及刀库文本显示 ==========
+
+    ui->TargetToolPosText->setPlainText(QString::number(robot.toolConfig.targetToolPos));
+    ui->ToolStatusText->setPlainText(QString::number(robot.toolConfig.toolMagStatus));
+    ui->TotalPolishLengthText->setPlainText(QString::number(robot.toolConfig.totalPolishLength));
 }
 
 void MainWindow::on_ToolMagazineReset_clicked()
@@ -1232,6 +1242,7 @@ void MainWindow::on_ToolMagazineReset_clicked()
     robot.toolConfig.toolMagStatus = 0;
     robot.toolConfig.targetToolPos = 1;
     SaveToolConfig();
+    HRIF_SetBoxAOVal(0, 0, 1.0, 0); //重置AO换刀信号
     // QMessageBox::information(this, "提示", "刀库刀具更新状态已重置");
 
 }

@@ -253,7 +253,7 @@ QPushButton {
 }</string>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="page_5">
        <property name="accessibleName">
@@ -262,16 +262,22 @@ QPushButton {
        <widget class="QPushButton" name="ToolMagazineReset">
         <property name="geometry">
          <rect>
-          <x>910</x>
-          <y>140</y>
+          <x>1060</x>
+          <y>80</y>
           <width>141</width>
-          <height>60</height>
+          <height>50</height>
          </rect>
         </property>
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>60</height>
+          <height>50</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>50</height>
          </size>
         </property>
         <property name="font">
@@ -1610,9 +1616,9 @@ border-radius: 24px; /* 假设 QLabel 为 30x30 */</string>
        <widget class="QLabel" name="SafeDoor">
         <property name="geometry">
          <rect>
-          <x>140</x>
-          <y>590</y>
-          <width>171</width>
+          <x>360</x>
+          <y>540</y>
+          <width>191</width>
           <height>51</height>
          </rect>
         </property>
@@ -1631,8 +1637,8 @@ border-radius: 24px; /* 假设 QLabel 为 30x30 */</string>
        <widget class="QLabel" name="SafeDoorStatus">
         <property name="geometry">
          <rect>
-          <x>310</x>
-          <y>590</y>
+          <x>550</x>
+          <y>540</y>
           <width>48</width>
           <height>48</height>
          </rect>
@@ -1664,7 +1670,7 @@ border-radius: 24px; /* 假设 QLabel 为 30x30 */</string>
         <property name="geometry">
          <rect>
           <x>900</x>
-          <y>200</y>
+          <y>150</y>
           <width>161</width>
           <height>49</height>
          </rect>
@@ -1684,16 +1690,22 @@ border-radius: 24px; /* 假设 QLabel 为 30x30 */</string>
        <widget class="QPushButton" name="RobotReconnect_2">
         <property name="geometry">
          <rect>
-          <x>910</x>
-          <y>250</y>
+          <x>1060</x>
+          <y>150</y>
           <width>141</width>
-          <height>60</height>
+          <height>50</height>
          </rect>
         </property>
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>60</height>
+          <height>50</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>50</height>
          </size>
         </property>
         <property name="font">
@@ -1714,6 +1726,159 @@ color: rgb(255, 255, 255);</string>
         </property>
         <property name="flat">
          <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QPlainTextEdit" name="TargetToolPosText">
+        <property name="geometry">
+         <rect>
+          <x>1070</x>
+          <y>220</y>
+          <width>131</width>
+          <height>51</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>19</pointsize>
+         </font>
+        </property>
+        <property name="cursor" stdset="0">
+         <cursorShape>ArrowCursor</cursorShape>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">text-align: center;</string>
+        </property>
+        <property name="plainText">
+         <string/>
+        </property>
+       </widget>
+       <widget class="QLabel" name="TargetToolPos">
+        <property name="geometry">
+         <rect>
+          <x>900</x>
+          <y>220</y>
+          <width>161</width>
+          <height>49</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>18</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>换刀位</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+       <widget class="QLabel" name="ToolStatus">
+        <property name="geometry">
+         <rect>
+          <x>900</x>
+          <y>270</y>
+          <width>161</width>
+          <height>49</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>18</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>刀库状态码</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+       <widget class="QPlainTextEdit" name="ToolStatusText">
+        <property name="geometry">
+         <rect>
+          <x>1070</x>
+          <y>270</y>
+          <width>131</width>
+          <height>51</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>19</pointsize>
+         </font>
+        </property>
+        <property name="cursor" stdset="0">
+         <cursorShape>ArrowCursor</cursorShape>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">text-align: center;</string>
+        </property>
+        <property name="plainText">
+         <string/>
+        </property>
+       </widget>
+       <widget class="QLabel" name="TotalPolishLength">
+        <property name="geometry">
+         <rect>
+          <x>900</x>
+          <y>320</y>
+          <width>161</width>
+          <height>49</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>18</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>打磨长度</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+       <widget class="QPlainTextEdit" name="TotalPolishLengthText">
+        <property name="geometry">
+         <rect>
+          <x>1070</x>
+          <y>320</y>
+          <width>131</width>
+          <height>51</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>19</pointsize>
+         </font>
+        </property>
+        <property name="cursor" stdset="0">
+         <cursorShape>ArrowCursor</cursorShape>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">text-align: center;</string>
+        </property>
+        <property name="plainText">
+         <string/>
         </property>
        </widget>
       </widget>
