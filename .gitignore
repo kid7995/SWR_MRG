@@ -17,6 +17,12 @@ release/
 lib/duco/static/**/*.lib
 lib/duco/static/**/*.dll
 
+# --- Ignore entire lib directory (if these are third-party) ---
+lib/
+
 # --- System files ---
 .DS_Store
 Thumbs.db
+
+# --- Claude AI files ---
+.claude/
