@@ -21,9 +21,24 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="styleSheet">
-    <string notr="true">background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+    <string notr="true">#stackedWidget {
+    background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
                                      stop:0 rgba(255, 230, 230, 255), 
-                                     stop:1 rgba(255, 255, 255, 255));</string>
+                                     stop:1 rgba(255, 255, 255, 255));
+}
+
+/* 2. 让页面透明以显示底色 */
+#stackedWidget &gt; QWidget {
+    background-color: transparent;
+}
+
+/* 3. 保护其他控件，不让它们透明 */
+#stackedWidget QPushButton, 
+#stackedWidget QLineEdit, 
+#stackedWidget QComboBox {
+    background-color: #ffffff; /* 或者设置为默认系统色 */
+    border: 1px solid #999;
+}</string>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0">
     <item>
@@ -234,8 +249,7 @@ border: none;</string>
        <bool>false</bool>
       </property>
       <property name="styleSheet">
-       <string notr="true">
-QPushButton {
+       <string notr="true">QPushButton {
     /* 核心：固定高度 */
     min-height: 60px;
     max-height: 60px;
@@ -265,19 +279,19 @@ QPushButton {
           <x>1060</x>
           <y>80</y>
           <width>141</width>
-          <height>50</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>50</height>
+          <height>60</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
           <width>16777215</width>
-          <height>50</height>
+          <height>60</height>
          </size>
         </property>
         <property name="font">
@@ -1693,19 +1707,19 @@ border-radius: 24px; /* 假设 QLabel 为 30x30 */</string>
           <x>1060</x>
           <y>150</y>
           <width>141</width>
-          <height>50</height>
+          <height>60</height>
          </rect>
         </property>
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>50</height>
+          <height>60</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
           <width>16777215</width>
-          <height>50</height>
+          <height>60</height>
          </size>
         </property>
         <property name="font">
@@ -3640,7 +3654,7 @@ color: rgb(255, 255, 255);</string>
          <rect>
           <x>1070</x>
           <y>50</y>
-          <width>160</width>
+          <width>162</width>
           <height>551</height>
          </rect>
         </property>
@@ -3785,7 +3799,7 @@ color: rgb(255, 255, 255);</string>
           </widget>
          </item>
          <item>
-          <spacer name="verticalSpacer_4">
+          <spacer name="verticalSpacer_5">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
            </property>
@@ -3823,6 +3837,319 @@ color: rgb(255, 255, 255);</string>
           </widget>
          </item>
         </layout>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="page_6">
+       <property name="accessibleName">
+        <string>视觉示教</string>
+       </property>
+       <widget class="QPushButton" name="btnInputPoint_Vision">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>1080</x>
+          <y>370</y>
+          <width>160</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>-1</pointsize>
+         </font>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: rgb(173, 49, 34);
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>载入动作</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnTryRun_Vision">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>1080</x>
+          <y>460</y>
+          <width>160</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>-1</pointsize>
+         </font>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: rgb(173, 49, 34);
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>试运行</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnRunPoint_VIsion">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>1080</x>
+          <y>550</y>
+          <width>160</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>-1</pointsize>
+         </font>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: rgb(173, 49, 34);
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>运行</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="leInputMovePoint_Vision">
+        <property name="geometry">
+         <rect>
+          <x>140</x>
+          <y>50</y>
+          <width>900</width>
+          <height>51</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+         </font>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QListWidget" name="lstInputMovePoint_Vision">
+        <property name="geometry">
+         <rect>
+          <x>140</x>
+          <y>120</y>
+          <width>900</width>
+          <height>331</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+         </font>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnMoveToPoint_Vision">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>1070</x>
+          <y>40</y>
+          <width>160</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>-1</pointsize>
+         </font>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: rgb(173, 49, 34);
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>移动到点</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnSetSpeed_Vison">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>310</x>
+          <y>480</y>
+          <width>160</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>-1</pointsize>
+         </font>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: rgb(173, 49, 34);
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>速度设置</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QTextEdit" name="RobotSpeed">
+        <property name="geometry">
+         <rect>
+          <x>140</x>
+          <y>480</y>
+          <width>111</width>
+          <height>61</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>21</pointsize>
+         </font>
+        </property>
+        <property name="html">
+         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;meta charset=&quot;utf-8&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+hr { height: 1px; border-width: 0; }
+li.unchecked::marker { content: &quot;\2610&quot;; }
+li.checked::marker { content: &quot;\2612&quot;; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Microsoft YaHei UI'; font-size:21pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p align=&quot;center&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:24pt;&quot;&gt;100&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>480</y>
+          <width>121</width>
+          <height>61</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>全局速度</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_2">
+        <property name="geometry">
+         <rect>
+          <x>260</x>
+          <y>480</y>
+          <width>41</width>
+          <height>61</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>13</pointsize>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>%</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_6">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>50</y>
+          <width>121</width>
+          <height>51</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>选择点位</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnStop_Vision">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>1070</x>
+          <y>120</y>
+          <width>160</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>-1</pointsize>
+         </font>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: rgb(173, 49, 34);
+color: rgb(255, 255, 255);</string>
+        </property>
+        <property name="text">
+         <string>停止</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
        </widget>
       </widget>
       <widget class="QWidget" name="page_4">

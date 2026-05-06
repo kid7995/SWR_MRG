@@ -512,6 +512,56 @@ void Robot::MoveToPoint(const QStringList &coordinates) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RunVisionPoints：按 Vision 导入的动作段依次执行直线运动
+//
+// 设计说明：
+//   1. 每个 VisionMotionSegment 包含一组运动参数（速度/加速度/交融半径）
+//      和若干目标点位，各段参数独立。
+//   2. 调用 MoveTcpL 直接发送 TCP 目标位置，不经过 MoveL 的 teachPos 偏移，
+//      因为 Vision 导出的点位已是绝对 TCP 坐标。
+//   3. 段内连续发送运动指令（不在每个点之间等待），利用交融半径实现平滑过渡，
+//      与 MoveLine 的模式保持一致。
+//   4. 全部发送完成后才等待运动结束，与 DucoRobot::Run 等函数一致。
+// ─────────────────────────────────────────────────────────────────────────────
+void Robot::RunVisionPoints(const QVector<VisionMotionSegment> &segments,
+                            bool isAGPRun, const Craft &craft) {
+    isStop.store(false);
+
+    // 若需要启动 AGP，使用当前工艺的 AGP 参数
+    if (isAGPRun) {
+        AGPRun(craft, true);
+    }
+
+    // 依次执行每个动作段
+    for (const auto &segment : segments) {
+        if (isStop.load()) break;
+        for (const auto &pt : segment.points) {
+            if (isStop.load()) break;
+            if (segment.motionType == "L") {
+                MoveTcpL(pt, segment.velocity, segment.acceleration,
+                         segment.radius);
+            }
+            // 后续可在此扩展 "C"（圆弧）等运动类型
+        }
+    }
+
+    // 等待所有运动完成
+    while (true) {
+        if (!IsRobotMoved()) {
+            break;
+        }
+        QThread::msleep(100);
+    }
+
+    // 停止 AGP 转速
+    if (isAGPRun && agp != nullptr) {
+        agp->SetSpeed(0);
+    }
+
+    isStop.store(true);
+}
+
 void Robot::MoveBefore(const Craft &craft, bool isAGPRun) {
     // 定义空间目标位置
     Point point;
@@ -2922,6 +2972,7 @@ bool HansRobot::RobotConnect(QString robotIP) {
         // 重置AO换刀信号
         HRIF_SetBoxAOVal(0, 0, 1.0, 0);//重置换刀AO信号
         qDebug() << "HRIF_StartScript return:" << nRet2;
+        isConnected = true;
         return true;
     }
     return false;
@@ -3086,6 +3137,7 @@ bool HansRobot::Stop() {
     }
     // 自由拖拽复位
     isTeach = false;
+    isConnected = false;
 
     return true;
 }
@@ -3177,3 +3229,417 @@ void HansRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
 }
 
 
+
+// ============================================================================
+// DucoRobot 实现
+//
+// 设计说明：
+// 1. 采用与 HansRobot / JakaRobot 相同的 MoveTcpL / MoveTcpC 接口模式，
+//    使基类所有运动算法（MoveLine/MoveArc/MoveRegion*/MoveCylinder*等）
+//    不做任何修改即可通过多态复用。
+// 2. Duco API 使用 m/s 速度单位，本层负责将基类传入的 mm/s 统一转换。
+// 3. 覆盖 Run() 以去掉 Hans 专用 IO 调用（HRIF_StartScript / HRIF_SetBoxDO）。
+// 4. 覆盖 ToolChange() 为桩实现，避免在 MoveRegionArcHorizontal 等内部
+//    触发 Hans 专用换刀 IO 调用。如需 Duco 换刀支持，在此函数内扩展。
+// ============================================================================
+
+DucoRobot::DucoRobot() : ducoCobot(nullptr), ducoCobot_state(nullptr) {}
+
+DucoRobot::~DucoRobot() {
+    if (ducoCobot != nullptr) {
+        ducoCobot->end_teach_mode(true);
+        ducoCobot->disable(true);
+        ducoCobot->close();
+        delete ducoCobot;
+        ducoCobot = nullptr;
+    }
+    // 关闭状态查询专用连接
+    if (ducoCobot_state != nullptr) {
+        ducoCobot_state->close();
+        delete ducoCobot_state;
+        ducoCobot_state = nullptr;
+    }
+}
+
+bool DucoRobot::RobotConnect(QString robotIP) {
+    robotIPAddr = robotIP.toStdString();
+
+    // ── 清理旧的运动控制连接 ───────────────────────────────────────────────
+    if (ducoCobot != nullptr) {
+        ducoCobot->close();
+        delete ducoCobot;
+        ducoCobot = nullptr;
+    }
+    // ── 清理旧的状态查询连接 ───────────────────────────────────────────────
+    if (ducoCobot_state != nullptr) {
+        ducoCobot_state->close();
+        delete ducoCobot_state;
+        ducoCobot_state = nullptr;
+    }
+
+    // ── 建立运动控制主连接 ────────────────────────────────────────────────
+    qDebug() << "[DucoRobot] 尝试连接:" << robotIP << "端口:7003";
+    try {
+        ducoCobot = new DucoRPC::DucoCobot(robotIPAddr, 7003);
+        int ret = ducoCobot->open();
+        qDebug() << "[DucoRobot] open() 返回值:" << ret;
+        if (ret != 0) {
+            qDebug() << "[DucoRobot] ✗ open() 失败，返回值非0";
+            delete ducoCobot;
+            ducoCobot = nullptr;
+            return false;
+        }
+
+        // 机器人上电（ST_Finished=4 表示任务正常完成，是正常返回值）
+        int retPower = ducoCobot->power_on(true);
+        qDebug() << "[DucoRobot] power_on() 返回值:" << retPower
+                 << "(4=ST_Finished 正常)";
+
+        // 机器人使能
+        int retEnable = ducoCobot->enable(true);
+        qDebug() << "[DucoRobot] enable() 返回值:" << retEnable
+                 << "(4=ST_Finished 正常)";
+
+        // 设置全局速度比 100%
+        int retSpeed = ducoCobot->speed(100);
+        qDebug() << "[DucoRobot] speed(100) 返回值:" << retSpeed;
+
+        // 读取机器人状态确认（data[0]: 5=Disable 6=Enable）
+        std::vector<int8_t> stateData;
+        ducoCobot->get_robot_state(stateData);
+        if (!stateData.empty()) {
+            qDebug() << "[DucoRobot] 机器人状态码:" << (int)stateData[0]
+                     << "  (5=Disable 6=Enable)";
+        }
+
+        // 读取当前TCP位姿，确认通信正常（单位：m / rad）
+        std::vector<double> pose(6, 0.0);
+        ducoCobot->get_tcp_pose(pose);
+        qDebug() << "[DucoRobot] 当前TCP位姿(m/rad):"
+                 << "x=" << pose[0] << "y=" << pose[1] << "z=" << pose[2]
+                 << "rx=" << pose[3] << "ry=" << pose[4] << "rz=" << pose[5];
+
+    } catch (const std::exception &e) {
+        qDebug() << "[DucoRobot] ✗ 主连接异常:" << e.what();
+        delete ducoCobot;
+        ducoCobot = nullptr;
+        return false;
+    } catch (...) {
+        qDebug() << "[DucoRobot] ✗ 主连接未知异常，请检查IP和网络";
+        delete ducoCobot;
+        ducoCobot = nullptr;
+        return false;
+    }
+
+    // ── 建立状态查询专用连接（StatusThread 独占）────────────────────────────
+    // 依据：Duco官方文档1.5.1节 —— 多线程代码里务必使用不同的DucoCobot对象
+    try {
+        ducoCobot_state = new DucoRPC::DucoCobot(robotIPAddr, 7003);
+        int retState = ducoCobot_state->open();
+        if (retState == 0) {
+            qDebug() << "[DucoRobot] 状态查询连接建立成功";
+        } else {
+            qDebug() << "[DucoRobot] 状态查询连接open()失败，返回:" << retState
+                     << "，状态显示将不可用";
+            delete ducoCobot_state;
+            ducoCobot_state = nullptr;
+            // 状态连接失败不影响主连接，不 return false
+        }
+    } catch (...) {
+        qDebug() << "[DucoRobot] 状态查询连接异常，状态显示将不可用";
+        delete ducoCobot_state;
+        ducoCobot_state = nullptr;
+    }
+
+    isConnected = true;
+    qDebug() << "[DucoRobot] ✓ 连接成功！IP=" << robotIP;
+    return true;
+}
+
+bool DucoRobot::IsRobotElectrified() {
+    // 使用状态查询专用连接，避免与运动线程的 ducoCobot 产生多线程冲突
+    // Duco 无独立"上电"状态；SR_Disable(5)及以上表示控制器在线已上电
+    if (ducoCobot_state == nullptr) return false;
+    std::vector<int8_t> data;
+    ducoCobot_state->get_robot_state(data);
+    if (data.empty()) return false;
+    return (data[0] >= static_cast<int8_t>(DucoRPC::StateRobot::SR_Disable));
+}
+
+bool DucoRobot::IsRobotEnabled() {
+    // 使用状态查询专用连接，避免与运动线程的 ducoCobot 产生多线程冲突
+    if (ducoCobot_state == nullptr) return false;
+    std::vector<int8_t> data;
+    ducoCobot_state->get_robot_state(data);
+    if (data.empty()) return false;
+    return (data[0] == static_cast<int8_t>(DucoRPC::StateRobot::SR_Enable));
+}
+
+bool DucoRobot::IsRobotMoved() {
+    // 使用状态查询专用连接，避免与运动线程的 ducoCobot 产生多线程冲突
+    if (ducoCobot_state == nullptr) return false;
+    return ducoCobot_state->robotmoving();
+}
+
+bool DucoRobot::RobotTeach(int pos) {
+    if (ducoCobot == nullptr) return isTeach;
+    if (!isTeach) {
+        // 配置 AGP 为位置模式（与 HansRobot 保持一致）
+        if (agp != nullptr) {
+            agp->Control(FUNC::RESET);
+            agp->Control(FUNC::ENABLE);
+            agp->SetMode(MODE::PosMode);
+            agp->SetPos(pos * 100);
+            agp->SetForce(200);
+            agp->SetTouchForce(0);
+            agp->SetRampTime(0);
+            if (!IsAGPEnabled()) {
+                agp->Control(FUNC::ENABLE);
+            }
+        }
+        if (!IsRobotEnabled()) {
+            ducoCobot->enable(true);
+            if (!IsRobotEnabled()) {
+                return isTeach; // 使能失败，不开启拖动
+            }
+        }
+        // 开启拖动示教
+        ducoCobot->teach_mode(false);
+        isTeach = true;
+    } else {
+        // 关闭拖动示教
+        ducoCobot->end_teach_mode(true);
+        isTeach = false;
+    }
+    return isTeach;
+}
+
+bool DucoRobot::CloseFreeDriver() {
+    if (ducoCobot == nullptr) return false;
+    ducoCobot->end_teach_mode(true);
+    isTeach = false;
+    return true;
+}
+
+bool DucoRobot::GetTcpPoint(Point &point) {
+    if (ducoCobot == nullptr) return false;
+    std::vector<double> data(6, 0.0);
+    ducoCobot->get_tcp_pose(data);
+
+    // 位置：m → mm
+    point.pos.setX(data[0] * 1000.0);
+    point.pos.setY(data[1] * 1000.0);
+    point.pos.setZ(data[2] * 1000.0);
+
+    // 姿态：rad → °（与 Hans 保持一致，基类 PosRelByTool 等按角度计算）
+    constexpr double RAD2DEG = 180.0 / M_PI;
+    point.rot.setX(data[3] * RAD2DEG);
+    point.rot.setY(data[4] * RAD2DEG);
+    point.rot.setZ(data[5] * RAD2DEG);
+    return true;
+}
+
+bool DucoRobot::Stop() {
+    // 先设置停止标志，让运动循环中的 isStop 检查可以退出
+    isStop.store(true);
+
+    // AGP 立即停转
+    if (agp != nullptr) {
+        agp->SetSpeed(0);
+    }
+
+    // 用临时独立连接发送 stop（仅停止运动，不去使能）
+    if (!robotIPAddr.empty()) {
+        try {
+            DucoRPC::DucoCobot stopCobot(robotIPAddr, 7003);
+            if (stopCobot.open() == 0) {
+                stopCobot.stop(true);
+                qDebug() << "[DucoRobot] Stop: stop() 已发送";
+                stopCobot.close();
+            } else {
+                qDebug() << "[DucoRobot] Stop: 临时连接 open() 失败";
+            }
+        } catch (...) {
+            qDebug() << "[DucoRobot] Stop: 临时连接异常";
+        }
+    }
+
+    // AGP 复位
+    if (agp != nullptr) {
+        agp->Control(FUNC::RESET);
+    }
+
+    isTeach = false;
+
+    return true;
+}
+
+void DucoRobot::OpenWeb(QString ip) {
+    // Duco 网页示教器默认端口 7000
+    QDesktopServices::openUrl(QUrl("http://" + ip + ":7000"));
+}
+
+void DucoRobot::SetGlobalSpeed(int speed) {
+    if (ducoCobot == nullptr) return;
+    int clamped = qMax(1, qMin(100, speed));
+    ducoCobot->speed(static_cast<double>(clamped));
+    qDebug() << "[DucoRobot] SetGlobalSpeed:" << clamped << "%";
+}
+
+void DucoRobot::MoveTcpL(const Point &point, double velocity, double acc,
+                         double radius) {
+    if (ducoCobot == nullptr) return;
+
+    constexpr double DEG2RAD = M_PI / 180.0;
+
+    std::vector<double> p(6);
+    p[0] = point.pos.x() * 0.001;       // mm → m
+    p[1] = point.pos.y() * 0.001;
+    p[2] = point.pos.z() * 0.001;
+    p[3] = point.rot.x() * DEG2RAD;     // ° → rad
+    p[4] = point.rot.y() * DEG2RAD;
+    p[5] = point.rot.z() * DEG2RAD;
+
+    double v = velocity * 0.001;
+    double a = 2.0;
+    // double r = (radius > 0.0 ? radius * 0.0001 : 0.0001);
+    double r = 0.001;
+
+    std::vector<double> q_near(6, 0.0);
+    status = ducoCobot->movel(p, v, a, r, q_near, "TCP_AGP", "default", true);
+}
+
+void DucoRobot::MoveTcpC(const Point &auxPoint, const Point &endPoint,
+                         double velocity, double acc, double radius) {
+    if (ducoCobot == nullptr) return;
+
+    constexpr double DEG2RAD = M_PI / 180.0;
+
+    std::vector<double> p1(6), p2(6);
+    p1[0] = auxPoint.pos.x() * 0.001;  p1[1] = auxPoint.pos.y() * 0.001;  p1[2] = auxPoint.pos.z() * 0.001;
+    p1[3] = auxPoint.rot.x() * DEG2RAD; p1[4] = auxPoint.rot.y() * DEG2RAD; p1[5] = auxPoint.rot.z() * DEG2RAD;
+
+    p2[0] = endPoint.pos.x() * 0.001;  p2[1] = endPoint.pos.y() * 0.001;  p2[2] = endPoint.pos.z() * 0.001;
+    p2[3] = endPoint.rot.x() * DEG2RAD; p2[4] = endPoint.rot.y() * DEG2RAD; p2[5] = endPoint.rot.z() * DEG2RAD;
+
+    double v = velocity * 0.001;
+    double a = 2.0;
+    // double r = (radius > 0.0 ? radius * 0.001 : 0.001);
+    double r = 0.001;
+
+    std::vector<double> q_near(6, 0.0);
+    status = ducoCobot->movec(p1, p2, v, a, r, 1, q_near, "TCP_AGP", "default", true);
+}
+
+void DucoRobot::Run(Craft &craft, bool isAGPRun) {
+    // 若 Duco 侧有对应 IO 控制需求，可在此处添加 ducoCobot->set_do(...) 调用。
+
+    double radius = craft.discRadius;
+    double angle  = craft.grindAngle;
+
+    // 计算正向姿态和平移量
+    QVector3D rotation      = pointSet.beginPoint.rot;
+    QVector3D moveDirection = pointSet.endPoint.pos - pointSet.beginPoint.pos;
+    newRot       = Point::getNewRotation(rotation, moveDirection, angle);
+    translation  = Point::getTranslation(rotation, moveDirection, radius, angle);
+
+    // 计算反向姿态和平移量
+    rotation      = pointSet.endPoint.rot;
+    moveDirection = pointSet.beginPoint.pos - pointSet.endPoint.pos;
+    newRotInv      = Point::getNewRotation(rotation, moveDirection, angle);
+    translationInv = Point::getTranslation(rotation, moveDirection, radius, angle);
+
+    isStop.store(false);
+    isAGPRunning = isAGPRun;
+
+    // 运动到安全点并启动 AGP
+    MoveBefore(craft, isAGPRun);
+
+    Point point;
+    point.pos = pointSet.endPoint.pos + translation;
+    point.rot = newRot;
+
+    // 选择打磨方式（与基类 Run switch 保持一致）
+    switch (craft.way) {
+    case PolishWay::ArcWay:
+        MoveArc(craft);
+        break;
+    case PolishWay::LineWay:
+        MoveLine(craft);
+        break;
+    case PolishWay::RegionArcWay1:
+        point = MoveRegionArc1(craft);
+        break;
+    case PolishWay::RegionArcWay2:
+        point = MoveRegionArc2(craft);
+        break;
+    case PolishWay::RegionArcWay_Horizontal:
+        point = MoveRegionArcHorizontal(craft);
+        break;
+    case PolishWay::RegionArcWay_Vertical:
+        point = MoveRegionArcVertical(craft);
+        break;
+    case PolishWay::RegionArcWay_Vertical_Repeat:
+        point = MoveRegionArcVerticalRepeat(craft);
+        break;
+    case PolishWay::CylinderWay_Horizontal_Convex:
+        point = MoveCylinderHorizontal(craft, true);
+        break;
+    case PolishWay::CylinderWay_Vertical_Convex:
+        point = MoveCylinderVertical(craft, true);
+        break;
+    case PolishWay::CylinderWay_Horizontal_Concave:
+        point = MoveCylinderHorizontal(craft, false);
+        break;
+    case PolishWay::CylinderWay_Vertical_Concave:
+        point = MoveCylinderVertical(craft, false);
+        break;
+    case PolishWay::ConicalFrustum_Concave:
+        point = MoveConicalFrustum(craft);
+        break;
+    case PolishWay::ZLineWay:
+        MoveZLine(craft);
+        break;
+    case PolishWay::SpiralLineWay:
+        MoveSpiralLine(craft);
+        break;
+    default:
+        break;
+    }
+
+    // 圆台打磨内部已完成抬起，无需再偏移
+    if (craft.way != PolishWay::ConicalFrustum_Concave) {
+        point = point.PosRelByTool(defaultDirection, defaultOffset);
+    }
+
+    // 从终点抬起后运动到安全点
+    MoveAfter(craft, point);
+
+    // 等待运动结束
+    while (true) {
+        if (!IsRobotMoved()) {
+            isStop.store(true);
+            break;
+        }
+        QThread::msleep(100);
+    }
+}
+
+void DucoRobot::ToolChange(Craft &craft) {
+    // -----------------------------------------------------------------------
+    // 桩实现说明：
+    //   基类 MoveRegionArcHorizontal / MoveCylinderVertical /
+    //   MoveConicalFrustum 内部会在打磨长度达到阈值时调用 ToolChange()。
+    //   基类实现依赖 Hans 专用 IO（HRIF_ReadBoxDI / HRIF_SetBoxAOVal 等），
+    //   无法在 Duco 平台直接执行。
+    //
+    //   若 Duco 版本需要换刀功能，请在此处：
+    //     1. 使用 ducoCobot->set_do(...) 控制对应 DO 口
+    //     2. 循环等待换刀完成 DI 信号 ducoCobot->get_di(...)
+    //     3. 更新 this->toolConfig.targetToolPos 与 totalPolishLength
+    //
+    //   当前仅重置累计长度防止重复触发，实际换刀动作不执行。
+    // -----------------------------------------------------------------------
+    qDebug() << "[DucoRobot::ToolChange] Duco 换刀接口暂未实现，跳过换刀流程";
+    this->toolConfig.totalPolishLength = 0.0; // 防止重复触发
+}

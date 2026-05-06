@@ -16,11 +16,31 @@ const QColor greyColor("grey");
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), lastPageIdx(0),
-    currCraftIdx(0) {
+    currCraftIdx(0), robot(nullptr), currentRobotType(RobotType::Duco),
+    m_statusThread(nullptr)
+{
     ui->setupUi(this);
+
+    // ── 步骤1：从 config.ini 读取机器人品牌，创建对应实例 ─────
+    // RobotType 整数：0=Hans（默认）  1=Duco  2=Jaka
+    {
+        QString cfgPath = QCoreApplication::applicationDirPath() + "/config.ini";
+        if (QFile::exists(cfgPath)) {
+            QSettings cfg(cfgPath, QSettings::IniFormat);
+            cfg.setIniCodec("UTF-8");
+            int typeIdx = cfg.value("General/RobotType", 1).toInt();
+            currentRobotType = static_cast<RobotType>(typeIdx);
+        }
+    }
+    CreateRobot(currentRobotType);
+
     InitButtons();
     ReadToolConfig();
-    if (robot.toolConfig.targetToolPos == 4) {
+
+    // ── Page6: 点击列表项时同步显示到输入框（与 Page3 的 lstHistoryPoint→leHistoryPoint 一致）
+    connect(ui->lstInputMovePoint_Vision, &QListWidget::currentTextChanged,
+            ui->leInputMovePoint_Vision, &QLineEdit::setText);
+    if (robot->toolConfig.targetToolPos == 4) {
         QMessageBox::information(this, "提示", "刀库刀具已用完，【2】.【3】.【4】号位刀具需要【人工更换】刀具 更换刀具后请【重置】刀库");
     }
     QString fileName = QCoreApplication::applicationDirPath();
@@ -113,7 +133,11 @@ MainWindow::~MainWindow() {
             m_statusThread->wait();
         }
     }
-    HRIF_StopScript(0);
+    if (currentRobotType == RobotType::Hans) {
+        HRIF_StopScript(0);
+    }
+    delete robot;
+    robot = nullptr;
     delete ui;
 }
 
@@ -190,8 +214,8 @@ void MainWindow::ReadCurrPara() {
     ui->chkMirror->setCheckState(
         crafts.at(currCraftIdx).isMirror ? Qt::Checked : Qt::Unchecked);
 
-    robot.teachPos = crafts.at(currCraftIdx).teachPointReferPos;
-    robot.discThickness = crafts.at(currCraftIdx).discThickness;
+    robot->teachPos = crafts.at(currCraftIdx).teachPointReferPos;
+    robot->discThickness = crafts.at(currCraftIdx).discThickness;
 }
 
 void MainWindow::SaveToolConfig() {
@@ -200,13 +224,13 @@ void MainWindow::SaveToolConfig() {
     settings.setIniCodec("UTF-8");
 
     settings.beginGroup("ToolConfig");
-    settings.setValue("TotalPolishCount", robot.toolConfig.totalPolishCount);
-    settings.setValue("TotalPolishLength", robot.toolConfig.totalPolishLength);
-    settings.setValue("ToolChangeThreshold", robot.toolConfig.toolChangeThreshold);
-    settings.setValue("StartToolChange", robot.toolConfig.startToolChange);
-    settings.setValue("ToolChangeDone", robot.toolConfig.toolChangeDone);
-    settings.setValue("ToolMagStatus", robot.toolConfig.toolMagStatus);
-    settings.setValue("TargetToolPos", robot.toolConfig.targetToolPos);
+    settings.setValue("TotalPolishCount", robot->toolConfig.totalPolishCount);
+    settings.setValue("TotalPolishLength", robot->toolConfig.totalPolishLength);
+    settings.setValue("ToolChangeThreshold", robot->toolConfig.toolChangeThreshold);
+    settings.setValue("StartToolChange", robot->toolConfig.startToolChange);
+    settings.setValue("ToolChangeDone", robot->toolConfig.toolChangeDone);
+    settings.setValue("ToolMagStatus", robot->toolConfig.toolMagStatus);
+    settings.setValue("TargetToolPos", robot->toolConfig.targetToolPos);
     settings.endGroup();
 }
 
@@ -216,13 +240,13 @@ void MainWindow::ReadToolConfig() {
     settings.setIniCodec("UTF-8");
 
     settings.beginGroup("ToolConfig"); // 新的独立节
-    robot.toolConfig.totalPolishCount = settings.value("TotalPolishCount", 0).toInt();
-    robot.toolConfig.totalPolishLength = settings.value("TotalPolishLength", 0.0).toDouble();
-    robot.toolConfig.toolChangeThreshold = settings.value("ToolChangeThreshold", 30000.0).toDouble();
-    robot.toolConfig.startToolChange = settings.value("StartToolChange", false).toBool();
-    robot.toolConfig.toolChangeDone = settings.value("ToolChangeDone", false).toBool();
-    robot.toolConfig.toolMagStatus = settings.value("ToolMagStatus", 0).toInt();
-    robot.toolConfig.targetToolPos = settings.value("TargetToolPos", 1).toInt();
+    robot->toolConfig.totalPolishCount = settings.value("TotalPolishCount", 0).toInt();
+    robot->toolConfig.totalPolishLength = settings.value("TotalPolishLength", 0.0).toDouble();
+    robot->toolConfig.toolChangeThreshold = settings.value("ToolChangeThreshold", 30000.0).toDouble();
+    robot->toolConfig.startToolChange = settings.value("StartToolChange", false).toBool();
+    robot->toolConfig.toolChangeDone = settings.value("ToolChangeDone", false).toBool();
+    robot->toolConfig.toolMagStatus = settings.value("ToolMagStatus", 0).toInt();
+    robot->toolConfig.targetToolPos = settings.value("TargetToolPos", 1).toInt();
     settings.endGroup();
 }
 
@@ -279,6 +303,13 @@ void MainWindow::InitButtons() {
     ui->ToolMagazineReset->setEnabled(true);
     SetBackgroundColor(ui->ToolMagazineReset, defaultColor);
     // connect(ui->btnInputPoint, &QPushButton::clicked, this, &MainWindow::on_btnInputPoint_clicked);
+
+    SetBackgroundColor(ui->btnInputPoint_Vision,  greyColor);
+    SetBackgroundColor(ui->btnMoveToPoint_Vision, greyColor);
+    SetBackgroundColor(ui->btnStop_Vision,        greyColor);
+    SetBackgroundColor(ui->btnTryRun_Vision,      greyColor);
+    SetBackgroundColor(ui->btnRunPoint_VIsion,    greyColor);
+    SetBackgroundColor(ui->btnSetSpeed_Vison,     greyColor);
 }
 
 void MainWindow::EnableButtons() {
@@ -318,6 +349,19 @@ void MainWindow::EnableButtons() {
     SetBackgroundColor(ui->btnCoverPoint, defaultColor);
     ui->btnStop2->setEnabled(true);
     SetBackgroundColor(ui->btnStop2, defaultColor);
+
+    ui->btnInputPoint_Vision->setEnabled(true);
+    SetBackgroundColor(ui->btnInputPoint_Vision,  defaultColor);
+    ui->btnMoveToPoint_Vision->setEnabled(true);
+    SetBackgroundColor(ui->btnMoveToPoint_Vision, defaultColor);
+    ui->btnStop_Vision->setEnabled(true);
+    SetBackgroundColor(ui->btnStop_Vision,        defaultColor);
+    ui->btnTryRun_Vision->setEnabled(true);
+    SetBackgroundColor(ui->btnTryRun_Vision,      defaultColor);
+    ui->btnRunPoint_VIsion->setEnabled(true);
+    SetBackgroundColor(ui->btnRunPoint_VIsion,    defaultColor);
+    ui->btnSetSpeed_Vison->setEnabled(true);
+    SetBackgroundColor(ui->btnSetSpeed_Vison,     defaultColor);
 }
 
 void MainWindow::SetValidator() {
@@ -506,12 +550,38 @@ void MainWindow::SetBackgroundColor(QPushButton *btn, const QColor &color) {
 }
 
 void MainWindow::ConnectRobot() {
+    // ① 先停 StatusThread（m_statusThread 现在保证是 nullptr 或有效指针）
+    if (m_statusThread != nullptr && m_statusThread->isRunning()) {
+        m_statusThread->stop();
+        m_statusThread->wait();
+        delete m_statusThread;
+        m_statusThread = nullptr;
+    }
+
+    // ② 检查类型变化，按需重建 robot
+    {
+        QString cfgPath = QCoreApplication::applicationDirPath() + "/config.ini";
+        if (QFile::exists(cfgPath)) {
+            QSettings cfg(cfgPath, QSettings::IniFormat);
+            cfg.setIniCodec("UTF-8");
+            RobotType newType = static_cast<RobotType>(
+                cfg.value("General/RobotType",
+                          static_cast<int>(currentRobotType)).toInt());
+            if (newType != currentRobotType || robot == nullptr) {
+                currentRobotType = newType;
+                CreateRobot(currentRobotType);
+            }
+        }
+    }
+
+    // ③ 更新 UI
     ui->btnRobotConnect->setEnabled(false);
     SetBackgroundColor(ui->btnRobotConnect, goldColor);
     ui->btnRobotConnect->setText("连接中");
 
+    // ④ 后台线程执行连接，完成后重启 StatusThread
     std::thread t([this] {
-        bool connected = robot.RobotConnect(ui->leRobotIP->text());
+        bool connected = robot->RobotConnect(ui->leRobotIP->text());
         QMetaObject::invokeMethod(this, [this, connected] {
             if (connected) {
                 EnableButtons();
@@ -521,6 +591,10 @@ void MainWindow::ConnectRobot() {
                 ui->btnRobotConnect->setEnabled(true);
                 SetBackgroundColor(ui->btnRobotConnect, defaultColor);
                 ui->btnRobotConnect->setText("连接");
+            }
+            // 连接完成后才重启 StatusThread
+            if (m_statusThread == nullptr) {
+                InitStatusMonitor();
             }
         });
     });
@@ -533,7 +607,7 @@ void MainWindow::ConnectAGP() {
     ui->btnAGPConnect->setText("连接中");
 
     std::thread t([this] {
-        bool connected = robot.AGPConnect(ui->leAGPIP->text());
+        bool connected = robot->AGPConnect(ui->leAGPIP->text());
         QMetaObject::invokeMethod(this, [this, connected] {
             if (connected) {
                 SetBackgroundColor(ui->btnAGPConnect, greenColor);
@@ -568,7 +642,7 @@ void MainWindow::AddHistoryPoint(const QString &strPoint) {
 }
 
 void MainWindow::on_btnDrag_clicked() {
-    if (robot.RobotTeach(crafts.at(currCraftIdx).teachPointReferPos)) {
+    if (robot->RobotTeach(crafts.at(currCraftIdx).teachPointReferPos)) {
         SetBackgroundColor(ui->btnDrag, greenColor);
     } else {
         SetBackgroundColor(ui->btnDrag, defaultColor);
@@ -577,7 +651,7 @@ void MainWindow::on_btnDrag_clicked() {
 
 void MainWindow::on_btnSafe_clicked() {
     QString strPoint = "";
-    if (robot.GetSafePoint(strPoint)) {
+    if (robot->GetSafePoint(strPoint)) {
         AddHistoryPoint(strPoint);
         SetBackgroundColor(ui->btnSafe, greenColor);
     } else {
@@ -605,7 +679,7 @@ void MainWindow::on_btnNext_clicked() {
 
 void MainWindow::on_btnBegin_clicked() {
     QString strPoint = "";
-    if (robot.GetBeginPoint(strPoint)) {
+    if (robot->GetBeginPoint(strPoint)) {
         AddHistoryPoint(strPoint);
         SetBackgroundColor(ui->btnBegin, greenColor);
     } else {
@@ -615,7 +689,7 @@ void MainWindow::on_btnBegin_clicked() {
 
 void MainWindow::on_btnEnd_clicked() {
     QString strPoint = "";
-    if (robot.GetEndPoint(strPoint)) {
+    if (robot->GetEndPoint(strPoint)) {
         AddHistoryPoint(strPoint);
         SetBackgroundColor(ui->btnEnd, greenColor);
     } else {
@@ -624,7 +698,7 @@ void MainWindow::on_btnEnd_clicked() {
 }
 
 void MainWindow::on_btnTryRun_clicked() {
-    if (!robot.CheckAllPoints(crafts.at(currCraftIdx).way)) {
+    if (!robot->CheckAllPoints(crafts.at(currCraftIdx).way)) {
         return;
     }
     ui->btnRun->setEnabled(false);
@@ -632,11 +706,11 @@ void MainWindow::on_btnTryRun_clicked() {
     ui->btnMoveToPoint->setEnabled(false);
     SetBackgroundColor(ui->btnTryRun, greenColor);
     ui->btnTryRun->setText("试运行中");
-    if (robot.CloseFreeDriver()) {
+    if (robot->CloseFreeDriver()) {
         SetBackgroundColor(ui->btnDrag, defaultColor);
     }
     std::thread t([this] {
-        robot.Run(crafts[currCraftIdx], false);
+        robot->Run(crafts[currCraftIdx], false);
         QMetaObject::invokeMethod(this, [this] {
             ui->btnRun->setEnabled(true);
             ui->btnTryRun->setEnabled(true);
@@ -649,11 +723,10 @@ void MainWindow::on_btnTryRun_clicked() {
 }
 
 void MainWindow::on_btnRun_clicked() {
-    if (!robot.CheckAllPoints(crafts.at(currCraftIdx).way)) {
+    if (!robot->CheckAllPoints(crafts.at(currCraftIdx).way)) {
         return;
     }
 
-    // ================= [新增逻辑开始] =================
     int do0_val = -1;
     // 读取电箱0的 DO0 状态
     if (HRIF_ReadBoxDO(0, 0, do0_val) == 0) { // 只有读取成功才判断
@@ -669,12 +742,12 @@ void MainWindow::on_btnRun_clicked() {
     ui->btnMoveToPoint->setEnabled(false);
     SetBackgroundColor(ui->btnRun, greenColor);
     ui->btnRun->setText("运行中");
-    if (robot.CloseFreeDriver()) {
+    if (robot->CloseFreeDriver()) {
         SetBackgroundColor(ui->btnDrag, defaultColor);
     }
     std::thread t([this] {
-        robot.Run(crafts[currCraftIdx], true);
-        robot.AGPStop();
+        robot->Run(crafts[currCraftIdx], true);
+        robot->AGPStop();
         QMetaObject::invokeMethod(this, [this] {
             ui->btnRun->setEnabled(true);
             ui->btnTryRun->setEnabled(true);
@@ -768,7 +841,7 @@ void MainWindow::on_cmbPolishWay_currentIndexChanged(int index) {
 
 void MainWindow::on_leTeachPos_editingFinished() {
     crafts[currCraftIdx].teachPointReferPos = ui->leTeachPos->text().toInt();
-    robot.teachPos = ui->leTeachPos->text().toInt();
+    robot->teachPos = ui->leTeachPos->text().toInt();
 }
 
 void MainWindow::on_btnAddNewPara_clicked() {
@@ -794,7 +867,7 @@ void MainWindow::on_btnStop_clicked() {
     ui->btnStop->setEnabled(false);
     SetBackgroundColor(ui->btnStop, greenColor);
     std::thread t([this] {
-        bool stopSuccess = robot.Stop();
+        bool stopSuccess = robot->Stop();
         QThread::msleep(200);
         QMetaObject::invokeMethod(this, [this, stopSuccess] {
             if (stopSuccess) {
@@ -809,7 +882,7 @@ void MainWindow::on_btnStop_clicked() {
 
 void MainWindow::on_btnAux_clicked() {
     QString strPoint = "";
-    if (robot.GetAuxPoint(strPoint)) {
+    if (robot->GetAuxPoint(strPoint)) {
         AddHistoryPoint(strPoint);
         SetBackgroundColor(ui->btnAux, greenColor);
     } else {
@@ -819,7 +892,7 @@ void MainWindow::on_btnAux_clicked() {
 
 void MainWindow::on_btnMid_clicked() {
     QString strPoint = "";
-    int size = robot.GetMidPoint(midPressDuration.elapsed(), strPoint);
+    int size = robot->GetMidPoint(midPressDuration.elapsed(), strPoint);
     if (!strPoint.isEmpty()) {
         AddHistoryPoint(strPoint);
     }
@@ -842,7 +915,7 @@ void MainWindow::on_leOffsetCount_editingFinished() {
 
 void MainWindow::on_btnBeginOffset_clicked() {
     QString strPoint = "";
-    if (robot.GetBeginOffsetPoint(strPoint)) {
+    if (robot->GetBeginOffsetPoint(strPoint)) {
         AddHistoryPoint(strPoint);
         SetBackgroundColor(ui->btnBeginOffset, greenColor);
     } else {
@@ -852,7 +925,7 @@ void MainWindow::on_btnBeginOffset_clicked() {
 
 void MainWindow::on_btnEndOffset_clicked() {
     QString strPoint = "";
-    if (robot.GetEndOffsetPoint(strPoint)) {
+    if (robot->GetEndOffsetPoint(strPoint)) {
         AddHistoryPoint(strPoint);
         SetBackgroundColor(ui->btnEndOffset, greenColor);
     } else {
@@ -861,7 +934,7 @@ void MainWindow::on_btnEndOffset_clicked() {
 }
 
 void MainWindow::on_btnClear_clicked() {
-    if (robot.ClearPoints()) {
+    if (robot->ClearPoints()) {
         SetBackgroundColor(ui->btnSafe, defaultColor);
         SetBackgroundColor(ui->btnBegin, defaultColor);
         SetBackgroundColor(ui->btnEnd, defaultColor);
@@ -874,7 +947,7 @@ void MainWindow::on_btnClear_clicked() {
 }
 
 void MainWindow::on_btnOpenWeb_clicked() {
-    robot.OpenWeb(ui->leRobotIP->text());
+    robot->OpenWeb(ui->leRobotIP->text());
 }
 
 void MainWindow::on_leAddOffsetCount_editingFinished() {
@@ -884,14 +957,14 @@ void MainWindow::on_leAddOffsetCount_editingFinished() {
 void MainWindow::on_btnMid_pressed() { midPressDuration.start(); }
 
 void MainWindow::on_btnClearMid_clicked() {
-    if (robot.ClearMidPoints()) {
+    if (robot->ClearMidPoints()) {
         SetBackgroundColor(ui->btnMid, defaultColor);
         ui->btnMid->setText("中间点0");
     }
 }
 
 void MainWindow::on_btnDelLastMid_clicked() {
-    int size = robot.DelLastMidPoint();
+    int size = robot->DelLastMidPoint();
     if (size == 0) {
         SetBackgroundColor(ui->btnMid, defaultColor);
     }
@@ -908,11 +981,11 @@ void MainWindow::on_btnMoveToPoint_clicked() {
         ui->btnMoveToPoint->setEnabled(false);
         SetBackgroundColor(ui->btnMoveToPoint, greenColor);
         ui->btnMoveToPoint->setText("移动中");
-        if (robot.CloseFreeDriver()) {
+        if (robot->CloseFreeDriver()) {
             SetBackgroundColor(ui->btnDrag, defaultColor);
         }
         std::thread t([this, strValues] {
-            robot.MoveToPoint(strValues);
+            robot->MoveToPoint(strValues);
             QMetaObject::invokeMethod(this, [this] {
                 ui->btnRun->setEnabled(true);
                 ui->btnTryRun->setEnabled(true);
@@ -937,7 +1010,7 @@ void MainWindow::on_btnStop2_clicked() {
     ui->btnStop2->setEnabled(false);
     SetBackgroundColor(ui->btnStop2, greenColor);
     std::thread t([this] {
-        bool stopSuccess = robot.Stop();
+        bool stopSuccess = robot->Stop();
         QThread::msleep(200);
         QMetaObject::invokeMethod(this, [this, stopSuccess] {
             if (stopSuccess) {
@@ -958,7 +1031,7 @@ void MainWindow::on_btnInputPoint_clicked() {
     QStringList loadedPoints; // 用于接收点位字符串
 
     // 调用修改后的函数
-    bool success = robot.ReadInputPoint(filePath, logInfo, loadedPoints);
+    bool success = robot->ReadInputPoint(filePath, logInfo, loadedPoints);
 
     if (success) {
         QMessageBox::information(this, tr("导入成功"), logInfo);
@@ -983,7 +1056,7 @@ void MainWindow::on_btnCoverPoint_clicked() {
     if (strPoint.isEmpty()) {
         return;
     }
-    robot.CoverPoint(strPoint);
+    robot->CoverPoint(strPoint);
     AddHistoryPoint(strPoint);
 }
 
@@ -997,7 +1070,7 @@ void MainWindow::on_leFloatCount_editingFinished() {
 
 void MainWindow::on_leDiscThickness_editingFinished() {
     crafts[currCraftIdx].discThickness = ui->leDiscThickness->text().toInt();
-    robot.discThickness = ui->leDiscThickness->text().toInt();
+    robot->discThickness = ui->leDiscThickness->text().toInt();
 }
 
 void MainWindow::on_leTransitionRadius_editingFinished() {
@@ -1022,7 +1095,7 @@ void MainWindow::on_chkMirror_stateChanged(int arg1) {
 // 1. 在构造函数或 Init 函数中启动线程
 void MainWindow::InitStatusMonitor() {
     // 传递robot指针给线程
-    m_statusThread = new StatusThread(&robot, this);
+    m_statusThread = new StatusThread(robot, this);
 
     // 连接信号和槽
     connect(m_statusThread, &StatusThread::statusUpdated,
@@ -1182,7 +1255,7 @@ void MainWindow::updateRobotStatusUI(
         // Bit 3: 刀位4 (di5_pot4)
         if (di5_pot4) currentStatus |= 0b1000;
         // 赋值给全局配置
-        robot.toolConfig.toolMagStatus = currentStatus;
+        robot->toolConfig.toolMagStatus = currentStatus;
     }
 
     // 3.3 刀库门开关状态(DI6/DI7)
@@ -1195,7 +1268,7 @@ void MainWindow::updateRobotStatusUI(
     }
 
     // ========== 4. 刀库换刀状态更新(递增红色显示) ==========
-    int targetPos = robot.toolConfig.targetToolPos;
+    int targetPos = robot->toolConfig.targetToolPos;
 
     // 默认全部绿色
     if(!robotConnect) {
@@ -1227,20 +1300,20 @@ void MainWindow::updateRobotStatusUI(
 
     // ========== 5.更新刀具及刀库文本显示 ==========
 
-    ui->TargetToolPosText->setPlainText(QString::number(robot.toolConfig.targetToolPos));
-    ui->ToolStatusText->setPlainText(QString::number(robot.toolConfig.toolMagStatus));
-    ui->TotalPolishLengthText->setPlainText(QString::number(robot.toolConfig.totalPolishLength));
+    ui->TargetToolPosText->setPlainText(QString::number(robot->toolConfig.targetToolPos));
+    ui->ToolStatusText->setPlainText(QString::number(robot->toolConfig.toolMagStatus));
+    ui->TotalPolishLengthText->setPlainText(QString::number(robot->toolConfig.totalPolishLength));
 }
 
 void MainWindow::on_ToolMagazineReset_clicked()
 {
     // 1. 重置内存中当前工艺的各项换刀相关数据
-    robot.toolConfig.totalPolishCount = 0;
-    robot.toolConfig.totalPolishLength = 0.0;
-    robot.toolConfig.startToolChange = false;
-    robot.toolConfig.toolChangeDone = false;
-    robot.toolConfig.toolMagStatus = 0;
-    robot.toolConfig.targetToolPos = 1;
+    robot->toolConfig.totalPolishCount = 0;
+    robot->toolConfig.totalPolishLength = 0.0;
+    robot->toolConfig.startToolChange = false;
+    robot->toolConfig.toolChangeDone = false;
+    robot->toolConfig.toolMagStatus = 0;
+    robot->toolConfig.targetToolPos = 1;
     SaveToolConfig();
     HRIF_SetBoxAOVal(0, 0, 1.0, 0); //重置AO换刀信号
     // QMessageBox::information(this, "提示", "刀库刀具更新状态已重置");
@@ -1248,10 +1321,319 @@ void MainWindow::on_ToolMagazineReset_clicked()
 }
 
 
-void MainWindow::on_RobotReconnect_2_clicked()
-{
-    ConnectRobot();
-    ConnectAGP();
-
+void MainWindow::CreateRobot(RobotType type) {
+    Robot* oldRobot = robot;
+    switch (type) {
+    case RobotType::Duco:
+        robot = new DucoRobot();
+        qDebug() << "[CreateRobot] DucoRobot";
+        break;
+    // case RobotType::Jaka:   // JakaRobot 暂未编入本工程，屏蔽避免链接错误
+    //     robot = new JakaRobot();
+    //     break;
+    case RobotType::Hans:
+    default:
+        robot = new HansRobot();
+        qDebug() << "[CreateRobot] HansRobot";
+        break;
+    }
+    if (oldRobot != nullptr) {
+        robot->toolConfig    = oldRobot->toolConfig;
+        robot->teachPos      = oldRobot->teachPos;
+        robot->discThickness = oldRobot->discThickness;
+        delete oldRobot;
+    }
 }
 
+void MainWindow::on_RobotReconnect_2_clicked()
+{
+    // 先停 StatusThread
+    if (m_statusThread != nullptr && m_statusThread->isRunning()) {
+        m_statusThread->stop();
+        m_statusThread->wait();
+        delete m_statusThread;
+        m_statusThread = nullptr;
+    }
+
+    // 更新 UI 状态
+    ui->btnRobotConnect->setEnabled(false);
+    SetBackgroundColor(ui->btnRobotConnect, goldColor);
+    ui->btnRobotConnect->setText("连接中");
+    ui->btnAGPConnect->setEnabled(false);
+    SetBackgroundColor(ui->btnAGPConnect, goldColor);
+    ui->btnAGPConnect->setText("连接中");
+
+    // 一个线程里串行执行两个连接，完成后重启 StatusThread
+    std::thread t([this] {
+        bool robotOk = robot->RobotConnect(ui->leRobotIP->text());
+        bool agpOk   = robot->AGPConnect(ui->leAGPIP->text());
+
+        QMetaObject::invokeMethod(this, [this, robotOk, agpOk] {
+            if (robotOk) {
+                EnableButtons();
+                SetBackgroundColor(ui->btnRobotConnect, greenColor);
+                ui->btnRobotConnect->setText("已连接");
+            } else {
+                ui->btnRobotConnect->setEnabled(true);
+                SetBackgroundColor(ui->btnRobotConnect, defaultColor);
+                ui->btnRobotConnect->setText("连接");
+            }
+            if (agpOk) {
+                SetBackgroundColor(ui->btnAGPConnect, greenColor);
+                ui->btnAGPConnect->setText("已连接");
+            } else {
+                ui->btnAGPConnect->setEnabled(true);
+                SetBackgroundColor(ui->btnAGPConnect, defaultColor);
+                ui->btnAGPConnect->setText("连接");
+            }
+            // 连接完成后重启 StatusThread
+            InitStatusMonitor();
+        });
+    });
+    t.detach();
+}
+
+
+
+void MainWindow::on_btnInputPoint_Vision_clicked()
+{
+    // 弹出文件选择对话框，选择 txt 动作点位文件
+    QString filePath = QFileDialog::getOpenFileName(
+        this, tr("选择动作点位文件"), "", tr("文本文件 (*.txt)"));
+    if (filePath.isEmpty()) return;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("导入失败"),
+                             tr("无法打开文件: ") + filePath);
+        return;
+    }
+
+    // 清空旧数据
+    visionSegments.clear();
+    ui->lstInputMovePoint_Vision->clear();
+    ui->leInputMovePoint_Vision->clear();
+
+    QTextStream in(&file);
+    in.setCodec("UTF-8");
+
+    VisionMotionSegment currentSegment;
+    bool hasSegment = false;
+    int totalPoints = 0;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line.isEmpty()) continue;
+
+        // 以空白字符分割
+        QStringList parts = line.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+
+        // 判断是否为运动参数行：格式 "L vcc acc rad"
+        if (parts.size() == 4 && parts.at(0) == "L") {
+            // 保存上一段（若有有效点位）
+            if (hasSegment && !currentSegment.points.isEmpty()) {
+                visionSegments.append(currentSegment);
+            }
+            // 开始新的动作段
+            currentSegment = VisionMotionSegment();
+            currentSegment.motionType     = parts.at(0);
+            currentSegment.velocity       = parts.at(1).toDouble();
+            currentSegment.acceleration   = parts.at(2).toDouble();
+            currentSegment.radius         = parts.at(3).toDouble();
+            currentSegment.points.clear();
+            hasSegment = true;
+        }
+        // 判断是否为点位行：格式 "x y z a b c"
+        else if (parts.size() == 6 && hasSegment) {
+            float x = parts.at(0).toFloat();
+            float y = parts.at(1).toFloat();
+            float z = parts.at(2).toFloat();
+            float a = parts.at(3).toFloat();
+            float b = parts.at(4).toFloat();
+            float c = parts.at(5).toFloat();
+
+            Point point(x, y, z, a, b, c);
+            currentSegment.points.append(point);
+            totalPoints++;
+
+            // 在列表中显示为 "L X Y Z A B C"
+            QString displayStr = QString("L %1 %2 %3 %4 %5 %6")
+                                     .arg(x).arg(y).arg(z).arg(a).arg(b).arg(c);
+            ui->lstInputMovePoint_Vision->addItem(displayStr);
+        }
+    }
+
+    // 保存最后一段
+    if (hasSegment && !currentSegment.points.isEmpty()) {
+        visionSegments.append(currentSegment);
+    }
+
+    file.close();
+
+    if (totalPoints > 0) {
+        QMessageBox::information(
+            this, tr("导入成功"),
+            tr("成功导入 %1 个动作段，共 %2 个点位")
+                .arg(visionSegments.size())
+                .arg(totalPoints));
+    } else {
+        QMessageBox::warning(this, tr("导入失败"),
+                             tr("未找到有效的点位数据"));
+    }
+}
+
+
+void MainWindow::on_btnMoveToPoint_Vision_clicked()
+{
+    // 从 leInputMovePoint_Vision 获取当前选中的点位文本
+    // 格式为 "L X Y Z A B C"，提取坐标部分调用 MoveToPoint
+    QString strPoint = ui->leInputMovePoint_Vision->text().trimmed();
+    if (strPoint.isEmpty()) return;
+
+    QStringList parts = strPoint.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+    if (parts.size() != 7 || parts.at(0) != "L") {
+        QMessageBox::warning(this, tr("提示"), tr("点位格式无效"));
+        return;
+    }
+
+    // 提取 X Y Z A B C 六个坐标值
+    QStringList coordinates;
+    for (int i = 1; i <= 6; ++i) {
+        coordinates.append(parts.at(i));
+    }
+
+    // 禁用相关按钮，防止重复操作（与 Page3 的 btnMoveToPoint 一致）
+    ui->btnMoveToPoint_Vision->setEnabled(false);
+    ui->btnTryRun_Vision->setEnabled(false);
+    ui->btnRunPoint_VIsion->setEnabled(false);
+    SetBackgroundColor(ui->btnMoveToPoint_Vision, greenColor);
+    ui->btnMoveToPoint_Vision->setText("移动中");
+
+    if (robot->CloseFreeDriver()) {
+        SetBackgroundColor(ui->btnDrag, defaultColor);
+    }
+
+    std::thread t([this, coordinates] {
+        robot->MoveToPoint(coordinates);
+        QMetaObject::invokeMethod(this, [this] {
+            ui->btnMoveToPoint_Vision->setEnabled(true);
+            ui->btnTryRun_Vision->setEnabled(true);
+            ui->btnRunPoint_VIsion->setEnabled(true);
+            SetBackgroundColor(ui->btnMoveToPoint_Vision, defaultColor);
+            ui->btnMoveToPoint_Vision->setText("移动到点");
+        });
+    });
+    t.detach();
+}
+
+
+void MainWindow::on_btnRunPoint_VIsion_clicked()
+{
+    // 检查是否已导入动作点位
+    if (visionSegments.isEmpty()) {
+        QMessageBox::warning(this, tr("提示"), tr("请先导入动作点位文件"));
+        return;
+    }
+
+    // 禁用相关按钮（与 Page3 的 btnRun 一致）
+    ui->btnRunPoint_VIsion->setEnabled(false);
+    ui->btnTryRun_Vision->setEnabled(false);
+    ui->btnMoveToPoint_Vision->setEnabled(false);
+    SetBackgroundColor(ui->btnRunPoint_VIsion, greenColor);
+    ui->btnRunPoint_VIsion->setText("运行中");
+
+    if (robot->CloseFreeDriver()) {
+        SetBackgroundColor(ui->btnDrag, defaultColor);
+    }
+
+    // 捕获当前工艺参数（AGP 需要 craft 中的转速、力控等参数）
+    Craft craft = crafts[currCraftIdx];
+
+    std::thread t([this, craft] {
+        // isAGPRun=true：启动 AGP
+        robot->RunVisionPoints(visionSegments, true, craft);
+        robot->AGPStop();
+        QMetaObject::invokeMethod(this, [this] {
+            ui->btnRunPoint_VIsion->setEnabled(true);
+            ui->btnTryRun_Vision->setEnabled(true);
+            ui->btnMoveToPoint_Vision->setEnabled(true);
+            SetBackgroundColor(ui->btnRunPoint_VIsion, defaultColor);
+            ui->btnRunPoint_VIsion->setText("运行");
+        });
+    });
+    t.detach();
+}
+
+
+void MainWindow::on_btnSetSpeed_Vison_clicked()
+{
+    // 从 RobotSpeed 输入框获取速度值，范围 0~100
+    QString speedStr = ui->RobotSpeed->toPlainText().trimmed();
+    bool ok;
+    int speed = speedStr.toInt(&ok);
+    if (!ok || speed < 0 || speed > 100) {
+        QMessageBox::warning(this, tr("提示"),
+                             tr("全局速度范围：0~100"));
+        return;
+    }
+    // 调用虚函数设置全局速度（HansRobot 为空实现，DucoRobot 调用 ducoCobot->speed()）
+    robot->SetGlobalSpeed(speed);
+    QMessageBox::information(this, tr("提示"),
+                             tr("全局速度已设置为 %1%").arg(speed));
+}
+
+
+// 停止机器人
+void MainWindow::on_btnStop_Vision_clicked() {
+    ui->btnStop_Vision->setEnabled(false);
+    SetBackgroundColor(ui->btnStop_Vision, greenColor);
+    std::thread t([this] {
+        bool stopSuccess = robot->Stop();   // ← 接收返回值
+        QThread::msleep(200);
+        QMetaObject::invokeMethod(this, [this, stopSuccess] {
+            if (stopSuccess) {                                          // ← 成功时重置 btnDrag
+                SetBackgroundColor(ui->btnDrag, defaultColor);
+            }
+            ui->btnStop_Vision->setEnabled(true);
+            SetBackgroundColor(ui->btnStop_Vision, defaultColor);
+        });
+    });
+    t.detach();
+}
+
+
+void MainWindow::on_btnTryRun_Vision_clicked()
+{
+    // 检查是否已导入动作点位
+    if (visionSegments.isEmpty()) {
+        QMessageBox::warning(this, tr("提示"), tr("请先导入动作点位文件"));
+        return;
+    }
+
+    // 禁用相关按钮，防止重复操作（与 Page3 的 btnTryRun 一致）
+    ui->btnTryRun_Vision->setEnabled(false);
+    ui->btnRunPoint_VIsion->setEnabled(false);
+    ui->btnMoveToPoint_Vision->setEnabled(false);
+    SetBackgroundColor(ui->btnTryRun_Vision, greenColor);
+    ui->btnTryRun_Vision->setText("试运行中");
+
+    if (robot->CloseFreeDriver()) {
+        SetBackgroundColor(ui->btnDrag, defaultColor);
+    }
+
+    // 捕获当前工艺参数（虽然不启动 AGP，但 RunVisionPoints 需要 craft 参数）
+    Craft craft = crafts[currCraftIdx];
+
+    std::thread t([this, craft] {
+        // isAGPRun=false：不启动 AGP，仅执行机器人运动
+        robot->RunVisionPoints(visionSegments, false, craft);
+        QMetaObject::invokeMethod(this, [this] {
+            ui->btnTryRun_Vision->setEnabled(true);
+            ui->btnRunPoint_VIsion->setEnabled(true);
+            ui->btnMoveToPoint_Vision->setEnabled(true);
+            SetBackgroundColor(ui->btnTryRun_Vision, defaultColor);
+            ui->btnTryRun_Vision->setText("试运行");
+        });
+    });
+    t.detach();
+}
